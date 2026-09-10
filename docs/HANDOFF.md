@@ -13,7 +13,9 @@ Design document (the reasoning behind every locked decision):
 
 **Undertow 0.5.1. The roadmap is complete and every task is verified in-game** — unchanged
 since 2026-08-28. Harness **162/162**, clean build. `main` is `d621c5f`, in sync with the
-**public** (since 2026-09-03) `RavenIron/Undertow`. `tools\package.ps1` builds `dist\RavenIron-Undertow-0.5.1.zip`
+**public** (since 2026-09-03) `RavenIron-Games/Undertow` — the account was renamed from
+`RavenIron` on 2026-09-10, and GitHub 301-redirects the old URLs rather than breaking them.
+`tools\package.ps1` builds `dist\RavenIron-Undertow-0.5.1.zip`
 with the new shield icon and passes its own three guards.
 
 | Task | State |
@@ -52,7 +54,7 @@ this repo's history references them, and GitHub's garbage collector will eventua
 - The delete-and-recreate sequence and the `delete_repo` scope are **no longer needed**. Do not
   run them; do not ask for the scope.
 - The seven SHAs — `4c8d698 705e595 7ebdbf1 13e128a 110fa5d 397c502 802aab3` — are kept here
-  only so a future check (`gh api repos/RavenIron/Undertow/commits/<sha>`) can confirm when GC
+  only so a future check (`gh api repos/RavenIron-Games/Undertow/commits/<sha>`) can confirm when GC
   has run. There is nothing to do when it has.
 - The local safety nets, branch `backup-pre-scrub` and folder `../Undertow-backup-prescrub`,
   still hold the ORIGINAL unscrubbed history. Never push either. They can go whenever the owner
