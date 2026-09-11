@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.0
+
+Valheim 1.0. **If you updated the game, 0.5.1 was broken and this is the fix.**
+
+- **Rebuilt for Valheim 1.0.12.** No behaviour changed — currents, tides, flotsam and every
+  tuning value are exactly what 0.5.1 shipped. What changed is the game underneath: 1.0.7 added
+  a parameter to `Terminal.ConsoleCommand`'s constructor, and .NET resolves a call like that by
+  its exact signature at runtime, so the `wake` console registration in the old binary threw
+  `MissingMethodException` on a 1.0.x game. The source was always fine; the binary was compiled
+  against an API that no longer exists.
+- **Why 0.5.1 looked healthy.** It compiled clean against 1.0.7 the day the update landed, so
+  nothing asked to be fixed. A clean build proves the source matches today's game — it says
+  nothing about a DLL built in August. The break was found by reading the shipped binary's own
+  reference table and resolving each entry against the live game assemblies.
+
+
 ## 0.5.1
 
 First release. The sea gets its own motion.
