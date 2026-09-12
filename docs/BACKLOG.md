@@ -783,6 +783,126 @@ true`; the 3-second `swim drift` log line is the instrument, exactly as in task 
 **Acceptance:** steps 1, 3 and 4 agree with the computed drift the way task 5 did; step 5
 leaves headway. Then the `CLAUDE.md` entry loses its ⚠️ and gains a date and a number.
 
+## 6. Valheim 1.0.12 re-verification — MEASURED 2026-09-12 (0.6.0), CLIENT-SIDE, ONE HULL
+
+The first in-game run since the game left 0.2x. It is a real result and it is narrower than it
+first looked: the headline numbers below were **written up wrong once** before an adversarial
+pass caught them, so read the scope paragraph before quoting any figure.
+
+**Setup.** Undertow 0.6.0, Valheim 1.0.12, Ragnarok's Wrath 0.27.0 present. A pure client
+(`authority=False, dedicated=False`) against a real PlayFab-backed dedicated server, so every
+ambient system idled by design and only hull-owner physics ran here. Seed 1823819530.
+**The config was NOT at defaults**: `MaxCurrentSpeed = 1.951174` and `TideAmplitude = 0.4988263`,
+retuned mid-session by the owner. Every number below is at those settings, not shipping ones.
+
+### What loaded, and it is all of it
+
+```
+Loading [Undertow 0.6.0]
+Harmony patched 3: Terminal.InitTerminal, Character.UpdateSwimming, Ship.CustomFixedUpdate
+wake console registered
+Ragnarok's Wrath detected — bridged
+CurrentField live — seed 1823819530, water level 30, tide 96%, season index 0 (read from Wrath)
+float scan (ObjectDB.m_items): 162 of 1523 prefabs carry Floating
+SeaTick online — 1 system(s), authority=False, dedicated=False
+```
+
+**Zero exceptions in the whole log**, Undertow-tagged or not, and no Harmony, MissingMethod,
+FieldAccess or TypeLoad failures anywhere. That is the 1.0.12 port standing up.
+
+### Drift: 182 karve samples across all four field terms
+
+| Dominant | n | ALONG-RATIO range | median | water m/s |
+|---|---|---|---|---|
+| Slack | 49 | 0.57 – 1.00 | **0.99** | 0.135 – 0.149 |
+| Race | 120 | 0.48 – 0.97 | **0.91** | 0.461 – 0.749 |
+| Drift | 9 | 0.03 – 0.47 | 0.29 | 0.268 – 0.317 |
+| Coastal | 4 | 0.16 | 0.16 | 0.247 |
+
+Crew factor was 1 on every one of the 182 lines. In slack water the hull converged on the water's
+own speed and `dv` fell to `0.00001` or exactly `0`, which is the saturation term doing precisely
+what it was built to do: the push fades because the hull already matches the water.
+
+**THE INTERESTING RESULT IS NOT THE 0.99. It is that convergence degrades as the water speeds
+up.** Slack medians 0.99 at 0.14 m/s; Race medians 0.91 at 0.46–0.75 m/s and never once reaches
+0.98 across 120 samples. The likely reason is structural rather than a bug: a race is by
+definition a spatial gradient, so a hull crossing it is chasing a moving target and never reaches
+steady state, whereas slack water is uniform enough to settle in. **That is a hypothesis, not a
+measurement** — it has not been tested, and the honest way to test it is to park a hull inside a
+race and let it sit rather than sail through. Until then, "a drifting hull settles at the water's
+own speed" is demonstrated for slow water and only approached in fast water.
+
+⚠️ **Do NOT read this as re-confirming the two-hull convergence claim.** August's result
+(karve 0.84–0.98, VikingShip ~0.96, same water) mattered *because two hulls with different
+`m_dampingForward` agreed. Only a karve sailed on 2026-09-12.** The karve's own number improved
+on August; the claim that every hull converges regardless of damping is untouched by this run.
+
+### 🚨 Unexplained anomaly — near-shore hulls reading 70 m/s
+
+Four samples around `(-1075,159)` to `(-1106,146)`, depth 26.9–27.1m, read:
+
+```
+water 0.162 along -5.689 ALONG-RATIO -35.13 (total 70.13) | dv 0.00324
+water 0.123 along -5.295 ALONG-RATIO -43.14 (total 68.12) | dv 0.00245
+```
+
+A karve at **70 m/s**, moving *against* the current at 5.7 m/s. Our `dv` is three thousandths, so
+this is not us. It resolves back toward normal over the following samples. Candidates: terrain
+collision, a zone load, or the hull being flung by something else entirely. **It is recorded here
+unexplained deliberately.** The backlog already contains one fabricated engine explanation marked
+*do not cite*, and a second guess is worth less than an honest open question. If it recurs, catch
+it with the log line and the position, not with a theory.
+
+### Swimmers: the model holds, the guard was never tested
+
+51 passive samples: computed drift 0.084–0.097 against measured swimmer speed 0.080–0.091. The
+gap is **0.004–0.005 m/s, about a 95% match** — the same ratio August got (0.172 vs 0.164), not a
+tighter one. Cap 0.7 and swimSpeed 2 confirmed, and both follow from `SwimmerDriftFactor 0.5` and
+`SwimmerMaxShareOfSwimSpeed 0.35`.
+
+🚫 **The drowning guard was NOT demonstrated.** Requested drift never exceeded 0.097 against a
+0.7 cap, so `SwimDrift.Compute`'s clamp branch never executed, and no swim direction was logged
+to show the swimmer working *against* the water. The 1.7–2.1 m/s samples are a swimmer swimming,
+which is not the same thing. A real test needs drift pushed past the cap — raise
+`SwimmerDriftFactor` or find much faster water — with the swimmer making headway upstream.
+
+### The Slack lesson, and it cost this session a full diagnostic pass
+
+A karve reading `Slack` at 0.14 m/s near spawn looks exactly like a broken mod. It is not, and
+the two obvious explanations are both wrong:
+
+- **It is not "dead water behind a headland."** That is the Coastal mechanism, and at 29.4m the
+  hull is past `ShelfDepth` (28m), so the coastal term never activated at all. `Classify` never
+  reported Coastal anywhere in that stretch.
+- **It is not distance from the world centre.** No such term exists in the code. What it is: an
+  open-ocean interference node, the stream function's opposing arms cancelling, exactly as the
+  `CurrentTerm.Slack` comment says. Raw stream magnitude there is ~0.114 against 0.3–0.9 a few
+  hundred metres away in every direction.
+
+`Classify` reports Slack below `MaxSpeed * 0.12`. At the session's retuned ceiling of 1.95 that
+threshold is 0.234, and the reading sat at 7% — well inside the dead band, not marginally.
+
+⚠️ **"Sail further out" is therefore the wrong advice**, and it was given during this session
+before the code was read. The Race term keys purely on terrain rises within 64–160m of the flow,
+with no distance-from-centre dependency, so a strait between two close islands runs fast at any
+range, and the open-ocean stream oscillates rather than growing outward. **The correct advice is
+to look for a constriction, or shallow water inside 28m for a coastal set.** The owner found the
+Race water by doing exactly that, which is where 120 of the 182 samples came from.
+
+### What this run does not license anyone to claim
+
+Left entirely untested on 1.0.12: **flotsam spawning, capping or floating** (only the startup
+prefab scan re-ran); **storm surge** (no storm fired); **the tide moving** (one snapshot at boot,
+never sampled again); **any hull but the karve**; **a non-spring season end-to-end**; **the
+drowning guard**; **two-client field agreement** (one client, one character); and **tasks 2c, 2d
+and 5c** — Sailing, Njord and Dive In were not even loaded, so the session adds nothing for or
+against any of those three predictions.
+
+The float-scan figure moved from `123 of 1090` to `162 of 1523`, but August's was taken
+**headless** and this one client-side. A client and a dedicated server can register different
+prefabs, so these are not a like-for-like pair; re-take it headless before treating 162/1523 as
+the baseline.
+
 ## 5z. Original task 5 specification (its AddPushbackForce advice was WRONG - see above)
 
 Last, deliberately: the highest-annoyance surface in the mod, and it wants the most tuning

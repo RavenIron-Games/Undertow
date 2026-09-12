@@ -20,6 +20,18 @@ Design document (the reasoning behind every decision here):
 **THE ROADMAP IS BUILT.** Tasks 0–5, harness **162/162**, every assertion proven to fail without
 its fix. Verified in-game on a dedicated server and a client (2026-08-28).
 
+**RE-VERIFIED IN-GAME ON VALHEIM 1.0.12, 2026-09-12 (0.6.0) — CLIENT-SIDE, ONE HULL.** Read the
+scope before citing this. A pure client against a real dedicated server: 0.6.0 loaded, all three
+Harmony patches attached, the `wake` console registered, the Wrath bridge resolved, `CurrentField`
+went live, and **not one exception anywhere in the log**. The drift force fired on a live karve
+across all four field terms — 182 samples. Full numbers and the scope limits are in
+`docs/BACKLOG.md` task 6. What this run did NOT touch, and what therefore remains unverified on
+1.0.12: **flotsam actually spawning and floating** (only the startup prefab scan re-ran), **storm
+surge**, **the tide moving through its cycle**, **any hull but the karve**, **a non-spring season
+end-to-end**, and **the swimmer drowning-guard clamp**, which was never exercised because the
+requested drift never came near its cap. Tasks 2c, 2d and 5c are untouched: none of those three
+mods were even loaded.
+
 - **0 — skeleton.** Loads with `dedicated=True`; the `wake` console is registered, confirmed by
   reading `Terminal.commands` back rather than assuming.
 - **1 — `CurrentField`.** Evaluates against real `WorldGenerator` terrain, and the server and a
@@ -33,9 +45,14 @@ its fix. Verified in-game on a dedicated server and a client (2026-08-28).
   | at centre 0.38 m/s | 800m away 0.266 m/s surge x1`, against RW's own
   `storm started at (8101, 368)`. Same coordinates, two mods, two machines.
 
-- **4 — flotsam.** `123 of 1090` item prefabs carry `Floating`, measured headless. Driftwood
-  spawns in slack water and **was seen floating on the surface by the owner** — the last step no
-  log could settle. The cap climbs `1→2→3→4→5` and holds; an empty ocean stays empty.
+- **4 — flotsam.** `123 of 1090` item prefabs carry `Floating`, measured **headless** 2026-08-28.
+  A client-side scan on 1.0.12 read **`162 of 1523`** instead (2026-09-12) — the catalogue grew
+  with the game, but a client and a headless server can register different prefabs, so the two
+  are NOT a like-for-like pair and the headless figure stays the baseline until it is re-taken
+  headless. Nothing depends on either number: the pool is rebuilt from `ObjectDB.m_items` every
+  session. Driftwood spawns in slack water and **was seen floating on the surface by the owner** —
+  the last step no log could settle. The cap climbs `1→2→3→4→5` and holds; an empty ocean stays
+  empty. **None of that spawn behaviour was re-tested on 1.0.12.**
 - **5 — swimmers.** Measured live: computed drift **0.172**, the swimmer's own measured speed
   while drifting **0.164** — a 95% match, and no sign of the 20x amplification trap. Swimming
   held 1.9–2.0 m/s against a 0.17 m/s current, so the drowning guard has a tenfold margin.
@@ -44,18 +61,23 @@ its fix. Verified in-game on a dedicated server and a client (2026-08-28).
 testing against other boat mods: every measurement so far is a clean baseline taken with none
 installed.
 
-**KNOWN LIMIT — FIX BUILT NEXT DOOR, NOT YET VERIFIED. RW's season was client-blind.**
-`SeasonSystem.Current` is set only in `Tick()`, which RW gates on the simulation authority, so
-every client computed the field as spring. Boats do not desync (all clients agree) but the
-seasonal shift was inert away from a listen host. The fix belongs in RW, NOT a second season
-clock here — see rule 4 — and as of 2026-08-30 it exists there: **Ragnarok's Wrath 0.25.0 adds
-`Net/SeasonSync`**, which broadcasts the season to every client on a 10s cadence. Nothing in
-Undertow changed and nothing here needs to: `WrathBridge` reads `SeasonSystem.Current` exactly
-as before and simply starts getting a true answer. Against an older RW it still reads spring,
-which is the same behaviour as today, so there is no version floor to enforce.
-**Neither side is verified in-game yet.** The check is one dedicated-server session: a client
-types `wrath status` (RW's console, not ours) and reads back a non-spring season marked
-`synced from the server`, then `wake here` and confirm the field's seasonal term moved with it.
+**KNOWN LIMIT — PARTIALLY CLOSED 2026-09-12, AND THE REMAINING HALF IS THE HARD HALF.** RW's
+season was client-blind: `SeasonSystem.Current` is set only in `Tick()`, which RW gates on the
+simulation authority, so every client computed the field as spring. Boats never desynced (all
+clients agree) but the seasonal shift was inert away from a listen host. The fix belongs in RW,
+NOT a second season clock here — see rule 4 — and **Ragnarok's Wrath 0.25.0 added
+`Net/SeasonSync`**, which broadcasts the season to every client. Nothing in Undertow changed or
+needs to: `WrathBridge` reads `SeasonSystem.Current` exactly as before and starts getting a true
+answer. Against an older RW it reads spring, as today, so there is no version floor.
+
+**What 2026-09-12 proved, and what it did not.** With RW 0.27.0 loaded, the client log carries
+`SeasonSystem: season arriving from the server — Spring`, and Undertow's own line reads
+`season index 0 (read from Wrath)`. The MECHANISM is therefore live: that RW line only exists
+post-SeasonSync and only fires on a received RPC, and `SeasonWasRead` was true rather than
+defaulted. **But the season was Spring, which is also index 0, which is also every failure mode.**
+The check this file defines — a client reading back a NON-SPRING season, then `wake here` showing
+the field's seasonal term move with it — did not happen and cannot happen until the world is in
+another season. Until then the presence of the line is the evidence, never the value.
 
 **The model took three attempts and every one was killed by a measurement, not by review.** The
 reasoning is in `Core/DriftForce.cs`; read it before touching the force. Three separate
@@ -453,7 +475,7 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   changes faster than 2.5 m/s, at most once per 2s. Anything that moves boats inherits this
   consequence for free — and could amplify it by accident.
 
-- **Which vanilla item prefabs carry `Floating`? ANSWERED 2026-08-28, headless: 123 of 1090.**
+- **Which vanilla item prefabs carry `Floating`? ANSWERED 2026-08-28, headless: 123 of 1090** (a client-side scan on 1.0.12 read 162 of 1523 — different role, not a like-for-like re-run).
   This was the question that could have sunk flotsam entirely — one raft of sunken loot
   disproves the approach — so it was measured before a spawner was written, and the pool is
   built from that scan rather than from a hand list. Driftwood was then seen floating on the

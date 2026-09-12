@@ -4,6 +4,12 @@
 
 Valheim 1.0. **If you updated the game, 0.5.1 was broken and this is the fix.**
 
+- **Verified in-game on 1.0.12** (2026-09-12), client-side: loads with no exceptions, all three
+  patches attach, the console registers, the Wrath bridge resolves, and the drift force ran on a
+  live karve for 182 samples across all four field terms. In slack water the hull converged on
+  the water's own speed; in a race it reached 0.91 median and never 0.98, which is recorded as an
+  open question rather than a pass. Flotsam spawning, storm surge, the tide cycling, any second
+  hull and the swimmer drowning-guard were NOT re-tested. See `docs/BACKLOG.md` task 6.
 - **Rebuilt for Valheim 1.0.12.** No behaviour changed — currents, tides, flotsam and every
   tuning value are exactly what 0.5.1 shipped. What changed is the game underneath: 1.0.7 added
   a parameter to `Terminal.ConsoleCommand`'s constructor, and .NET resolves a call like that by
