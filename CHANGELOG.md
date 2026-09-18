@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.7.1
+
+**The config file migrates itself.** BepInEx merges a new key into an existing file at its SHIPPED
+default — and a shipped default is chosen for a fresh install. It says what a NEW world should feel
+like, not what an existing one already feels like. When those differ, an owner who changed nothing
+gets a different sea, with no error and nothing in the log. This closes that door before it is ever
+opened.
+
+- **The machinery, from the family.** Wu'barrk's from Wings of the Valkyrie, by way of Valkyrie's
+  Cargo, and matching the ports that landed in Ragnarok's Wrath and FireFront the same week. The raw
+  file is read BEFORE any value binds, a `[0 - Meta] ConfigVersion` stamps the layout, and three kinds
+  of change are expressible: a value still equal to an OLD shipped default moves to the new one, a key
+  that is ABSENT can be given a legacy value that preserves how your world already behaved, and a key
+  no current build binds is dropped instead of riding along forever as a BepInEx orphan. Anything an
+  admin actually set is kept untouched and named in the log, so you can see the migration read it and
+  leave it alone.
+- **It cannot lose a setting.** Before any change that would overwrite or delete something, a copy of
+  the previous file lands beside it as `.vN.bak`; if that copy cannot be written, nothing is changed
+  and the version is left unstamped, so the whole thing retries next boot instead of half-happening. A
+  migration that fails never stops the mod loading.
+- **Version 1 changes nothing, and that is the point.** Undertow's config has only ever GROWN — no
+  default has ever moved, no key has ever been renamed or removed, no range has ever narrowed. Checked
+  against three independent records that agree: the source at every commit, the shipped 0.5.1 and 0.6.0
+  binaries, and nine real config files. So this release only stamps your file. The ladder exists before
+  the rung that needs it, because the alternative is writing it under pressure on the day a default has
+  to move.
+- **0.7.0's drift lines stay ON for existing installs.** They were considered for a legacy value and
+  deliberately left alone: they are client-side cosmetics that touch no world state, a dedicated server
+  ignores them entirely, and they are the feature 0.7.0 was for. `EnableDriftLines = false` is one line
+  if you want the old look.
+- **`wake status`** now reports the config layout version, and the migration's own boot line when this
+  boot migrated anything.
+- **Harness 248 → 357.** The decisions are pure (`Core/ConfigLedger.cs`) and every rule is pinned: a
+  backfill never overwrites a key that is present, a retirement never fires on one that is absent, an
+  admin's value is never mistaken for a default, a commented-out setting stays commented out, and the
+  file is read before the first bind. Twenty-eight deliberate breakages were applied to the shipping
+  source and all twenty-eight were caught by a named assertion. An independent review then went over
+  the finished code and found six more real defects in it, each now fixed and pinned the same way.
+
 ## 0.7.0
 
 The current, visible. **Run in-game the day it was built** — Storm10, Valheim 1.0.15 on both

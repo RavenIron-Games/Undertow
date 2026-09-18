@@ -95,11 +95,17 @@ The one exception is section `7 - Drift lines`, which is per machine by nature: 
 the client that looks at it, so two players on one deck see the same set, density and speed from
 the same field, but not the same individual streaks.
 
+**Your settings survive an update.** When a release changes a default, your file is read before
+anything binds, a copy lands beside it as `.vN.bak` before any value is touched, and only values
+still sitting at an old shipped default are moved. Anything you set yourself is kept, and named in
+the log so you can see it was read and left alone. A `[0 - Meta]` section stamps which layout your
+file was written for; leave it be. `wake status` reports it.
+
 ## The `wake` console
 
 | Command | Answers |
 |---|---|
-| `wake status` | what this machine is, and what is running on it |
+| `wake status` | what this machine is, what is running on it, and which config layout your file carries |
 | `wake here` | the current under your keel — speed, bearing, depth, tide |
 | `wake field <x> <z>` | the current anywhere, loaded or not |
 | `wake drift` | whether the current is actually reaching boats |

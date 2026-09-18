@@ -84,12 +84,33 @@ taken with none installed.
   instead of an arrow", which is the design; **cost 0.37 ms EMA at a saturated pool of 160**
   (81 surface reads a frame) against the 0.50 budget; the dedicated server loaded 0.7.0, patched
   3, and never armed the visual. The rotation convention was MEASURED — see Known traps — and a
-  first reading of it was wrong for a reason worth knowing. **Not yet seen:** night, a storm
-  (surge needs Ragnarok's Wrath on the client, which the test profile lacks), a long zone-crossing
-  sail, and `wake drift` on/off. `revprobe` binds 0.7.0 clean against 1.0.15; the game updated
+  first reading of it was wrong for a reason worth knowing. **Storm surge seen the same morning**
+  with RW 0.27.0 on both sides: a console-fired Devastating Storm at (-2286, 2091) gave the
+  client `IsStormAt(centre)=True, surge x1.6`, the centre's water went 0.17 → 0.27 m/s, and the
+  drift lines went from 18–41 active at 2.3 m to 71–77 at 2.8–2.9 m — surge reaches the visual
+  through speed alone. A ThunderStorm-forced storm then held `chop 1.00` (sea state past 2.3 m)
+  with 50–81 streaks active — and the owner saw none of them: present, unseen, and accepted as
+  storm behaviour; `docs/BACKLOG.md` task 7 row 9 names the lever. **Not yet seen:** night, a
+  long zone-crossing sail, and `wake drift` on/off. `revprobe` binds 0.7.0 clean against 1.0.15; the game updated
   from 1.0.12 the morning of the test and the `libs\` set is still the 1.0.12 publicized one.
 
-**KNOWN LIMIT — PARTIALLY CLOSED 2026-09-12, AND THE REMAINING HALF IS THE HARD HALF.** RW's
+- **8 — the config migration (0.7.1). BUILT 2026-09-18, NOT YET RUN IN-GAME.** BepInEx merges a new
+  key at its SHIPPED default, which is a statement about a NEW world; when that differs from what an
+  existing world already does, an owner who changed nothing gets different behaviour with nothing in
+  the log. `Core/ConfigLedger.cs` holds the decisions (PURE, under test) and `Config/ConfigMigration.cs`
+  the engine. Three step kinds — rebase, backfill, retire — and **all three tables are empty by
+  MEASUREMENT**: Undertow's config has only ever grown, checked against the source at all four commits,
+  the shipped 0.5.1/0.6.0 DLL string tables, and nine real config files. 0.5.1 was the first release and
+  all 27 keys it published are still bound, so the retire surface is closed rather than unobserved.
+  Version 1 only stamps. **Harness 248 → 357, 28 mutations applied to the shipping source and 28
+  caught.** An adversarial review then raised 25 findings, 22 survived triple refutation, and six were
+  real defects in already-green code — the comparer mismatch with BepInEx, a stamp that could move
+  DOWN, a retirement that could delete a live string setting, a backfill read-back blind to clamping, a
+  negative stamp costing 17.8 s on the boot thread, and one key judged by two rungs. All fixed and
+  pinned. `docs/BACKLOG.md` task 8 has the detail and the in-game protocol that is still owed — and a
+  FRESH install proves nothing here, because it migrates nothing and logs nothing.
+
+**KNOWN LIMIT — CLOSED 2026-09-18 (history kept below, because the failure modes are the lesson).** RW's
 season was client-blind: `SeasonSystem.Current` is set only in `Tick()`, which RW gates on the
 simulation authority, so every client computed the field as spring. Boats never desynced (all
 clients agree) but the seasonal shift was inert away from a listen host. The fix belongs in RW,
@@ -103,9 +124,17 @@ answer. Against an older RW it reads spring, as today, so there is no version fl
 `season index 0 (read from Wrath)`. The MECHANISM is therefore live: that RW line only exists
 post-SeasonSync and only fires on a received RPC, and `SeasonWasRead` was true rather than
 defaulted. **But the season was Spring, which is also index 0, which is also every failure mode.**
-The check this file defines — a client reading back a NON-SPRING season, then `wake here` showing
-the field's seasonal term move with it — did not happen and cannot happen until the world is in
-another season. Until then the presence of the line is the evidence, never the value.
+
+**2026-09-18, on Storm10 (Valheim 1.0.15): a pure client received a NON-SPRING season.** The
+client log reads `SeasonSystem: season arriving from the server — Summer.` — a value no failure
+mode produces. Note the ordering trap it exposed: Undertow's own `CurrentField live — … season
+index 0 (read from Wrath)` line is logged when SeaTick comes online, which is BEFORE the season
+RPC arrives, so that line will always say 0 on a client; only a later read carries the received
+value. **And it did:** minutes later the owner's `wake here` on that client printed
+`tide 40% (flooding), season summer (Wrath)` — a non-spring season, read through the bridge, by
+the same accessor `CurrentField` is fed from (the harness pins that a season change moves the
+field). The check this file defined is met. Against an older RW a client still reads spring, as
+before; there is no version floor.
 
 **The model took three attempts and every one was killed by a measurement, not by review.** The
 reasoning is in `Core/DriftForce.cs`; read it before touching the force. Three separate
@@ -162,11 +191,13 @@ other without relearning anything.
 ```
 Undertow/                  one role-aware plugin (net472)
   Config/ModConfig.cs      config surface; every system has an on/off toggle
+  Config/ConfigMigration.cs the migration's engine half — the only part that touches a real file
   Core/CurrentField.cs     the maths. PURE — no Unity, no config, no game types, no clock
   Core/SeaContext.cs       the seam: WorldGenerator/ZNet/ZoneSystem reads + the terrain probe
   Core/SeaTick.cs          the single time-budgeted cursor
   Core/IWorldSystem.cs     what ambient systems implement
   Core/DriftLineMath.cs    the drift lines' rules. PURE like CurrentField — no Unity, no config
+  Core/ConfigLedger.cs     which config values move on an upgrade, and why. PURE, and under test
   Systems/                 Drift (ships), Flotsam, Swimmers
   Visuals/                 client-only cosmetics: DriftLines, WaterSurfaceCache, ParticleKit
   Bridge/WrathBridge.cs    reflected, read-only reads of Ragnarok's Wrath
@@ -278,6 +309,7 @@ diagnostic bug report in this genre.
 | Persistence | **None.** `CurrentField` is a pure function of seed, position, world time and season, so it needs no save file and no sync. Anything that makes the sea *remember* breaks that; RW already owns "the world remembers". |
 | Ragnarok's Wrath | **Read-only, soft, one direction.** Reflected reads when present, fully dormant when absent, never a write back. |
 | Moder's wind control | **No exemption from current.** "Moder gives you the wind, not the sea" — a limit on the power without a nerf to it. |
+| Config migration | **The family's, not a local dialect.** Wu'barrk's shape by way of Valkyrie's Cargo, matching Ragnarok's Wrath and FireFront. Snapshot before any bind, `[0 - Meta] ConfigVersion` stamps the layout, a backup beside the file before anything destructive, and a failed migration never stops the mod loading. Do not fork it — a reader who knows one of these should read the others without relearning. |
 | Console prefix | `wake` (e.g. `wake here`) |
 | GUID / namespace | `com.raveniron.undertow` / `RavenIron.Undertow` |
 | Name | **Undertow.** Norse sea names are crowded — check the existing sailing mods before renaming. |
@@ -396,6 +428,27 @@ and nothing spawns in unloaded ocean. Keep it that way: flotsam requires a real 
 ## Known traps
 
 Verified by decompile 2026-08-28 unless marked otherwise.
+
+- **`ConfigEntryBase.SetSerializedValue` SWALLOWS a value it cannot parse.** Its whole body is a
+  try/catch that logs a BepInEx warning and leaves the entry untouched (read out of `libs\BepInEx.dll`
+  2026-09-18). So a wrong value in `ConfigLedger` is a silent no-op followed by a confident version
+  stamp — and the stamp means it never runs again. `ConfigMigration.ApplyBackfill` therefore reads the
+  value BACK and says so by name when nothing moved. A try/catch around the call is unreachable code;
+  both sibling mods have one.
+
+- **`ConfigFile.OrphanedEntries` is PRIVATE, and BepInEx writes every orphan back out on each `Save`.**
+  So a key you simply stop binding rides along in the file forever, and an owner can keep editing it to
+  no effect. Dropping one is `Bind` under a throwaway default (which pulls it out of the orphan set)
+  then `Remove` — both public. Never name the property; rule 5's Mono JIT failure applies.
+
+- **BepInEx orders config sections by NAME when it writes the file**, so a section called "Meta" lands
+  BELOW "1 - Core", not at the top. Undertow's stamp lives in **`0 - Meta`** for that reason. Ragnarok's
+  Wrath states the opposite in a comment and is wrong about it, harmlessly. Worth knowing before
+  copying that comment across.
+
+- **`libs\BepInEx.dll` is NOT publicized** — fetch-libs copies it verbatim from the game's
+  `BepInEx\core` — so what compiles against it is what runs, and house rule 5's trap does not apply to
+  BepInEx members. It very much still applies to `assembly_valheim_publicized.dll`.
 
 - **`Utils.GetMainCamera()` does not exist in the shipping `assembly_utils`** — only
   `GetMainCameraFrustumPlanes()` does — and `GameCamera.m_camera` is private. A design review on
@@ -567,7 +620,11 @@ Verified by decompile 2026-08-28 unless marked otherwise.
 ## Working agreement
 
 - **Run `.\tools\run-tests.ps1` before every commit** once it exists. `CurrentField` is pure
-  math and is exactly the kind of logic that fails silently.
+  math and is exactly the kind of logic that fails silently. **Invoke it with
+  `powershell -NoProfile -ExecutionPolicy Bypass`** from any script that judges its exit code: this
+  machine's default policy refuses the file, and the refusal still exits non-zero. A 20-mutation suite
+  scored 20/20 against that error on 2026-09-18 without compiling a line — the instrument failure this
+  file warns about, produced by the tool meant to detect it.
 - **The harness compiles the *shipping* source, not a copy.** A harness that duplicates logic
   proves nothing and drifts.
 - **Prove a new test fails without its fix.** One revert-and-rerun turns a confident guess

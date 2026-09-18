@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Reflection;
 using BepInEx.Configuration;
 using RavenIron.Undertow.Config;
@@ -32,6 +33,8 @@ namespace Undertow.Tests
             Console.WriteLine("Undertow — core tests\n");
 
             ModConfigTests();
+            ConfigLedgerTests();
+            ConfigMigrationTests();
             CurrentFieldTests();
             DriftForceTests();
             FlotsamMathTests();
@@ -1059,6 +1062,520 @@ namespace Undertow.Tests
                 seenHashes.Add(h);
             }
             Check(seenHashes.Count > 990 && Math.Abs(hashSum / 1000 - 0.5) < 0.02, "Hash01 spreads consecutive salts evenly");
+        }
+
+
+        // ---- the config migration ----------------------------------------------------------
+
+        /// <summary>A dictionary shaped like a parsed config file, for the Plan tests below.</summary>
+        private static Dictionary<string, string> Snapshot(params string[] slotThenValue)
+        {
+            var d = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i + 1 < slotThenValue.Length; i += 2) d[slotThenValue[i]] = slotThenValue[i + 1];
+            return d;
+        }
+
+        private static Dictionary<int, T[]> Table<T>(int version, params T[] steps)
+            => new Dictionary<int, T[]> { { version, steps } };
+
+        private static readonly Dictionary<int, ConfigLedger.Rebase[]> NoRebases = new Dictionary<int, ConfigLedger.Rebase[]>();
+        private static readonly Dictionary<int, ConfigLedger.Backfill[]> NoBackfills = new Dictionary<int, ConfigLedger.Backfill[]>();
+        private static readonly Dictionary<int, ConfigLedger.Retire[]> NoRetires = new Dictionary<int, ConfigLedger.Retire[]>();
+
+        /// <summary>
+        /// The PURE half. Every shipped table is empty today - a measured fact, not an oversight -
+        /// so testing Plan only against them would prove that nothing happens, which is the one
+        /// thing needing no proof. These drive the same method through its table-taking overload
+        /// with synthetic rungs, so the matching rules are already measured on the day the first
+        /// real one lands rather than running for the first time on somebody's server.
+        /// </summary>
+        private static void ConfigLedgerTests()
+        {
+            Section("ConfigLedger");
+
+            // ---- ParseIni: a real BepInEx file, including the shapes Undertow's own config has.
+            var ini = ConfigLedger.ParseIni(new[]
+            {
+                "## a comment",
+                "",
+                "[1 - Core]",
+                "TickBudgetMs = 2",
+                "",
+                "# Setting type: Boolean",
+                "VerboseLogging = true",
+                "# TickBudgetMs = 999",
+                "[5 - Flotsam]",
+                "FlotsamCommon = Wood,RoundLog,FineWood",
+                "Weird = a = b",
+                "   Padded   =   spaced   ",
+                "noequalshere",
+                "= headless",
+            });
+
+            Check(ini["1 - Core::TickBudgetMs"] == "2", "ParseIni reads a key under its section");
+            Check(ini["1 - Core::VerboseLogging"] == "true", "ParseIni skips comments and blank lines");
+            foreach (string k in ini.Keys)
+                Check(!k.Contains("#"), $"no comment line became a key ({k})");
+            Check(ini["1 - Core::TickBudgetMs"] == "2",
+                "a setting an admin COMMENTED OUT does not overwrite the live one above it");
+            Check(ini["5 - Flotsam::FlotsamCommon"] == "Wood,RoundLog,FineWood",
+                "ParseIni keeps a comma list whole (Undertow's flotsam tables are comma lists)");
+            Check(ini["5 - Flotsam::Weird"] == "a = b", "ParseIni splits on the FIRST = and keeps the rest of the value");
+            Check(ini["5 - Flotsam::Padded"] == "spaced", "ParseIni trims the key and the value");
+            Check(!ini.ContainsKey("5 - Flotsam::noequalshere"), "ParseIni ignores a line with no =");
+            Check(ini.Count == 5, $"ParseIni ignores a headless '= value' line ({ini.Count} keys read)");
+            Check(!ini.ContainsKey("1 - core::tickbudgetms"),
+                "ParseIni is ORDINAL and case-SENSITIVE, because BepInEx's ConfigDefinition is: "
+                + "a mis-cased line is a different key there, and an ignore-case snapshot would answer "
+                + "'present' for a key BepInEx treats as absent - cancelling the one step whose whole safety is that test");
+            Check(ConfigLedger.ParseIni(null).Count == 0, "ParseIni(null) is an empty file, not a crash");
+            Check(ConfigLedger.ParseIni(new string[] { null }).Count == 0, "ParseIni survives a null line");
+
+            var dupe = ConfigLedger.ParseIni(new[] { "[S]", "K = first", "K = second" });
+            Check(dupe["S::K"] == "second", "ParseIni lets the last duplicate win, as BepInEx's own loader does");
+
+            // ---- ReadVersion: everything that is not a number is a pre-migration file.
+            Check(ConfigLedger.ReadVersion(null) == 0, "ReadVersion(null) is 0");
+            Check(ConfigLedger.ReadVersion(Snapshot()) == 0, "an unstamped file reads as version 0");
+            Check(ConfigLedger.ReadVersion(Snapshot(ConfigLedger.Slot(ConfigLedger.MetaSection, ConfigLedger.VersionKey), "  3  ")) == 3,
+                "ReadVersion trims whitespace around the stamp");
+            Check(ConfigLedger.ReadVersion(Snapshot(ConfigLedger.Slot(ConfigLedger.MetaSection, ConfigLedger.VersionKey), "banana")) == 0,
+                "an unparseable stamp reads as 0 rather than throwing");
+
+            // ---- Slot / SplitSlot round-trip.
+            Check(ConfigLedger.Slot("1 - Core", "TickBudgetMs") == "1 - Core::TickBudgetMs", "Slot joins with ::");
+            Check(ConfigLedger.SplitSlot("1 - Core::TickBudgetMs", out string sec, out string key)
+                  && sec == "1 - Core" && key == "TickBudgetMs", "SplitSlot is Slot's inverse");
+            Check(!ConfigLedger.SplitSlot("nocolons", out _, out _), "SplitSlot rejects a string that is not a slot");
+            Check(!ConfigLedger.SplitSlot("::key", out _, out _), "SplitSlot rejects an empty section");
+            Check(!ConfigLedger.SplitSlot("section::", out _, out _), "SplitSlot rejects an empty key");
+            Check(!ConfigLedger.SplitSlot(null, out _, out _), "SplitSlot(null) is false, not a crash");
+
+            // ---- REBASE: a stored old default is the mod's and moves; anything else is the admin's.
+            var rebase = Table(1, new ConfigLedger.Rebase
+            {
+                Section = "3 - The current", Key = "MaxCurrentSpeed",
+                OldDefaults = new[] { "1", "1.2" }, Because = "the sea got a size",
+            });
+
+            var moved = ConfigLedger.Plan(Snapshot("3 - The current::MaxCurrentSpeed", "1.2"), 0, 1, rebase, NoBackfills, NoRetires);
+            Check(moved.ResetToDefault.Count == 1 && moved.ResetToDefault[0] == "3 - The current::MaxCurrentSpeed",
+                "a stored value equal to an old shipped default is moved to the new one");
+            Check(moved.Kept.Count == 0, "a moved value is not also counted as kept");
+
+            var matchedSecond = ConfigLedger.Plan(Snapshot("3 - The current::MaxCurrentSpeed", "1"), 0, 1, rebase, NoBackfills, NoRetires);
+            Check(matchedSecond.ResetToDefault.Count == 1, "ANY of a rung's old defaults matches, not just the first");
+
+            var kept = ConfigLedger.Plan(Snapshot("3 - The current::MaxCurrentSpeed", "1.95"), 0, 1, rebase, NoBackfills, NoRetires);
+            Check(kept.ResetToDefault.Count == 0 && kept.Kept.Count == 1 && kept.Kept[0].Value == "1.95",
+                "a value the admin chose is KEPT and reported with what it holds");
+
+            var nearMiss = ConfigLedger.Plan(Snapshot("3 - The current::MaxCurrentSpeed", "1.20"), 0, 1, rebase, NoBackfills, NoRetires);
+            Check(nearMiss.Kept.Count == 1,
+                "old defaults are compared as TEXT: '1.20' is not '1.2', so it is treated as the admin's");
+
+            var absent = ConfigLedger.Plan(Snapshot("1 - Core::TickBudgetMs", "2"), 0, 1, rebase, NoBackfills, NoRetires);
+            Check(absent.IsEmpty, "a rebase for a key the file does not contain plans nothing");
+
+            // ---- BACKFILL: absent only, and that is the whole safety of it.
+            var backfill = Table(1, new ConfigLedger.Backfill
+            {
+                Section = "2 - Systems", Key = "EnableDriftLines",
+                LegacyValue = "false", Because = "your sea looks the way it already did",
+            });
+
+            var filled = ConfigLedger.Plan(Snapshot("1 - Core::TickBudgetMs", "2"), 0, 1, NoRebases, backfill, NoRetires);
+            Check(filled.Backfilled.Count == 1 && filled.Backfilled[0].Value == "false",
+                "a backfill writes its legacy value into a file that lacks the key");
+
+            var present = ConfigLedger.Plan(Snapshot("2 - Systems::EnableDriftLines", "true"), 0, 1, NoRebases, backfill, NoRetires);
+            Check(present.IsEmpty,
+                "a backfill NEVER overwrites a key already in the file - the admin's choice, or an earlier partial run's");
+
+            // ---- RETIRE: present only.
+            var retire = Table(1, new ConfigLedger.Retire { Section = "1 - Core", Key = "OldKey", Because = "renamed" });
+
+            var dropped = ConfigLedger.Plan(Snapshot("1 - Core::OldKey", "whatever"), 0, 1, NoRebases, NoBackfills, retire);
+            Check(dropped.Retired.Count == 1 && dropped.Retired[0] == "1 - Core::OldKey", "a retired key present in the file is dropped");
+            Check(ConfigLedger.Plan(Snapshot("1 - Core::TickBudgetMs", "2"), 0, 1, NoRebases, NoBackfills, retire).IsEmpty,
+                "a retired key absent from the file plans nothing - the ordinary case after a rename");
+
+            // ---- Which rungs run: the version window, applied in order.
+            var atTwo = Table(2, new ConfigLedger.Retire { Section = "1 - Core", Key = "OldKey" });
+            Check(ConfigLedger.Plan(Snapshot("1 - Core::OldKey", "x"), 0, 1, NoRebases, NoBackfills, atTwo).IsEmpty,
+                "a rung that produces version 2 does not run on a 0 -> 1 migration");
+            Check(ConfigLedger.Plan(Snapshot("1 - Core::OldKey", "x"), 0, 2, NoRebases, NoBackfills, atTwo).Retired.Count == 1,
+                "the same rung DOES run on a 0 -> 2 migration");
+            Check(ConfigLedger.Plan(Snapshot("1 - Core::OldKey", "x"), 2, 2, NoRebases, NoBackfills, atTwo).IsEmpty,
+                "a file already at the current version plans nothing");
+            Check(ConfigLedger.Plan(Snapshot("1 - Core::OldKey", "x"), 9, 1, NoRebases, NoBackfills, atTwo).IsEmpty,
+                "a file stamped BEYOND the current version plans nothing rather than migrating backwards");
+            Check(ConfigLedger.Plan(null, 0, 1, NoRebases, NoBackfills, retire).IsEmpty, "a null snapshot plans nothing");
+            Check(ConfigLedger.Plan(Snapshot(), 0, 1, NoRebases, NoBackfills, retire).IsEmpty,
+                "an empty snapshot - a fresh install - plans nothing");
+            Check(ConfigLedger.Plan(Snapshot("1 - Core::OldKey", "x"), 0, 1, null, null, null).IsEmpty,
+                "null tables plan nothing rather than throwing");
+
+            // A hand-edited or corrupt stamp must not become a loop bound. ConfigVersion carries no
+            // AcceptableValueRange on purpose, so nothing stops someone typing a large negative
+            // number - and an unclamped window would then spin billions of times on the boot thread.
+            var negativeClock = System.Diagnostics.Stopwatch.StartNew();
+            var fromNegative = ConfigLedger.Plan(Snapshot("1 - Core::OldKey", "x"), -2000000000, 1, NoRebases, NoBackfills, retire);
+            negativeClock.Stop();
+            Check(fromNegative.Retired.Count == 1,
+                "a wildly negative stamp is treated as version 0 - a file claiming to predate version 0 IS a version 0 file");
+            Check(negativeClock.ElapsedMilliseconds < 250,
+                $"and it costs ONE step rather than two billion ({negativeClock.ElapsedMilliseconds} ms) - the right answer "
+                + "arrived at slowly is still a config file freezing the boot thread");
+
+            // One slot, one decision. Two rungs naming the same key must not judge it twice against
+            // the same unchanged snapshot, or one key is reported and reset once per rung.
+            var twice = new Dictionary<int, ConfigLedger.Rebase[]>
+            {
+                { 1, new[] { new ConfigLedger.Rebase { Section = "1 - Core", Key = "TickBudgetMs", OldDefaults = new[] { "2" } } } },
+                { 2, new[] { new ConfigLedger.Rebase { Section = "1 - Core", Key = "TickBudgetMs", OldDefaults = new[] { "2" } } } },
+            };
+            var once = ConfigLedger.Plan(Snapshot("1 - Core::TickBudgetMs", "2"), 0, 2, twice, NoBackfills, NoRetires);
+            Check(once.ResetToDefault.Count == 1,
+                $"a key named by two rungs is decided ONCE, by the first that matches ({once.ResetToDefault.Count} decisions)");
+
+            // ---- IsDestructive decides whether a failed backup may block the whole migration.
+            Check(moved.IsDestructive, "a rebase is destructive: it overwrites a value that is on disk");
+            Check(dropped.IsDestructive, "a retirement is destructive: it deletes a line that is on disk");
+            Check(!filled.IsDestructive, "a backfill is NOT destructive: it writes a key that was absent");
+            Check(!ConfigLedger.Plan(Snapshot(), 0, 1, NoRebases, NoBackfills, NoRetires).IsDestructive,
+                "an empty plan is not destructive");
+
+            // ---- Describe: an owner has to be able to act on this line.
+            Check(ConfigLedger.Describe(null) == "config: nothing to migrate", "Describe(null) is a sentence, not a crash");
+            string emptyLine = ConfigLedger.Describe(ConfigLedger.Plan(Snapshot(), 0, 1, NoRebases, NoBackfills, NoRetires));
+            Check(emptyLine.Contains("0 -> 1") && emptyLine.Contains("nothing to migrate"),
+                "Describe names both versions even when nothing moved");
+            string movedLine = ConfigLedger.Describe(moved);
+            Check(movedLine.Contains("3 - The current.MaxCurrentSpeed") && !movedLine.Contains("::"),
+                "Describe writes slots as Section.Key, not with the internal ::");
+            Check(ConfigLedger.Describe(kept).Contains("1.95"), "Describe names a kept value WITH what it holds");
+            Check(ConfigLedger.Describe(filled).Contains("your sea looks the way it already did"),
+                "Describe gives a backfill's reason, so an owner knows what changed and why");
+            Check(ConfigLedger.Describe(dropped).Contains("retired"), "Describe says when a key was dropped");
+
+            // ---- The SHIPPED tables. Empty by measurement (see ConfigLedger's remarks), so the
+            //      only thing 0.7.1 does to any real file is stamp it.
+            var realWorld = ConfigLedger.Plan(Snapshot(
+                "1 - Core::TickBudgetMs", "2",
+                "1 - Core::VerboseLogging", "true",
+                "2 - Systems::EnableDrift", "true",
+                "3 - The current::MaxCurrentSpeed", "1.951174",
+                "5 - Flotsam::FlotsamPerHour", "120"), 0);
+            Check(realWorld.IsEmpty,
+                "against the SHIPPED tables a real pre-0.7.1 config plans nothing: version 1 is the ladder, not a rung");
+            Check(!realWorld.IsDestructive, "so it can never lose a setting");
+            Check(realWorld.ToVersion == ConfigLedger.CurrentVersion, "and it targets the current layout version");
+
+            // ---- The stamp's own slot. It is a migration key forever, so it is pinned here.
+            Check(ConfigLedger.MetaSection == "0 - Meta",
+                "the stamp's section is numbered, so BepInEx's alphabetical Save puts it first rather than last");
+            // BepInEx's ConfigFile.Save groups by section and orders with the DEFAULT comparer, not
+            // an ordinal one, so that is the comparison to make. Both are checked because the two
+            // disagreeing on digits would be worth knowing about.
+            Check(string.Compare(ConfigLedger.MetaSection, "1 - Core", StringComparison.CurrentCulture) < 0,
+                "'0 - Meta' sorts above the first real section under the comparer BepInEx's Save actually uses");
+            Check(string.CompareOrdinal(ConfigLedger.MetaSection, "1 - Core") < 0,
+                "and ordinally too, so the written file's order does not depend on the server's locale");
+            Check(ConfigLedger.CurrentVersion >= 1, "the current layout version is at least 1");
+        }
+
+        /// <summary>
+        /// The ENGINE half, driven against the real ModConfig and a real file on disk. The pure
+        /// tests above prove what a plan says; these prove the plan reaches the config.
+        /// </summary>
+        private static void ConfigMigrationTests()
+        {
+            Section("ConfigMigration");
+
+            string dir = Path.Combine(Path.GetTempPath(), "ut_cfgmig_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Directory.CreateDirectory(dir);
+                string cfgPath = Path.Combine(dir, "com.raveniron.undertow.cfg");
+
+                // A file exactly as 0.6.0 would have left it: no stamp, and values the owner chose.
+                // Written with an invariant '.' decimal, which is what BepInEx writes.
+                File.WriteAllLines(cfgPath, new[]
+                {
+                    "## Settings file was created by plugin Undertow v0.6.0",
+                    "",
+                    "[1 - Core]",
+                    "TickBudgetMs = 2",
+                    "VerboseLogging = true",
+                    "",
+                    "[3 - The current]",
+                    "MaxCurrentSpeed = 1.951174",
+                });
+
+                var cfg = new ConfigFile { ConfigFilePath = cfgPath };
+                ModConfig.Bind(cfg);
+
+                Check(ModConfig.ConfigVersion != null && ModConfig.ConfigVersion.Value == ConfigLedger.CurrentVersion,
+                    "an unstamped file is stamped with the current layout version");
+                Check(Math.Abs(ModConfig.MaxCurrentSpeed.Value - 1.951174f) < 1e-6f,
+                    "the owner's own value survives the migration untouched");
+                Check(ModConfig.VerboseLogging.Value, "so does a bool the owner set");
+                Check(cfg.SaveCount > 0,
+                    "the config is saved - in the stamp-only case that Save is the ONLY thing that writes");
+                Check(ConfigMigration.LastSummary.Contains("0 -> 1"),
+                    "the boot line SURVIVES the migration that wrote it, so `wake status` can read it back");
+                Check(!File.Exists(cfgPath + ".v0.bak"),
+                    "a stamp-only migration writes no backup: there is nothing to lose and the copy would be identical");
+
+                // THE ORDERING RULE, and the only assertion that can catch it while every shipped
+                // ledger table is empty. A backfill acts on a key being ABSENT; BepInEx's own Bind
+                // makes it present at its shipped default. Snapshot after any bind and every future
+                // backfill silently becomes a no-op that still logs success and still stamps its
+                // version — permanently, because the next boot then reads a current file.
+                Check(cfg.BindCountAtPathRead == 0,
+                    $"the migration reads the file BEFORE the first bind ({cfg.BindCountAtPathRead} keys were bound when it looked)");
+
+                // Second boot against the file it just stamped. The snapshot now carries the stamp,
+                // so Begin must short-circuit rather than migrate a current file all over again.
+                File.WriteAllLines(cfgPath, new[]
+                {
+                    "[" + ConfigLedger.MetaSection + "]",
+                    ConfigLedger.VersionKey + " = " + ConfigLedger.CurrentVersion.ToString(CultureInfo.InvariantCulture),
+                    "",
+                    "[3 - The current]",
+                    "MaxCurrentSpeed = 1.951174",
+                });
+                var second = new ConfigFile { ConfigFilePath = cfgPath };
+                ModConfig.Bind(second);
+                Check(ModConfig.ConfigVersion.Value == ConfigLedger.CurrentVersion, "a second boot leaves the stamp where it is");
+                Check(ConfigMigration.LastSummary == "",
+                    "an already-current file reports NO migration summary - it short-circuits before planning one");
+                Check(Math.Abs(ModConfig.MaxCurrentSpeed.Value - 1.951174f) < 1e-6f,
+                    "and it still does not touch the owner's value");
+
+                // A fresh install: no file at all. Every shipped default is right, and the only
+                // thing to do is stamp, so the next release's migration knows where it started.
+                var fresh = new ConfigFile { ConfigFilePath = Path.Combine(dir, "does-not-exist.cfg") };
+                ModConfig.Bind(fresh);
+                Check(ModConfig.ConfigVersion.Value == ConfigLedger.CurrentVersion, "a fresh install is stamped too");
+                Check(Math.Abs(ModConfig.MaxCurrentSpeed.Value - 1.2f) < 1e-6f, "and gets the shipped default");
+                Check(ConfigMigration.LastSummary == "", "a fresh install reports no migration");
+
+                // THE STAMP ONLY GOES UP. A file written by a NEWER build has already had rungs
+                // this build knows nothing about. Lowering the stamp makes the next upgrade replay
+                // them against values the owner has since chosen - and a rebase cannot tell a
+                // deliberate choice from the old default it happens to equal.
+                string futurePath = Path.Combine(dir, "from-the-future.cfg");
+                File.WriteAllLines(futurePath, new[]
+                {
+                    "[" + ConfigLedger.MetaSection + "]",
+                    ConfigLedger.VersionKey + " = 7",
+                    "",
+                    "[3 - The current]",
+                    "MaxCurrentSpeed = 1.951174",
+                });
+                var future = new ConfigFile { ConfigFilePath = futurePath };
+                ModConfig.Bind(future);
+                Check(ModConfig.ConfigVersion.Value == 7,
+                    $"a file stamped ABOVE this build's layout keeps its own stamp ({ModConfig.ConfigVersion.Value}), "
+                    + "rather than being dragged back to a version whose rungs already ran");
+                Check(Math.Abs(ModConfig.MaxCurrentSpeed.Value - 1.951174f) < 1e-6f,
+                    "and a newer file's values are left alone by an older build");
+
+                // The stamp is a real bound key, in the section the ledger names. Get this wrong and
+                // every future migration reads version 0 forever and re-runs on every boot.
+                Check(fresh.Bound.Exists(e => e.Section == ConfigLedger.MetaSection && e.Key == ConfigLedger.VersionKey),
+                    "ModConfig actually binds the stamp at the slot ConfigLedger addresses");
+
+                // ---- The APPLY path. Every shipped table is empty, so nothing above ever ran
+                //      these three loops. Driven here with synthetic plans against the real
+                //      ModConfig, so the first real rung is not the first execution.
+                var live = new ConfigFile();
+                ModConfig.Bind(live);
+
+                ModConfig.MaxCurrentSpeed.Value = 3.5f;
+                var resetPlan = new ConfigLedger.MigrationPlan();
+                resetPlan.ResetToDefault.Add(ConfigLedger.Slot("3 - The current", "MaxCurrentSpeed"));
+                ConfigMigration.Apply(live, resetPlan);
+                Check(Math.Abs(ModConfig.MaxCurrentSpeed.Value - 1.2f) < 1e-6f,
+                    "applying a rebase puts the entry back to its SHIPPED default");
+
+                var backfillPlan = new ConfigLedger.MigrationPlan();
+                backfillPlan.Backfilled.Add(new ConfigLedger.BackfilledSlot
+                {
+                    Slot = ConfigLedger.Slot("2 - Systems", "EnableDriftLines"), Value = "false", Because = "test",
+                });
+                ConfigMigration.Apply(live, backfillPlan);
+                Check(!ModConfig.EnableDriftLines.Value, "applying a backfill writes its legacy value into the bound entry");
+
+                var floatBackfill = new ConfigLedger.MigrationPlan();
+                floatBackfill.Backfilled.Add(new ConfigLedger.BackfilledSlot
+                {
+                    Slot = ConfigLedger.Slot("3 - The current", "TideAmplitude"), Value = "0.4", Because = "test",
+                });
+                ConfigMigration.Apply(live, floatBackfill);
+                Check(Math.Abs(ModConfig.TideAmplitude.Value - 0.4f) < 1e-6f,
+                    "a float backfill parses with an invariant '.' decimal, whatever the machine's locale");
+
+                // A value BepInEx cannot parse is swallowed by its own SetSerializedValue, leaving
+                // the entry untouched - so the requested change silently does not happen. The mod
+                // survives it; ApplyBackfill's job is to say so rather than stamp in silence.
+                float before = ModConfig.TideAmplitude.Value;
+                RavenIron.Undertow.Undertow.Log.Clear();
+                var badBackfill = new ConfigLedger.MigrationPlan();
+                badBackfill.Backfilled.Add(new ConfigLedger.BackfilledSlot
+                {
+                    Slot = ConfigLedger.Slot("3 - The current", "TideAmplitude"), Value = "not-a-number", Because = "test",
+                });
+                ConfigMigration.Apply(live, badBackfill);
+                Check(Math.Abs(ModConfig.TideAmplitude.Value - before) < 1e-6f,
+                    "an unparseable backfill leaves the entry alone rather than corrupting it");
+                Check(RavenIron.Undertow.Undertow.Log.Said("3 - The current::TideAmplitude"),
+                    "and names the slot it could not set, rather than stamping the version in silence");
+
+                // A retirement acts on an ORPHAN: a line an old build wrote that no current build
+                // binds. BepInEx keeps those in a private dictionary and writes every one back out
+                // on each Save, so a key that is merely no longer bound rides along forever. That
+                // is what this proves, and it is why ConsumeRetiredKey binds before it removes.
+                string orphanPath = Path.Combine(dir, "with-an-orphan.cfg");
+                File.WriteAllLines(orphanPath, new[]
+                {
+                    "[1 - Core]",
+                    "TickBudgetMs = 2",
+                    "RetiredLongAgo = true",
+                });
+                var orphaned = new ConfigFile { ConfigFilePath = orphanPath };
+                ModConfig.Bind(orphaned);
+                Check(orphaned.HasOrphan("1 - Core", "RetiredLongAgo"),
+                    "a key in the file that no current build binds survives binding as a BepInEx orphan");
+
+                var retirePlan = new ConfigLedger.MigrationPlan();
+                retirePlan.Retired.Add(ConfigLedger.Slot("1 - Core", "RetiredLongAgo"));
+                ConfigMigration.Apply(orphaned, retirePlan);
+                Check(!orphaned.HasOrphan("1 - Core", "RetiredLongAgo"),
+                    "applying a retirement takes that orphan out, so the next Save stops writing it");
+                Check(!orphaned.ContainsKey(new ConfigDefinition("1 - Core", "RetiredLongAgo")),
+                    "and leaves nothing bound behind either, so the key is gone from both of BepInEx's sets");
+                Check(Math.Abs(ModConfig.TickBudgetMs.Value - 2f) < 1e-6f,
+                    "a retirement touches nothing else in the file");
+
+                // A ledger that retires a key this build STILL binds is a bug in the ledger. The
+                // real ConfigFile.Bind casts a stored entry to the requested type, so this throws
+                // inside ConsumeRetiredKey — which must stay caught, and must leave the value be.
+                bool retireThrew = false;
+                try
+                {
+                    var wrongRetire = new ConfigLedger.MigrationPlan();
+                    wrongRetire.Retired.Add(ConfigLedger.Slot("1 - Core", "VerboseLogging"));
+                    ConfigMigration.Apply(live, wrongRetire);
+                }
+                catch { retireThrew = true; }
+                Check(!retireThrew, "retiring a key this build still binds is survivable rather than fatal");
+                Check(live.ContainsKey(new ConfigDefinition("1 - Core", "VerboseLogging")),
+                    "and leaves that still-bound key exactly where it was");
+
+
+                // A ledger that names a key this build does not bind must warn and carry on, not
+                // throw: one bad row would otherwise abandon every step after it.
+                var ghostPlan = new ConfigLedger.MigrationPlan();
+                ghostPlan.ResetToDefault.Add(ConfigLedger.Slot("9 - Nope", "NoSuchKey"));
+                ghostPlan.Backfilled.Add(new ConfigLedger.BackfilledSlot { Slot = "also::missing", Value = "1", Because = "test" });
+                ghostPlan.Retired.Add("not a slot at all");
+                bool threw = false;
+                try { ConfigMigration.Apply(live, ghostPlan); } catch { threw = true; }
+                Check(!threw, "a ledger row naming a key this build does not bind warns and continues rather than throwing");
+
+                // Read the entry through the ConfigFile Apply was GIVEN. ModConfig's statics were
+                // re-pointed at another ConfigFile by the orphan test above, so asserting on them
+                // here would inspect something Apply never touched - an assertion that cannot fail.
+                var liveSpeed = (ConfigEntry<float>)live[new ConfigDefinition("3 - The current", "MaxCurrentSpeed")];
+                Check(Math.Abs(liveSpeed.Value - 1.2f) < 1e-6f, "and leaves every real entry as it was");
+
+                threw = false;
+                try { ConfigMigration.Apply(null, resetPlan); ConfigMigration.Apply(live, null); } catch { threw = true; }
+                Check(!threw, "Apply survives a null config or a null plan");
+
+                // ---- A MIS-CASED ledger row must resolve to nothing and say so, rather than
+                //      quietly finding an entry the game would not. Both the snapshot and the
+                //      lookup are ordinal; if either drifts back to ignore-case they disagree, and
+                //      a plan can then report a value moved while the config file never changed.
+                var misCased = new ConfigLedger.MigrationPlan();
+                misCased.ResetToDefault.Add(ConfigLedger.Slot("3 - the current", "maxcurrentspeed"));
+                var caseProbe = (ConfigEntry<float>)live[new ConfigDefinition("3 - The current", "MaxCurrentSpeed")];
+                caseProbe.Value = 3.5f;
+                RavenIron.Undertow.Undertow.Log.Clear();
+                ConfigMigration.Apply(live, misCased);
+                Check(RavenIron.Undertow.Undertow.Log.Said("binds no such key"),
+                    "a mis-cased ledger row is reported as a ledger bug rather than passing silently");
+                Check(Math.Abs(caseProbe.Value - 3.5f) < 1e-6f,
+                    "a ledger row whose section or key is mis-cased reaches NO entry, exactly as it would in game, "
+                    + "rather than resolving case-insensitively in the harness alone");
+
+                // ---- A retirement must never touch a key this build STILL binds. Relying on
+                //      Bind's cast to throw only protects the types that differ: BepInEx returns
+                //      the EXISTING entry for an already-bound definition, so a string key would
+                //      be bound and removed in silence. FlotsamCommon is one of three string keys
+                //      and the one an owner is most likely to have curated.
+                var liveStrings = new ConfigFile();
+                ModConfig.Bind(liveStrings);
+                var flotsamDef = new ConfigDefinition("5 - Flotsam", "FlotsamCommon");
+                string curated = "Wood,RoundLog,MyFavouriteThing";
+                ((ConfigEntry<string>)liveStrings[flotsamDef]).Value = curated;
+
+                var wrongStringRetire = new ConfigLedger.MigrationPlan();
+                wrongStringRetire.Retired.Add(ConfigLedger.Slot("5 - Flotsam", "FlotsamCommon"));
+                RavenIron.Undertow.Undertow.Log.Clear();
+                ConfigMigration.Apply(liveStrings, wrongStringRetire);
+                Check(RavenIron.Undertow.Undertow.Log.Said("still binds that key"),
+                    "and says why it refused, by name");
+                Check(liveStrings.ContainsKey(flotsamDef),
+                    "retiring a STRING key this build still binds is refused - BepInEx hands back the live entry, "
+                    + "so removing it would delete the owner's value with nothing thrown and nothing logged");
+                Check(((ConfigEntry<string>)liveStrings[flotsamDef]).Value == curated,
+                    "and the curated value is still there");
+
+                // ---- A backfill that lands CLAMPED is not a backfill that worked. BepInEx's
+                //      setter clamps into the entry's range rather than refusing, so the entry
+                //      MOVES - and a did-it-move check would call that success.
+                var clamped = new ConfigLedger.MigrationPlan();
+                clamped.Backfilled.Add(new ConfigLedger.BackfilledSlot
+                {
+                    Slot = ConfigLedger.Slot("3 - The current", "TideAmplitude"), Value = "9", Because = "test",
+                });
+                var clampTarget = (ConfigEntry<float>)liveStrings[new ConfigDefinition("3 - The current", "TideAmplitude")];
+                RavenIron.Undertow.Undertow.Log.Clear();
+                ConfigMigration.Apply(liveStrings, clamped);
+                Check(Math.Abs(clampTarget.Value - 1f) < 1e-6f,
+                    "an out-of-range backfill is clamped by the config system rather than refused (TideAmplitude tops out at 1)");
+                Check(RavenIron.Undertow.Undertow.Log.Said("rather than the '9' it intended"),
+                    "and the mod SAYS it stored something other than what the ledger asked for - a clamped value still "
+                    + "moves the entry, so the log line is the only way that failure is visible at all");
+
+                // ---- Backup(): every shipped table is empty, so Begin short-circuits past this on
+                //      every real boot. It would otherwise first run on the day it matters most.
+                string bakSrc = Path.Combine(dir, "backup-me.cfg");
+                File.WriteAllText(bakSrc, "[1 - Core]\nTickBudgetMs = 2\n");
+                Check(ConfigMigration.Backup(bakSrc, 0), "Backup reports success when it writes a copy");
+                Check(File.Exists(bakSrc + ".v0.bak"), "and the copy lands beside the file as .v0.bak");
+                Check(ConfigMigration.Backup(bakSrc, 0),
+                    "a second run over a byte-identical backup is a success without writing anything new");
+
+                File.WriteAllText(bakSrc, "[1 - Core]\nTickBudgetMs = 4\n");
+                Check(ConfigMigration.Backup(bakSrc, 0), "a second run over a DIFFERENT backup still succeeds");
+                string[] baks = Directory.GetFiles(dir, "backup-me.cfg.v0*.bak");
+                Check(baks.Length == 2,
+                    $"and falls back to a timestamped name rather than clobbering someone's only clean copy ({baks.Length} backups)");
+                Check(!ConfigMigration.Backup(Path.Combine(dir, "no-such-file.cfg"), 0),
+                    "Backup reports FAILURE rather than throwing when there is nothing to copy");
+            }
+            finally
+            {
+                // Leave ModConfig pointing at a throwaway file rather than a deleted temp one, so
+                // later sections read the shipped defaults.
+                ModConfig.Bind(new ConfigFile());
+                try { Directory.Delete(dir, true); } catch { }
+            }
         }
 
         // ---- harness ----------------------------------------------------------------------

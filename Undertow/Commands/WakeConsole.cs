@@ -186,6 +186,18 @@ namespace RavenIron.Undertow.Commands
             sb.Append($"wrath bridge {OnOff(ModConfig.EnableWrathBridge.Value)}, ");
             sb.Append($"drift lines {OnOff(ModConfig.EnableDriftLines.Value)}\n");
             sb.Append(WrathBridge.Describe()).Append("\n");
+
+            // MEASURE BEFORE YOU PUSH, applied to the config file itself: a migration you cannot
+            // read back is one you cannot debug. The stamp prints unconditionally because the two
+            // commonest outcomes — a fresh install and a file already at the current layout — set
+            // no summary at all. The summary prints whenever this boot PLANNED a migration, which
+            // includes the ordinary upgrade whose plan turned out to be empty; that line still says
+            // which version the file came from, and that is worth reading.
+            sb.Append($"config layout v{ModConfig.ConfigVersion.Value.ToString(c)}");
+            string migration = ConfigMigration.LastSummary;
+            sb.Append(string.IsNullOrEmpty(migration) ? " (nothing migrated this boot)" : $" — {migration}");
+            sb.Append("\n");
+
             sb.Append("the field is computed, readable, pushing hulls, carrying swimmers, ");
             sb.Append("gathering flotsam and showing on the water.");
 

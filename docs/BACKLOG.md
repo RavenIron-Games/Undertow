@@ -994,19 +994,165 @@ and **1.2** (rewritten at 07:53) for the readout below. Drift lines at defaults.
 | 2 carries the field | Summaries in uniform water: `active 70–95/160 bearing 191–193° vs 192–193° speed 0.55 vs 0.58`. Readout: `mean bearing 191°` vs `field here 0.503 m/s bearing 191° Race`. |
 | 3 rides the water | `nearest streak 8.4m: surface 29.65 (flat 30.00, wave -0.35) | vanilla Floating.GetWaterLevel 29.65 (delta 0.000)`. |
 | 4 handedness | **MEASURED: `90 − bearing`.** With `−bearing` deployed, lines lay at 102° in 191° water (a quarter turn across); with `90 − bearing`, "long ways along the flow so a line instead of an arrow" (owner). `rot 257° for bearing 191°`. `startSize3D.x` is the length axis. A first "90° off" against `90 − bearing` was a confounded reading in the slack node by spawn — see CLAUDE.md Known traps. |
-| 5 sort order | One daylight screenshot: faint foam-white streaks on green water, not blue-tinted, no clipping seen. Not yet watched in a big sea. |
+| 5 sort order | One daylight screenshot: faint foam-white streaks on green water, not blue-tinted, no clipping seen. In the 2.3 m+ ThunderStorm sea nothing was visible at all (row 9), so sort order there is moot — no clipping artefact was seen because no streak was. |
 | 6 night | **Not seen.** `ambient lum 0.56 → day 1.00` by day; the midnight reading is still owed. |
 | 7 cost | **0.37 ms EMA at 160/160 active** (0.34 last frame, 81 surface reads, 0 field evals — memo 24 cells), budget 0.50. Prior was 0.25. Auto-degrade never fired. The first cost summary after build read 2.66 ms with nothing active — a single-frame EMA seed, fixed the same day (EMA now rises from zero and no verdict is taken for 60 warm-up frames). |
 | 8 zone crossings | `retired: no-volume 0, reflected 1` over a swimming session; no latch. The 1 km sail is still owed. |
-| 9 storm | **Not seen** (no RW on the client). Chop reached 0.44 in ordinary weather; sea state 0.73 m. |
+| 9 storm | **SEEN, 08:13–08:19.** RW 0.27.0 on both sides (server un-parked for it; the two ServerSync-pinned mods parked instead, at the owner's direction). `event ragnarokswrath_devastating_storm` from the client console → server `Random event set` and RW `storm began — sky is 'Rain'` at (-2286, 2091) → client `STORM at (-2286, 2091) — IsStormAt(centre)=True, surge x1.6 \| at centre: 0.273 m/s Drift \| 800m away: 0.151 m/s surge x1`. Console, before → under surge (owner's paste): `wake here` 0.173 m/s ESE Drift → **0.265 m/s, `STORM SURGE x1.6 — the sea is up here`**; `wake lines` active 34 → **82**, spawned per 10 s 38 → **73**, mean length 2.4 → **2.8 m**, mean speed 0.21 → 0.30, cost 0.08 → 0.14 ms EMA; nearest-streak delta against vanilla 0.000 both times in a 0.7 m sea. Surge reaches the visual through speed alone, as designed. Chop stayed ~0.21 (the storm's sky was 'Rain', not a big sea). Same paste closed the season check: `season summer (Wrath)` on a pure client. **Then forced to ThunderStorm** (08:21 and 08:28; `StormsForceWeather = true`, `StormForcedEnvironment = ThunderStorm` on both sides, both restarted because RW registers the event's forced sky at boot): **`chop 1.00` for the whole storm** — sea state past 2.3 m, the full chop response — mean length 3.1–3.9 m at 0.23–0.38 m/s water, 50–81 active, cost ≤ 0.21 ms, surge x1.6 again at (-2332, 2101). **And the owner saw NO streaks in it** ("they disappeared, but that's fine in a storm") while the pool held 50–81 active: they existed and were unseen — under the rendered mesh on steep crests (the predicted failure: lift is `0.06 + 0.05 × chop` = 0.11 m at chop 1 against a 2 m+ crest) or lost to the ThunderStorm's rain and fog; the log cannot tell which. Accepted by the owner as storm behaviour and NOT chased. The lever, if it is ever wanted: `ChopLiftMetres` 0.05 → 0.2 first, then a chop-scaled opacity floor. RW's own note applies to that sky: ThunderStorm is a WET environment, so a forced storm rains and its lightning is suppressed — the dry storm look is `Eikthyr`. |
 | 10 gameplay untouched | Boot line `Harmony patched 3` on both sides. `wake drift` on/off comparison still owed. |
 | 11 owner's eye | "a line instead of an arrow" — the design. Opacity at default read as subtle; the owner did not ask for more. |
 
-**Acceptance so far:** steps 1–4 and 7 met, 5 and 8 partial, 6, 9 and 10 owed. The pool saturates
+**Acceptance so far:** steps 1–4, 7 and 9 met, 5 and 8 partial, 6 and 10 owed. The pool saturates
 at 0.5 m/s with `MaxCurrentSpeed 1.2` (62% acceptance x 1.45 mean cluster x 16 attempts/s ≈
 15 streaks/s against a 10 s mean life), so in strong water density is the cap rather than the
-speed; whether that is right is a tuning question for after the night and storm readings.
+speed; whether that is right is a tuning question for after the night reading — the storm reading is in (row 9), and its answer was "invisible", which is a different lever.
 
+
+## 8. The config migration — BUILT 2026-09-18 (0.7.1), NOT YET RUN IN-GAME
+
+**Why it exists before it is needed.** BepInEx merges a new key into an existing file at its
+SHIPPED default, and a shipped default is a statement about a NEW world. When it differs from what
+an existing world already does, an owner who changed nothing gets different behaviour with no error
+and nothing in the log — this codebase's named enemy arriving through the front door. The ladder
+belongs in place before the day a default has to move, because that day is the worst possible time
+to write it.
+
+**What shipped.** The family's shape (Wu'barrk's from Wings of the Valkyrie, by way of Valkyrie's
+Cargo, matching the ports that landed in Ragnarok's Wrath and FireFront the same week):
+
+- `Core/ConfigLedger.cs` — PURE, no BepInEx and no Unity, so the harness compiles it. Holds the
+  DECISIONS: `ParseIni`, `ReadVersion`, `Plan`, `Describe`, and three step kinds — REBASE (present,
+  still an old shipped default, so it moves), BACKFILL (absent, given a legacy value that preserves
+  how that world behaved), RETIRE (present, bound by nothing, dropped).
+- `Config/ConfigMigration.cs` — the engine. `Begin` before the first bind, `Finish` after the last,
+  a `.vN.bak` beside the file before anything destructive, and a failed migration never stops the
+  mod loading.
+- `ModConfig.ConfigVersion` under `[0 - Meta]`, bound LAST and stamped by `Finish`.
+- `wake status` prints the layout version, and the boot line when this boot migrated anything.
+
+**Three decisions worth keeping, each of which differs from at least one sibling.**
+
+1. **The backup gate is a property of the PLAN, not a house opinion.** FireFront blocks the version
+   stamp when a backup fails; Ragnarok's Wrath proceeds. Both are right about their own plan —
+   FireFront's retires a key, RW's only backfills. Here it is
+   `MigrationPlan.IsDestructive => ResetToDefault.Count > 0 || Retired.Count > 0`, so Undertow
+   becomes strict automatically the first time a destructive rung is added, rather than when
+   somebody remembers to make it strict.
+2. **The stamp lives in `0 - Meta`, not `Meta`.** BepInEx's `ConfigFile.Save` orders sections by
+   name, so "Meta" sorts BELOW "1 - Core" and lands at the bottom of the file. RW's comment asserts
+   the opposite and is wrong, harmlessly. Numbered also matches Undertow's own sections. This is a
+   migration slot string forever, so it is not something to tidy later.
+3. **`ConfigVersion` is bound with NO `AcceptableValueRange`.** BepInEx clamps an out-of-range value
+   SILENTLY, so a ceiling here would one day refuse the stamp and turn the migration into something
+   that re-applies on every boot. A stamp is not a dial.
+
+**And one improvement on both siblings.** `ConfigEntryBase.SetSerializedValue` catches every
+exception itself, logs a BepInEx warning and leaves the value untouched — so a mistyped ledger value
+is a silent no-op followed by a confident stamp, which makes it permanent. `ApplyBackfill` reads the
+value BACK and names the slot when nothing moved. The try/catch both siblings wrap around that call
+is unreachable code.
+
+**All three tables are EMPTY, and that is a measurement.** Undertow's config history is append-only
+across its whole life. Three independent records agree: the source at all four commits that ever
+touched `ModConfig.cs` (14 -> 25 -> 27 -> 33 binds, nothing ever removed), the shipped 0.5.1 and
+0.6.0 DLLs' own string tables, and nine real `com.raveniron.undertow.cfg` files on the owner's
+machines spanning 0.5.1, 0.6.0 and 0.7.0. No default moved, no key was renamed or retyped, no
+section string changed, no range narrowed — and of the 255 stored values across those nine files,
+none sits outside a current range, so nothing can be silently clamped on upgrade. Because
+CHANGELOG.md records 0.5.1 as the first public release, the retire surface is CLOSED rather than
+merely unobserved: no stranger holds a key this repo never published.
+
+**`EnableDriftLines` was the one judgement call, and the answer is no backfill.** It is the only key
+0.7.0 added to an existing section. Arguments both ways were written out; against backfilling: it is
+client-side cosmetics that touch no world state, it is double-gated off on a dedicated server (five
+of the nine real files are server-side, where the key does nothing at all), it is the advertised
+feature of the release an owner chose to install, and defaulting it off would quietly overturn the
+locked "visible current — diegetic only" row. If the owner ever wants the opposite, that single key
+is the lever, not the tuning section.
+
+**Harness 248 -> 357**, and every new assertion proven to fail without its fix — 28 mutations applied
+to the SHIPPING source, 28 caught. Two gaps were found that way and closed:
+
+- The ParseIni comment test was VACUOUS. Its fixture's comments contained no `=`, so they were
+  skipped by the no-`=` rule whether or not the `#` check existed. The fixture now contains
+  `# TickBudgetMs = 999` — a setting an admin commented out, which is the comment that matters and
+  the one whose mishandling would silently re-enable a value they turned off.
+- `LastSummary` was cleared by `Finish`'s own reset, so the `wake status` line could never have
+  shown anything and the assertion about it could never have failed. `Reset()` no longer touches it;
+  only `Begin` clears it, at the start of the next attempt.
+
+### What the adversarial review changed, after the first version passed its own tests
+
+Five independent reviewers went over the finished code and raised 25 findings; each was then put to
+three refuters told to default to "refuted". **22 survived**, most unanimously, and they were not
+style notes — six were real defects in code that was already green on 332 assertions. Every one is
+fixed and every fix is pinned by a mutation.
+
+1. **The snapshot's comparer disagreed with BepInEx.** `ParseIni` keyed OrdinalIgnoreCase; BepInEx's
+   `ConfigDefinition.Equals` is `string.Equals(Key, other.Key) && string.Equals(Section,
+   other.Section)` — the two-argument overload, ORDINAL and case-SENSITIVE, over a case-sensitive
+   `GetHashCode`. Confirmed by decompile. So `enabledriftlines` and `EnableDriftLines` are two
+   different keys to BepInEx: one binds, the other is an orphan. An ignore-case snapshot answers
+   "present" for a key BepInEx considers absent, which silently cancels the one step whose entire
+   safety is the absence test — and the stamp then makes that permanent. Now Ordinal.
+   **The test stub had the same bug, with a comment asserting it "matched the real one".** It did
+   not, so every Apply assertion would have passed for a reason that does not hold on a server.
+2. **The stamp could go DOWN.** `Finish` assigned `CurrentVersion` unconditionally, and a file
+   stamped by a NEWER build reaches `Finish` through the AlreadyCurrent path. Roll a mod back for an
+   afternoon and the stamp is dragged to 1; roll forward and the newer rungs replay against values
+   the owner has since chosen — and a rebase cannot tell a deliberate choice from the old default it
+   happens to equal. The stamp is now a high-water mark.
+3. **A retirement could delete a LIVE setting.** The retire loop had no guard, relying on
+   `Bind`'s cast to throw. That only protects types that differ: BepInEx returns the EXISTING entry
+   for an already-bound definition, so the three string keys (`FlotsamCommon`, `FlotsamRare`,
+   `FlotsamWreckage`) — the ones an owner is most likely to have curated — would have been bound and
+   removed in silence. The harness "proved" survivability only against a bool. Now refused by name.
+4. **The backfill read-back could not see a CLAMP.** `ConfigEntry<T>`'s setter runs `ClampValue`
+   against the entry's range rather than refusing, so an out-of-range legacy value parses fine, lands
+   clamped, and MOVES the entry — satisfying a did-it-move check. It now compares what landed against
+   what was asked for, numerically for numbers.
+5. **A negative stamp was a loop bound.** `ConfigVersion` carries no range on purpose, so
+   `-2000000000` was reachable by hand — and the version window ran from there. Measured at **17.8
+   seconds** on the boot thread under the mutation. Clamped at 0, and the test times it, because the
+   right answer arrived at slowly is still a frozen boot.
+6. **Two rungs naming one key judged it twice** against the same unchanged snapshot. First match now
+   owns the slot.
+
+Three prose claims were also wrong and are corrected: the trailing `cfg.Save()` is not "the only
+thing that writes" (Bind saves on every new entry; what it does NOT save is a no-op assignment or a
+`Remove`, which is what a retirement is), the `wake status` comment misdescribed when the summary
+appears, and the stub's case-sensitivity comment is the one quoted above.
+
+**THE MUTATION SUITE ITSELF LIED FIRST, AND THAT IS THE LESSON.** Its first run scored 20/20 without
+compiling a single line: it invoked `run-tests.ps1` through `powershell -NoProfile -Command`, this
+machine's execution policy refused the file, and the refusal exits non-zero — which the suite read as
+"the test caught it" every time. A confident, well-formed, wrong instrument, produced by the tool
+built to detect exactly that. Any script that judges the harness by its exit code must pass
+`-ExecutionPolicy Bypass` AND assert that the harness actually ran; the suite now refuses to score a
+run whose output does not contain the harness banner.
+
+### What is owed: the in-game run
+
+Definition of done in this repo is one observed boot, and a FRESH install proves nothing here — it
+migrates nothing and logs nothing. The run has to be against an existing file.
+
+1. Deploy 0.7.1 to Storm10 and to the `testing` profile. Both already carry a real 0.7.0 config with
+   no `[0 - Meta]` section.
+2. Boot the server. Expect exactly one line:
+   `config: version 0 -> 1: nothing to migrate (stamping the layout version)` — at INFO, not a
+   warning, because nothing changed.
+3. Read the file back. Expect a `[0 - Meta]` section at the TOP with `ConfigVersion = 1`, every other
+   value byte-identical to before, and NO `.v0.bak` beside it (a stamp-only plan writes none).
+4. Boot again. Expect NO migration line at all: the file now reads as current and `Begin`
+   short-circuits.
+5. On the client, `wake status` should end with `config layout v1 (nothing migrated this boot)`.
+6. The one that needs setting up: put `ConfigVersion = 0` back by hand with one value edited away
+   from its default, boot, and confirm the edited value survives and the line reappears. That proves
+   the round trip rather than the happy path.
+7. **A destructive rung has never run anywhere.** The apply path is exercised in the harness against
+   synthetic plans, which is why `ConfigMigration.Apply` and `Backup` are `internal` rather than
+   private — but the first REAL rebase or retirement should be watched in-game on a copied config
+   before it ships.
 
 ## 5z. Original task 5 specification (its AddPushbackForce advice was WRONG - see above)
 

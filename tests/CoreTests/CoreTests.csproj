@@ -28,6 +28,8 @@
       serialization, parsing, or drift math is testable off-game and belongs under test.
     -->
     <Compile Include="..\..\Undertow\Config\ModConfig.cs" />
+    <Compile Include="..\..\Undertow\Config\ConfigMigration.cs" />
+    <Compile Include="..\..\Undertow\Core\ConfigLedger.cs" />
     <Compile Include="..\..\Undertow\Core\CurrentField.cs" />
     <Compile Include="..\..\Undertow\Core\DriftForce.cs" />
     <Compile Include="..\..\Undertow\Core\FlotsamMath.cs" />
