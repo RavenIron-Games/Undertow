@@ -112,6 +112,13 @@ namespace RavenIron.Undertow.Core
     /// </summary>
     public static class CurrentField
     {
+        /// <summary>
+        /// Share of MaxSpeed below which water is called Slack. Named because it is shared:
+        /// <see cref="DriftLineMath.SpawnWeight"/> draws no foam at or below the same share, so
+        /// the water `wake here` calls slack and the water that looks glassy are one definition.
+        /// </summary>
+        public const float SlackShare = 0.12f;
+
         // Wavelengths in metres. The longest is the Great Drift — basin-scale, the thing a crew
         // plans a voyage around. The shortest is still 1.8km, because a current you cannot hold
         // a heading through for several minutes is noise, not geography.
@@ -324,7 +331,7 @@ namespace RavenIron.Undertow.Core
             float speed, float depth, FieldSettings s, float shallowFade, bool coastal, bool race)
         {
             if (shallowFade < 0.5f) return CurrentTerm.Shallows;
-            if (speed < s.MaxSpeed * 0.12f) return CurrentTerm.Slack;
+            if (speed < s.MaxSpeed * SlackShare) return CurrentTerm.Slack;
             if (race) return CurrentTerm.Race;
             if (coastal) return CurrentTerm.Coastal;
             return CurrentTerm.Drift;

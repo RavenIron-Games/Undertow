@@ -9,6 +9,7 @@ using RavenIron.Undertow.Config;
 using RavenIron.Undertow.Core;
 using RavenIron.Undertow.Patches;
 using RavenIron.Undertow.Bridge;
+using RavenIron.Undertow.Visuals;
 
 namespace RavenIron.Undertow.Commands
 {
@@ -71,7 +72,7 @@ namespace RavenIron.Undertow.Commands
             try
             {
                 new Terminal.ConsoleCommand("wake",
-                    "Undertow: wake status | here | field <x> <z>",
+                    "Undertow: wake status | here | field <x> <z> | drift | floats | lines",
                     Run);
             }
             catch (Exception ex)
@@ -149,13 +150,18 @@ namespace RavenIron.Undertow.Commands
                     case "floats":
                         args.Context.AddString(FloatScan.Describe(40));
                         return;
+                    case "lines":
+                        Lines(args);
+                        return;
                     default:
                         args.Context.AddString(
                             "wake status — what this machine is, and what is running on it\n" +
                             "wake here — the current under your own keel\n" +
                             "wake field <x> <z> — the current at any point, loaded or not\n" +
                             "wake drift — whether the current is actually reaching boats\n" +
-                            "wake floats — which vanilla prefabs carry Floating (gates flotsam)");
+                            "wake floats — which vanilla prefabs carry Floating (gates flotsam)\n" +
+                            "wake lines — whether the current is showing on the water, and what it costs " +
+                            "(`wake lines reset` rebuilds it)");
                         return;
                 }
             }
@@ -177,10 +183,11 @@ namespace RavenIron.Undertow.Commands
             sb.Append($"drift {OnOff(ModConfig.EnableDrift.Value)}, ");
             sb.Append($"flotsam {OnOff(ModConfig.EnableFlotsam.Value)}, ");
             sb.Append($"swimmers {OnOff(ModConfig.EnableSwimmers.Value)}, ");
-            sb.Append($"wrath bridge {OnOff(ModConfig.EnableWrathBridge.Value)}\n");
+            sb.Append($"wrath bridge {OnOff(ModConfig.EnableWrathBridge.Value)}, ");
+            sb.Append($"drift lines {OnOff(ModConfig.EnableDriftLines.Value)}\n");
             sb.Append(WrathBridge.Describe()).Append("\n");
-            sb.Append("the field is computed, readable and pushing hulls; ");
-            sb.Append("flotsam and swimmers are still unbuilt.");
+            sb.Append("the field is computed, readable, pushing hulls, carrying swimmers, ");
+            sb.Append("gathering flotsam and showing on the water.");
 
             args.Context.AddString(sb.ToString());
         }
@@ -287,6 +294,33 @@ namespace RavenIron.Undertow.Commands
             }
 
             args.Context.AddString(sb.ToString());
+        }
+
+        /// <summary>
+        /// Whether the current is showing on the water, on THIS machine, and what it costs.
+        ///
+        /// A visual is the one feature a log line cannot vouch for, so the readout carries the
+        /// checks a person would otherwise need eyes for: which shader resolved, whether
+        /// spawning is alive and WHY attempts fail, that the streaks carry the field (their mean
+        /// bearing and speed against the field's own), that a streak's height is the wave and
+        /// not the flat level, and that our resolver agrees with vanilla's Floating.GetWaterLevel.
+        ///
+        /// `wake lines reset` is the mod's first console mutation: local, cosmetic, with no
+        /// store behind it — exactly the self-gating the header above asks for.
+        /// </summary>
+        private static void Lines(Terminal.ConsoleEventArgs args)
+        {
+            DriftLines lines = DriftLines.Instance;
+            if (lines == null)
+            {
+                args.Context.AddString(Undertow.IsDedicated()
+                    ? "wake: no renderer on this machine — a dedicated server draws nothing, so the drift lines are never armed on it."
+                    : "wake: drift lines are not armed on this machine — no graphics device was present at boot.");
+                return;
+            }
+
+            bool reset = args.Args.Length > 2 && args.Args[2].ToLowerInvariant() == "reset";
+            args.Context.AddString(reset ? lines.Reset() : lines.Describe());
         }
 
         /// <summary>

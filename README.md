@@ -11,7 +11,8 @@ Undertow gives the sea its own motion. Currents run across the ocean in a shape 
 a slow basin drift, a stream that follows the coast, fast water between close islands, and dead
 water behind a headland. They carry what floats on them.
 
-**No map, no HUD, no icons.** The sea tells you itself, or it doesn't tell you at all.
+**No map, no HUD, no icons.** The sea shows its own motion the way water does — foam lying
+along the flow, moving with it, glassy where it goes dead — and nothing reads it out for you.
 
 ---
 
@@ -65,6 +66,19 @@ The current carries a swimming body too, gently. It is **hard-capped below swim 
 always out-swim the water and reach shore. That is a safety property rather than a balance dial,
 and it is enforced across every setting the config permits.
 
+### 🌫 The sea shows its set *(0.7.0)*
+Faint foam streaks lie along the current on the water itself, move at the water's own speed and
+ride the swell — thick in a race, sparse at a trickle, **absent in slack water, which stays
+glassy**. From a drifting hull they hold station alongside; under sail they stream past at the
+crab angle, and that angle is the set. Nothing states it: no arrow, no number, no screen element.
+The streaks are symmetric end to end, so a glance gives you the line of the flow and only
+watching gives you the sense — which is how a sailor reads a tide.
+
+Client-side and cosmetic. It changes nothing about how a boat or swimmer moves, is never
+networked or saved, and a dedicated server ignores it. Night, fog, distance and a big sea dim it
+on their own. `EnableDriftLines` turns it off; section `7 - Drift lines` tunes count, radius,
+opacity and a per-frame cost budget the mod enforces on itself.
+
 ---
 
 ## Install
@@ -77,6 +91,9 @@ every rate, cap and threshold is tunable.
 
 **Keep the config identical on the server and every client.** The field is recomputed
 independently on each machine, so a client with different settings sails a different ocean.
+The one exception is section `7 - Drift lines`, which is per machine by nature: foam is drawn by
+the client that looks at it, so two players on one deck see the same set, density and speed from
+the same field, but not the same individual streaks.
 
 ## The `wake` console
 
@@ -87,6 +104,7 @@ independently on each machine, so a client with different settings sails a diffe
 | `wake field <x> <z>` | the current anywhere, loaded or not |
 | `wake drift` | whether the current is actually reaching boats |
 | `wake floats` | which item prefabs carry `Floating` (the flotsam palette) |
+| `wake lines` | whether the current is showing on the water, and what it costs (`wake lines reset` rebuilds it) |
 
 Turn on `VerboseLogging` and the log carries a boot-time transect of your seed's ocean, plus a
 running readout of drift while you sail.
@@ -101,7 +119,8 @@ running readout of drift while you sail.
 
 ## What it deliberately is not
 
-No map, no compass, no wind gauge, no HUD of any kind. No new prefabs, assets or bundles. No
+No map, no compass, no wind gauge, no HUD of any kind — the drift lines are the sea, not an
+instrument: nothing is drawn on the screen and nothing reads the current out. No new prefabs, assets or bundles. No
 second wave system and no weather — vanilla and Seasonality own that ground. No boat rebalancing
 and no new ship types. Undertow changes the sea and nothing else.
 

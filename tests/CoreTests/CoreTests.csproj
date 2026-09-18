@@ -32,6 +32,7 @@
     <Compile Include="..\..\Undertow\Core\DriftForce.cs" />
     <Compile Include="..\..\Undertow\Core\FlotsamMath.cs" />
     <Compile Include="..\..\Undertow\Core\SwimDrift.cs" />
+    <Compile Include="..\..\Undertow\Core\DriftLineMath.cs" />
   </ItemGroup>
 
 </Project>

@@ -4,7 +4,7 @@
     <TargetFramework>net472</TargetFramework>
     <AssemblyName>Undertow</AssemblyName>
     <RootNamespace>RavenIron.Undertow</RootNamespace>
-    <Version>0.6.0</Version>
+    <Version>0.7.0</Version>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -54,6 +54,15 @@
     <!-- Rigidbody. This mod's entire write surface lives behind this reference. -->
     <Reference Include="UnityEngine.PhysicsModule">
       <HintPath>$(LibsDir)\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!--
+      ParticleSystem. Client-only cosmetics: the visible current. Nothing behind this
+      reference may ever touch gameplay (house rule 3), and it is dormant on a headless
+      server, which has no graphics device to draw with.
+    -->
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>$(LibsDir)\UnityEngine.ParticleSystemModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
 

@@ -32,7 +32,7 @@ namespace RavenIron.Undertow
     {
         public const string PluginId      = "com.raveniron.undertow";
         public const string PluginName    = "Undertow";
-        public const string PluginVersion = "0.6.0";
+        public const string PluginVersion = "0.7.0";
 
         public static Undertow Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -76,6 +76,14 @@ namespace RavenIron.Undertow
             gameObject.AddComponent<SeaTick>();
 
             RegisterSystems();
+
+            // Visuals exist only where something renders. GraphicsDeviceType.Null is the
+            // headless tell that survives compiling against client reference DLLs (where
+            // ZNet.IsDedicated() is a hardcoded false) - the sibling mod's gate, verbatim.
+            // Added AFTER the cursor and the systems so nothing a visual does at Awake can
+            // stand between them and their registration (house rule 3).
+            if (UnityEngine.SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null)
+                gameObject.AddComponent<Visuals.DriftLines>();
 
             Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
         }

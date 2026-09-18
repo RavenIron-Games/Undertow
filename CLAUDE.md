@@ -3,12 +3,18 @@
 A Valheim mod by **Raven Iron**. The sea gets its own motion. Currents run across the ocean
 in a learnable shape — a basin drift, coastal set, fast water between islands, slack behind a
 headland — and they push what floats on them. On a world with no map and no portals, that
-turns coordinates into seamarks: knowledge a crew carries in their heads, never on the screen.
+turns coordinates into seamarks: knowledge a crew carries in their heads, never as an instrument.
 
 **Undertow owns water motion, and nothing else.** Not weather, not waves, not the water
 surface, not wayfinding instruments. If a task seems to call for a map, a compass, a wind
 gauge, or a second wave system, that is a signal to re-read the locked decisions below, not to
 build one.
+
+Since 0.7.0 the sea also SHOWS its motion — drift lines, foam lying along the flow on the water
+itself — by the owner's call on 2026-09-18 ("we still need no hud"). That is the sea being the
+sea, not an instrument: nothing is drawn in screen space, nothing reads the field out, and the
+locked HUD row below stands word for word. The one sentence of the premise that changed is the
+one above: "never on the screen" became "never as an instrument".
 
 Design document (the reasoning behind every decision here):
 <https://claude.ai/code/artifact/e213f36d-fdcd-4695-a159-f8e4e1157323>
@@ -57,9 +63,31 @@ mods were even loaded.
   while drifting **0.164** — a 95% match, and no sign of the 20x amplification trap. Swimming
   held 1.9–2.0 m/s against a 0.17 m/s current, so the drowning guard has a tenfold margin.
 
-**Everything on the roadmap is verified in-game.** The remaining open item is compatibility
-testing against other boat mods: every measurement so far is a clean baseline taken with none
-installed.
+**Everything on the original roadmap (0–5) is verified in-game.** The remaining open item there
+is compatibility testing against other boat mods: every measurement so far is a clean baseline
+taken with none installed.
+
+- **7 — drift lines (0.7.0). BUILT AND RUN IN-GAME 2026-09-18, on Storm10 — Valheim 1.0.15 on
+  BOTH sides.** The current made visible:
+  `Visuals/DriftLines.cs` owns a pool of foam streaks (structure-of-arrays, pushed through
+  `SetParticles` each frame), samples the field through a 16 m / 3 s memo, rides
+  `WaterVolume.GetWaterSurface` through `Visuals/WaterSurfaceCache`, and draws with a material
+  `Visuals/ParticleKit` generates in code. Every rule about what a streak looks like and where
+  one may exist is pure maths in `Core/DriftLineMath.cs`; the harness went **162 → 248** and
+  every new assertion was proven to fail under a mutation (eleven mutations, all caught). It
+  adds NO Harmony patch — the boot line still reads `Harmony patched 3` — and touches no
+  gameplay state. **Measured the same day** (full numbers in `docs/BACKLOG.md` task 7): armed →
+  built (`Sprites/Default`, manual fog) → first streak afloat, zero exceptions; 70–160 streaks
+  with a **mean bearing of 191° against a field of 191°** and speed 0.55 vs 0.50; the nearest
+  streak's height against vanilla's `Floating.GetWaterLevel` at **delta 0.000** and −0.35 m
+  below the flat level (it rides the wave); the owner's eye: "long ways along the flow — a line
+  instead of an arrow", which is the design; **cost 0.37 ms EMA at a saturated pool of 160**
+  (81 surface reads a frame) against the 0.50 budget; the dedicated server loaded 0.7.0, patched
+  3, and never armed the visual. The rotation convention was MEASURED — see Known traps — and a
+  first reading of it was wrong for a reason worth knowing. **Not yet seen:** night, a storm
+  (surge needs Ragnarok's Wrath on the client, which the test profile lacks), a long zone-crossing
+  sail, and `wake drift` on/off. `revprobe` binds 0.7.0 clean against 1.0.15; the game updated
+  from 1.0.12 the morning of the test and the `libs\` set is still the 1.0.12 publicized one.
 
 **KNOWN LIMIT — PARTIALLY CLOSED 2026-09-12, AND THE REMAINING HALF IS THE HARD HALF.** RW's
 season was client-blind: `SeasonSystem.Current` is set only in `Tick()`, which RW gates on the
@@ -138,7 +166,9 @@ Undertow/                  one role-aware plugin (net472)
   Core/SeaContext.cs       the seam: WorldGenerator/ZNet/ZoneSystem reads + the terrain probe
   Core/SeaTick.cs          the single time-budgeted cursor
   Core/IWorldSystem.cs     what ambient systems implement
+  Core/DriftLineMath.cs    the drift lines' rules. PURE like CurrentField — no Unity, no config
   Systems/                 Drift (ships), Flotsam, Swimmers
+  Visuals/                 client-only cosmetics: DriftLines, WaterSurfaceCache, ParticleKit
   Bridge/WrathBridge.cs    reflected, read-only reads of Ragnarok's Wrath
   Patches/                 Harmony patches — Ship, Character
   Commands/                the `wake` console
@@ -240,6 +270,7 @@ diagnostic bug report in this genre.
 | Decision | Answer |
 |---|---|
 | HUD / map / compass / wind gauge | **None.** Navigation instruments are a different mod; that was the other concept on the table when this one was chosen. |
+| Visible current | **Yes, since 0.7.0 — diegetic only.** Drift lines on the water itself, by the owner's call on 2026-09-18. It is the sea showing its own motion and may never become an instrument: no screen-space element, no arrow, no number, no readout, no console verb that forces a bearing onto the water. Anything that reads the field out for the player is the HUD row above, and that row stands. Procedural, client-only, never networked, never saved. |
 | Waves, water surface, shaders | **Never touched.** See rule 4. Vanilla's wave sim is shared, deterministic, and drives visuals. |
 | New prefabs | **None.** `ZNetScene.CreateObjectsSorted` calls `DestroyZDO` on any hash it cannot resolve — silent data loss. Flotsam uses vanilla `ItemDrop`s only. |
 | Unattended boat drift | **Default OFF.** Vanilla already damps an empty hull's horizontal velocity to a tenth per tick; that is a stated intent we honour. Losing a moored longship to a mod is a one-star review. |
@@ -365,6 +396,43 @@ and nothing spawns in unloaded ocean. Keep it that way: flotsam requires a real 
 ## Known traps
 
 Verified by decompile 2026-08-28 unless marked otherwise.
+
+- **`Utils.GetMainCamera()` does not exist in the shipping `assembly_utils`** — only
+  `GetMainCameraFrustumPlanes()` does — and `GameCamera.m_camera` is private. A design review on
+  2026-09-18 "verified" the former anyway; the decompile said otherwise. Use
+  `UnityEngine.Camera.main` (Valheim's camera is tagged MainCamera) and fall back to the local
+  player's position.
+
+- **Valheim strips Unity's standard particle shaders.** `Particles/Standard Unlit` is confirmed
+  absent; `Sprites/Default` is the first candidate that ships, and it is UNLIT, so a white
+  particle glows at night unless the code dims it from the scene's own light. Inherited from
+  Ragnarok's Wrath (its 0.7.0 shipped a fog nobody could see); `Visuals/ParticleKit.cs` carries
+  the candidate chain verbatim and must never fork from RW's.
+
+- **Slack water is rarer and smaller than a test expects.** On a flat seabed at default tuning,
+  the slowest water within a kilometre of the origin is 0.24 m/s against a 0.144 m/s slack
+  threshold, and the slack pockets that do exist around the stream function's nodes are tens
+  of metres across. A scan that is too narrow or too coarse finds NO slack and any "slack
+  behaves correctly" assertion passes vacuously — which is exactly what happened the first time
+  the drift lines' cross-test ran (2026-09-18). The harness now scans 12 km at 40 m and asserts
+  it saw both kinds of water.
+
+- **`HorizontalBillboard` handedness, MEASURED 2026-09-18 on Storm10.** At `Particle.rotation`
+  0 the quad's long (`startSize3D.x`, texture U) axis lies along world **+x**, and a positive
+  rotation turns it **clockwise seen from above** (east toward north — heading decreasing). So
+  the line's compass heading is `90 − rotation`, and `DriftLineMath.QuadRotationDegrees` is
+  `90 − bearing`. `startSize3D.x` IS the U axis. The measurement: in uniform 191° water with
+  ~80 streaks whose mean bearing matched the field, a rotation of `−bearing` laid every line at
+  102° — a quarter turn across the flow — which only that convention produces; with
+  `90 − bearing` the owner read them as "long ways along the flow".
+
+- **A rotation check needs uniform water and many streaks, or it lies.** The first reading of
+  the convention above was "90° off" against the SAME correct formula, taken in the slack node
+  by spawn with two streaks in view whose own sampled bearings (196°, 118°) had nothing to do
+  with the 8° the centre reported. One formula change and one more round-trip were spent on a
+  confounded reading. Before judging orientation, get `wake lines` to show a mean streak bearing
+  within a few degrees of the field's, with dozens active; only then does the eye measure the
+  engine rather than the water.
 
 - **`Ship.CustomFixedUpdate`'s owner check is INSIDE the method.**
   `if ((bool)m_nview && !m_nview.IsOwner()) return;` guards only the lines below it. **A

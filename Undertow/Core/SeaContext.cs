@@ -14,8 +14,8 @@ namespace RavenIron.Undertow.Core
     /// means the field answers for open ocean nobody has ever visited — which the console needs,
     /// and which a loaded-zone read could never do.
     ///
-    /// COST, and it is task 2's problem rather than task 1's: one evaluation makes seven
-    /// GetHeight calls. That is free for a console command and is NOT obviously free per boat
+    /// COST, and it is task 2's problem rather than task 1's: one evaluation makes up to nine
+    /// GetHeight calls (1 + 4 gradient + 2x2 race probes). That is free for a console command and is NOT obviously free per boat
     /// per FixedUpdate. Measure it before the drift patch ships; a small memo cache keyed on
     /// rounded coordinates is the obvious answer if it bites, and rounding is safe precisely
     /// because the field is smooth at the scale of a boat.

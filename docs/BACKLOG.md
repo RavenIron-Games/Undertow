@@ -903,6 +903,111 @@ The float-scan figure moved from `123 of 1090` to `162 of 1523`, but August's wa
 prefabs, so these are not a like-for-like pair; re-take it headless before treating 162/1523 as
 the baseline.
 
+## 7. Drift lines — the current made visible — BUILT 2026-09-18 (0.7.0), RUN IN-GAME THE SAME DAY
+
+The owner's call on 2026-09-18: a visible current on the water, and "we still need no hud". The
+design was a three-lens panel (sea realism, helmsman readability, engine safety) judged twice and
+synthesised; the visual language is **drift lines** — the one sea phenomenon that carries
+direction, relative speed and dead water at once without a symbol. Everything below is off-game
+fact; nothing below has been seen on a screen.
+
+**What was built.** `Visuals/DriftLines.cs` (client-only MonoBehaviour, added in `Plugin.Awake`
+behind `SystemInfo.graphicsDeviceType != Null`), `Visuals/WaterSurfaceCache.cs` (a read-only
+XZ → `WaterVolume` resolver off `Floating.GetWaterLevel`'s per-call `GetComponent` path),
+`Visuals/ParticleKit.cs` (RW's shader chain verbatim + a generated 128x32 streak texture),
+`Core/DriftLineMath.cs` (pure, harness-tested). `wake lines` and `wake lines reset`. Config
+`EnableDriftLines` + section `7 - Drift lines`. `CurrentField.SlackShare` extracted so the
+field's Slack and the streaks' absence are one constant. Harness 162 → 248; eleven mutations,
+each caught. Build clean. **Adds no Harmony patch.**
+
+**Verified against the shipping assembly, 2026-09-18** (non-publicized decompile): every game
+member the new code names is public — `WaterVolume.Instances`, `.GetWaterSurface`,
+`.GetLiquidType`, `Floating.GetWaterLevel`, `Player.m_localPlayer`, `ZoneSystem.m_waterLevel`.
+`Utils.GetMainCamera` does NOT exist (a design review claimed it did); `Camera.main` is used.
+
+### What the first in-game run must settle, in order
+
+Each of these is a prior, not a fact, and each has a one-line fix. Record the answer in
+`CLAUDE.md` Known traps whichever way it falls.
+
+1. **It ran at all.** Log: `DriftLines: armed on this client`, then `emitter built — shader
+   '<name>'` (expect `Sprites/Default`, `manual fog`), then `first streak afloat at (x, z) …
+   surface 30.xx (flat 30.00)` with a surface that differs from 30.00 by the wave. `wake lines`
+   reads `LIVE`, active > 0. On a dedicated server the armed line must be ABSENT and `wake lines`
+   must answer "no renderer on this machine".
+2. **The streaks carry the field.** `wake lines` line 3: mean bearing within ~8° of the field's
+   bearing and mean speed within a few percent of the field's speed. `wake here` and line 2 must
+   print the same field.
+3. **They ride the water, and agree with vanilla.** Line 4: `wave +x.xx` non-zero in any wind,
+   and `delta` against `Floating.GetWaterLevel` at 0.000 ± a centimetre. A persistent non-zero
+   delta means our resolver picked a different volume than vanilla; the fix is to prefer
+   vanilla's rule (already: highest surface among containing volumes) — check the volume name.
+4. **The line lies ALONG the flow — the handedness measurement.** Two stations. Where `wake here`
+   reads a current within 10° of due north, streaks must run N–S (a mirror is invisible here:
+   this proves the 90° offset). Then find a NE set: streaks must run NE–SW, not NW–SE (a mirror
+   is obvious here: this proves the sign). If mirrored, flip `FlipRotation` in `DriftLines.cs`.
+   If streaks lie ACROSS the flow everywhere, the `startSize3D` axes are transposed: swap to
+   `(width, length, 1)`. `wake lines` prints the applied rotation beside the field bearing.
+5. **Sort order and clipping.** At noon on flat-ish water, streaks 10–40 m out must be crisp
+   foam-white, not blue-tinted or hidden. In wind ≥ 0.8 watch a crest pass under one. Fix
+   ladder, one step at a time, each recorded: `BaseLiftMetres` 0.06 → 0.12; `ChopLiftMetres`
+   0.05 → 0.15; `ParticleKit.RenderQueue` 3100 → 3200.
+6. **Night.** `wake lines` line 5 at noon, dusk, midnight and in rain: `ambient lum` must MOVE.
+   Midnight should be a faint grey smear a shade lighter than the water (alpha ≈ 0.08), never a
+   glow. If lum barely changes between noon and midnight, switch `DayFactor`'s input to the fog
+   colour's luminance (also plain Unity state). `DayFloorLuminance` / `DaySlopeLuminance` in
+   `DriftLineMath` are the only two knobs.
+7. **Cost — the acceptance number.** Line 6 at full current in a race during a wind change:
+   record the EMA the way `ALONG-RATIO` was recorded for drift. Prior: ≈ 0.25 ms at pool 160.
+   If the auto-degrade fires (`pool 160 → 80` in the log), that IS the measurement; fallbacks in
+   order: stride 3, default pool 128.
+8. **Zone crossings.** Sail 1 km at full sail across several zone lines with `VerboseLogging`.
+   Expect a small non-zero `retired: no-volume` count and NO latch line. A latch here means the
+   cache rebuild trigger is wrong, not the null guard.
+9. **Storm.** Vanilla storm first: `sea state` past 1.5 m, `chop fade` toward 0.5, streaks ~30%
+   longer. Then task 3's protocol with RW on the client: surge x1.6 in `wake here`, accepted %
+   and mean length up versus the calm reading.
+10. **The gameplay path is untouched.** `wake drift` prints identical numbers with
+    `EnableDriftLines` on and off, and the boot line still reads `Harmony patched 3`.
+11. **The owner's eye.** From the deck: "would you mistake this for an overlay?" Levers in order
+    if yes: `BearingJitterDegrees` 16 → 28, more 2s and 3s in `ClusterSize`, wider life spread,
+    lower pool with longer streaks, more grain in `StreakAlpha`. A judgement, not a number.
+
+**Known, by design:** inland lakes deeper than `DriftLineMinDepth` with a non-zero field get a
+few streaks — the visual shows where the water runs, and drift already acts there. Raise the
+depth if it offends; never add a lake detector. Two players on one deck see different individual
+foam; the field, density and set agree.
+
+### Results, 2026-09-18 — Storm10 (local dedicated server), Valheim 1.0.15 both sides
+
+**Setup.** Storm10 updated from 1.0.12 to 1.0.15 for the run (the client had updated that
+morning; `ErrorVersion` on the first join). Client: Gale profile `testing` — Undertow 0.7.0,
+Valkyrie's Cargo 0.1.4 and Yggdrasil's Reckoning 0.1.3 (both ServerSync-pinned on the server,
+added to the profile at the server's exact bytes), FireFront 0.21.2, devcommands, Configuration
+Manager. **No Ragnarok's Wrath on the client**, so surge was x1.00 throughout. Client config:
+`VerboseLogging = true`, `TideAmplitude = 0.499`, `MaxCurrentSpeed` 1.95 for the first session
+and **1.2** (rewritten at 07:53) for the readout below. Drift lines at defaults.
+
+| Step | Result |
+|---|---|
+| 1 ran | `armed on this client (Direct3D11)` → `emitter built — shader 'Sprites/Default' (manual fog), pool 160, radius 60 m, texture 128x32, queue 3100` → `first streak afloat at (-328, 37) — 0.5 m/s bearing 213°, surface 27.97 (flat 30.00)`. **0 exceptions** across three client boots. Server: `Loading [Undertow 0.7.0]`, `Harmony patched 3`, SeaTick authority, **no armed line** — the headless proof. |
+| 2 carries the field | Summaries in uniform water: `active 70–95/160 bearing 191–193° vs 192–193° speed 0.55 vs 0.58`. Readout: `mean bearing 191°` vs `field here 0.503 m/s bearing 191° Race`. |
+| 3 rides the water | `nearest streak 8.4m: surface 29.65 (flat 30.00, wave -0.35) | vanilla Floating.GetWaterLevel 29.65 (delta 0.000)`. |
+| 4 handedness | **MEASURED: `90 − bearing`.** With `−bearing` deployed, lines lay at 102° in 191° water (a quarter turn across); with `90 − bearing`, "long ways along the flow so a line instead of an arrow" (owner). `rot 257° for bearing 191°`. `startSize3D.x` is the length axis. A first "90° off" against `90 − bearing` was a confounded reading in the slack node by spawn — see CLAUDE.md Known traps. |
+| 5 sort order | One daylight screenshot: faint foam-white streaks on green water, not blue-tinted, no clipping seen. Not yet watched in a big sea. |
+| 6 night | **Not seen.** `ambient lum 0.56 → day 1.00` by day; the midnight reading is still owed. |
+| 7 cost | **0.37 ms EMA at 160/160 active** (0.34 last frame, 81 surface reads, 0 field evals — memo 24 cells), budget 0.50. Prior was 0.25. Auto-degrade never fired. The first cost summary after build read 2.66 ms with nothing active — a single-frame EMA seed, fixed the same day (EMA now rises from zero and no verdict is taken for 60 warm-up frames). |
+| 8 zone crossings | `retired: no-volume 0, reflected 1` over a swimming session; no latch. The 1 km sail is still owed. |
+| 9 storm | **Not seen** (no RW on the client). Chop reached 0.44 in ordinary weather; sea state 0.73 m. |
+| 10 gameplay untouched | Boot line `Harmony patched 3` on both sides. `wake drift` on/off comparison still owed. |
+| 11 owner's eye | "a line instead of an arrow" — the design. Opacity at default read as subtle; the owner did not ask for more. |
+
+**Acceptance so far:** steps 1–4 and 7 met, 5 and 8 partial, 6, 9 and 10 owed. The pool saturates
+at 0.5 m/s with `MaxCurrentSpeed 1.2` (62% acceptance x 1.45 mean cluster x 16 attempts/s ≈
+15 streaks/s against a 10 s mean life), so in strong water density is the cap rather than the
+speed; whether that is right is a tuning question for after the night and storm readings.
+
+
 ## 5z. Original task 5 specification (its AddPushbackForce advice was WRONG - see above)
 
 Last, deliberately: the highest-annoyance surface in the mod, and it wants the most tuning

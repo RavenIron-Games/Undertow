@@ -11,6 +11,16 @@ Design document (the reasoning behind every locked decision):
 
 ## Where things stand
 
+**2026-09-18 — 0.7.0, drift lines.** The owner chose a visible current ("we still need no hud"):
+foam streaks on the water itself, along the flow, absent in slack. Built, harness 248/248 with
+every new assertion mutation-proven, build clean, no new Harmony patch, and **run in-game the
+same day on Storm10 (Valheim 1.0.15 both sides)**: steps 1–4 and 7 of task 7 met, the rotation
+convention measured (`90 − bearing`), cost 0.37 ms at a full pool. Still owed: night, storm
+(needs RW on the client), a long sail, `wake drift` on/off. Storm10 was updated to 1.0.15 for
+this and its Undertow was un-parked (`Undertow.dll.off` left beside the live DLL). The `testing`
+profile gained Valkyrie's Cargo 0.1.4 and Yggdrasil's Reckoning 0.1.3 to pass ServerSync.
+Nothing is committed yet.
+
 **Undertow 0.5.1. The roadmap is complete and every task is verified in-game** — unchanged
 since 2026-08-28. Harness **162/162**, clean build. `main` is `d621c5f`, in sync with the
 **public** (since 2026-09-03) `RavenIron-Games/Undertow` — the account was renamed from
@@ -129,6 +139,11 @@ already warns about; revisit when a release changes the field's maths, copying R
 
 ## What remains, in order
 
+0. **Finish task 7's owed readings**: night (`skiptime` on devcommands makes it a minute's
+   work — read `ambient lum` and `day` at midnight in `wake lines`), a storm with RW on the
+   client, a 1 km sail across zone lines with `VerboseLogging` (expect no latch), and `wake
+   drift` identical with `EnableDriftLines` on and off. Then decide the saturation question in
+   task 7's results.
 1. ~~Resolve the blocker, then make the repo public.~~ **Done 2026-09-03** — public, by the owner's hand; see the closed section above.
 2. **One Ravenrest session, and it answers three things at once.** Njord and Sailing are
    already there, so the "with" runs are the default state. A karve, sail down, in known water

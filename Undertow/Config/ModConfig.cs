@@ -34,6 +34,7 @@ namespace RavenIron.Undertow.Config
         public static ConfigEntry<bool> EnableFlotsam;
         public static ConfigEntry<bool> EnableSwimmers;
         public static ConfigEntry<bool> EnableWrathBridge;
+        public static ConfigEntry<bool> EnableDriftLines;
 
         // ---- The current ----------------------------------------------------------------
         // These arrived with task 1, which is the first thing that reads them. Keep that rule:
@@ -65,6 +66,13 @@ namespace RavenIron.Undertow.Config
         // ---- Swimmers (task 5) -----------------------------------------------------------
         public static ConfigEntry<float> SwimmerDriftFactor;
         public static ConfigEntry<float> SwimmerMaxShareOfSwimSpeed;
+
+        // ---- Drift lines (client-side cosmetics) -----------------------------------------
+        public static ConfigEntry<int>   DriftLineCount;
+        public static ConfigEntry<float> DriftLineRadius;
+        public static ConfigEntry<float> DriftLineOpacity;
+        public static ConfigEntry<float> DriftLineMinDepth;
+        public static ConfigEntry<float> DriftLineBudgetMs;
 
         public static void Bind(ConfigFile cfg)
         {
@@ -103,6 +111,14 @@ namespace RavenIron.Undertow.Config
                 "Read Ragnarok's Wrath when it is installed: storms raise the sea where they " +
                 "stand, and the season shifts the drift. Harmless with RW absent - the bridge " +
                 "logs the absence once and stays dormant, and the sea runs regardless.");
+
+            EnableDriftLines = cfg.Bind(systems, "EnableDriftLines", true,
+                "Show the current on the water itself: faint foam streaks lying along the flow, " +
+                "moving at the water's speed, riding the swell, absent in slack water. Client-side " +
+                "and cosmetic only - it changes nothing about how any boat or swimmer moves, is " +
+                "never networked or saved, and a dedicated server ignores it entirely. There is no " +
+                "screen element of any kind: if you cannot see foam from the deck, the water is not " +
+                "running there.");
 
             const string current = "3 - The current";
 
@@ -270,6 +286,52 @@ namespace RavenIron.Undertow.Config
                     "water in the world. Raising it toward 1.0 approaches the point where they " +
                     "cannot, and above that they simply lose.",
                     new AcceptableValueRange<float>(0f, 0.9f)));
+
+            // ---- Drift lines ----------------------------------------------------------------
+            // Per machine, like everything else here, and it could not be otherwise: foam is
+            // drawn by the client that looks at it. Two players on one deck see the same set,
+            // density and speed from the same deterministic field, not the same individual foam.
+            const string lines = "7 - Drift lines";
+
+            DriftLineCount = cfg.Bind(lines, "DriftLineCount", 160,
+                new ConfigDescription(
+                    "How many streaks the effect can hold at once around you; fewer live in weak " +
+                    "water and none in slack, by design. This is the cost dial as much as the look " +
+                    "dial: every visible streak reads the wave height every other frame. 0 disables " +
+                    "the emitter without touching the toggle. The mod halves this on its own if the " +
+                    "frame budget below is exceeded and says so in the log; `wake lines` shows the " +
+                    "measured cost.",
+                    new AcceptableValueRange<int>(0, 512)));
+
+            DriftLineRadius = cfg.Bind(lines, "DriftLineRadius", 60f,
+                new ConfigDescription(
+                    "Metres around the camera the streaks cover. The outer third fades out so you " +
+                    "never see an edge. Larger spreads the same count thinner; it does not add streaks.",
+                    new AcceptableValueRange<float>(20f, 120f)));
+
+            DriftLineOpacity = cfg.Bind(lines, "DriftLineOpacity", 1f,
+                new ConfigDescription(
+                    "Multiplier on streak brightness. The default is deliberately subtle - foam you " +
+                    "notice when you look for it, not a carpet; past about 1.5 it starts to look " +
+                    "painted on. Night, fog, distance and a big sea dim it on their own; this scales " +
+                    "the daytime baseline.",
+                    new AcceptableValueRange<float>(0f, 2f)));
+
+            DriftLineMinDepth = cfg.Bind(lines, "DriftLineMinDepth", 10f,
+                new ConfigDescription(
+                    "Streaks need at least this much water under them. The current already fades " +
+                    "out over the last eight metres of depth, so this mostly keeps foam off the " +
+                    "beach, where a player would see it from the sand, and off shallow inland lakes.",
+                    new AcceptableValueRange<float>(2f, 30f)));
+
+            DriftLineBudgetMs = cfg.Bind(lines, "DriftLineBudgetMs", 0.5f,
+                new ConfigDescription(
+                    "Milliseconds per frame the streaks may cost on this machine, averaged over the " +
+                    "last ~60 frames (a second at 60 fps). Over budget for 120 consecutive frames " +
+                    "(two seconds at 60 fps) halves DriftLineCount (floor 16) and logs it once. " +
+                    "`wake lines` reports the measured cost; `wake lines reset` restores the " +
+                    "configured count.",
+                    new AcceptableValueRange<float>(0.1f, 4f)));
         }
     }
 }
