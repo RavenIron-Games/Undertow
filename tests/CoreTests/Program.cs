@@ -1476,6 +1476,100 @@ namespace Undertow.Tests
                     "and leaves that still-bound key exactly where it was");
 
 
+                // ---- A STEP THAT FAILED FOR A RETRIABLE REASON MUST BE REPORTED UPWARD, because
+                //      the version stamp is what decides whether it is ever tried again. Bind and
+                //      Remove both touch the file — BepInEx saves after each newly created entry —
+                //      so a transient lock (antivirus, cloud sync, a config manager, a second
+                //      process in the same directory) takes a retirement down through no fault of
+                //      the ledger. Swallow that and Finish stamps the version anyway, the file
+                //      reads as current on every future boot, and a one-second lock is permanent.
+                //
+                //      Undertow's Retirements table is EMPTY today, so none of this can be reached
+                //      through the shipped ledger and these plans are hand-built. That is exactly
+                //      why it is tested: the first real retirement must not be the run that finds
+                //      out this path was never exercised. The sibling mods carry the same code.
+                Check(ConfigMigration.Apply(orphaned, new ConfigLedger.MigrationPlan()),
+                    "Apply reports success when every step it ran succeeded");
+
+                var throwingRetire = new ConfigLedger.MigrationPlan();
+                throwingRetire.Retired.Add(ConfigLedger.Slot("1 - Core", "LockedAgainstUs"));
+                Check(!ConfigMigration.Apply(new ThrowingConfigFile(), throwingRetire),
+                    "a retirement that THREW is reported, so Finish can withhold the stamp and the next boot retries");
+
+                // The inverse, and the reason the flag is named for RETRIABLE steps rather than for
+                // steps in general. A ledger row naming a key this build does not bind, or one the
+                // build still binds, cannot succeed next time either — withholding the stamp for
+                // those would re-run the migration on every boot, forever, for a bug in our own
+                // table that no retry can fix. They warn; they do not block.
+                var unknownRetire = new ConfigLedger.MigrationPlan();
+                unknownRetire.Retired.Add(ConfigLedger.Slot("9 - Nope", "NeverBoundAnywhere"));
+                Check(ConfigMigration.Apply(new ThrowingConfigFile(), unknownRetire) == false,
+                    "an unknown retire slot still reaches the drop (nothing binds it), so a throw there is retriable too");
+
+                var stillBoundRetire = new ConfigLedger.MigrationPlan();
+                stillBoundRetire.Retired.Add(ConfigLedger.Slot("1 - Core", "VerboseLogging"));
+                Check(ConfigMigration.Apply(live, stillBoundRetire),
+                    "but a row retiring a key this build STILL binds is refused without blocking the stamp — no retry can fix our own table");
+
+                var unknownReset = new ConfigLedger.MigrationPlan();
+                unknownReset.ResetToDefault.Add(ConfigLedger.Slot("9 - Nope", "NoSuchKey"));
+                Check(ConfigMigration.Apply(live, unknownReset),
+                    "and nor does a rebase row naming a key this build does not bind");
+
+                // ---- AND THE GATE ITSELF: a failed retirement must actually stop the stamp. The
+                //      two facts above are only worth having if Finish reads them, and a boolean
+                //      that is computed and then ignored is the most ordinary bug there is.
+                //      Driven with no config file on disk, so `migrationAttempted` is false and
+                //      `safeToFinish` is true on its own — otherwise the stamp would be withheld
+                //      for the missing backup instead, and the assertion would pass without ever
+                //      touching the branch it names.
+                RavenIron.Undertow.Undertow.Log.Clear();
+                var noFile = new ThrowingConfigFile
+                {
+                    ConfigFilePath = Path.Combine(dir, "there-is-no-such-file.cfg"),
+                };
+                ConfigMigration.Begin(noFile);
+                var stamp = noFile.Bind(ConfigLedger.MetaSection, ConfigLedger.VersionKey, 0);
+                var failingPlan = new ConfigLedger.MigrationPlan();
+                failingPlan.Retired.Add(ConfigLedger.Slot("1 - Core", "LockedAgainstUs"));
+                ConfigMigration.Finish(noFile, stamp, failingPlan);
+                Check(stamp.Value == 0,
+                    "a plan whose retirement threw leaves the layout version UNSTAMPED, so the next boot migrates again");
+                Check(RavenIron.Undertow.Undertow.Log.Said("did not finish cleanly"),
+                    "and says so, because an unstamped file that never explains itself is a bug report nobody can read");
+
+                RavenIron.Undertow.Undertow.Log.Clear();
+                var okFile = new ConfigFile
+                {
+                    ConfigFilePath = Path.Combine(dir, "there-is-no-such-file.cfg"),
+                };
+                ConfigMigration.Begin(okFile);
+                var okStamp = okFile.Bind(ConfigLedger.MetaSection, ConfigLedger.VersionKey, 0);
+                ConfigMigration.Finish(okFile, okStamp, new ConfigLedger.MigrationPlan());
+                Check(okStamp.Value == ConfigLedger.CurrentVersion,
+                    "while a plan that applied cleanly stamps as it always did — the gate withholds, it does not block");
+
+                // ---- AND THE LINE THE OWNER READS. LastSummary is written in Begin from the
+                //      plan's INTENT, before a step has run, and `wake status` prints it verbatim.
+                //      A refused step logs a warning several hundred lines earlier and nothing
+                //      else, so the status line says a key was dropped that is still in the file.
+                var refusing = new ConfigFile
+                {
+                    ConfigFilePath = Path.Combine(dir, "there-is-no-such-file.cfg"),
+                };
+                ConfigMigration.Begin(refusing);
+                var refusedPlan = new ConfigLedger.MigrationPlan();
+                refusedPlan.ResetToDefault.Add(ConfigLedger.Slot("9 - Nope", "NoSuchKey"));
+                ConfigMigration.Finish(refusing, refusing.Bind(ConfigLedger.MetaSection, ConfigLedger.VersionKey, 0), refusedPlan);
+                Check(ConfigMigration.LastSummary.IndexOf("REFUSED", StringComparison.Ordinal) >= 0,
+                    "a refused step corrects the summary the console prints, rather than leaving it claiming the step happened");
+
+                ConfigMigration.Begin(refusing);
+                ConfigMigration.Finish(refusing, refusing.Bind(ConfigLedger.MetaSection, ConfigLedger.VersionKey, 0), new ConfigLedger.MigrationPlan());
+                Check(ConfigMigration.LastSummary.IndexOf("REFUSED", StringComparison.Ordinal) < 0,
+                    "and the count is per-boot, so a clean migration after a refused one does not inherit its complaint");
+
+
                 // A ledger that names a key this build does not bind must warn and carry on, not
                 // throw: one bad row would otherwise abandon every step after it.
                 var ghostPlan = new ConfigLedger.MigrationPlan();

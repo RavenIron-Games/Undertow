@@ -66,6 +66,17 @@ namespace RavenIron.Undertow.Config
         /// <summary>The last migration's boot line, read back by `wake status`. Empty when nothing has run.</summary>
         public static string LastSummary { get; private set; } = "";
 
+        /// <summary>
+        /// How many steps <see cref="Apply"/> REFUSED this boot. A refusal is almost always a bug
+        /// in our own ledger rather than in the owner's file — a row naming a key this build does
+        /// not bind, or retiring one it still does — plus the one that is nobody's bug, a drop that
+        /// threw. Counted because <see cref="LastSummary"/> is written in <see cref="Begin"/> from
+        /// the plan's INTENT, before a single step has run, and the console command reads it back
+        /// verbatim. Without this it says "1 retired key dropped" for a key still sitting in the
+        /// file, and the only contradiction is a warning several hundred log lines earlier.
+        /// </summary>
+        private static int _refused;
+
         /// <summary>Call BEFORE the first cfg.Bind. Never throws.</summary>
         public static void Begin(ConfigFile cfg)
         {
@@ -148,15 +159,31 @@ namespace RavenIron.Undertow.Config
         /// <see cref="Begin"/> retries the whole thing from scratch.
         /// </summary>
         public static void Finish(ConfigFile cfg, ConfigEntry<int> versionEntry)
+            => Finish(cfg, versionEntry, _plan);
+
+        /// <summary>
+        /// The plan is a PARAMETER so the version-stamp gate can be measured. Undertow's shipped
+        /// Retirements table is empty, so no step built from the real ledger can fail, so the one
+        /// branch that withholds the stamp is unreachable through <see cref="Begin"/> today —
+        /// exactly the reason <c>ConfigLedger.Plan</c> takes its tables. An empty table must not
+        /// leave live code unmeasured until the first rung that uses it ships, because that rung
+        /// is a release, on somebody else's config file. The sibling mods have a live retirement
+        /// and drive this same branch through their real ledger.
+        /// </summary>
+        internal static void Finish(ConfigFile cfg, ConfigEntry<int> versionEntry, ConfigLedger.MigrationPlan plan)
         {
             try
             {
                 bool migrationAttempted = _path != null;
-                bool destructive = _plan != null && _plan.IsDestructive;
+                bool destructive = plan != null && plan.IsDestructive;
                 bool safeToFinish = _state != MigrationState.Failed &&
                                     (!migrationAttempted || !destructive || _backedUp);
 
-                if (_plan != null && safeToFinish && cfg != null) Apply(cfg, _plan);
+                // A step that failed for a reason that could succeed next time must WITHHOLD the
+                // stamp, or the retry it deserves never happens: a stamped file takes the
+                // AlreadyCurrent path on every future boot.
+                bool appliedCleanly = true;
+                if (plan != null && safeToFinish && cfg != null) appliedCleanly = Apply(cfg, plan);
 
                 if (_state == MigrationState.Failed)
                 {
@@ -173,7 +200,7 @@ namespace RavenIron.Undertow.Config
                     // against values the owner has since chosen, and a rebase cannot tell a
                     // deliberate choice from the old default it happens to equal. Rolling a mod
                     // back for an afternoon is ordinary; losing a setting to it is not.
-                    if (safeToFinish)
+                    if (safeToFinish && appliedCleanly)
                     {
                         if (versionEntry.Value < ConfigLedger.CurrentVersion)
                             versionEntry.Value = ConfigLedger.CurrentVersion;
@@ -189,6 +216,13 @@ namespace RavenIron.Undertow.Config
                 // NOT save is a value assignment that changes nothing (the setter compares first
                 // and fires no event), or a `Remove` — and a retirement is exactly a Remove. So
                 // this is the call that guarantees the file on disk matches what was decided.
+                // LastSummary was written in Begin, from the plan's INTENT, before anything ran.
+                // The console command reads it back verbatim, so a refused step has to reach it or
+                // the one line the owner actually looks at is confidently wrong.
+                if (_refused > 0)
+                    LastSummary += " — but " + _refused.ToString(CultureInfo.InvariantCulture) +
+                                   " step(s) were REFUSED; see the warnings in the log";
+
                 if (cfg != null) cfg.Save();
             }
             catch (Exception ex)
@@ -210,9 +244,17 @@ namespace RavenIron.Undertow.Config
         /// refuses to take. Internal rather than public: the test project compiles the shipping
         /// source into its own assembly, so it can reach this, and nothing outside the mod can.
         /// </summary>
-        internal static void Apply(ConfigFile cfg, ConfigLedger.MigrationPlan plan)
+        /// <returns>
+        /// False when a step failed for a reason that could SUCCEED NEXT TIME — today only a
+        /// retirement that threw. That answer gates the version stamp, because a stamped file never
+        /// migrates again and a transient file lock must not become permanent. A ledger row naming
+        /// a key this build does not bind is deliberately NOT counted: it cannot succeed next time
+        /// either, so withholding the stamp would re-run the migration on every boot forever.
+        /// </returns>
+        internal static bool Apply(ConfigFile cfg, ConfigLedger.MigrationPlan plan)
         {
-            if (cfg == null || plan == null) return;
+            if (cfg == null || plan == null) return true;
+            bool allRetriableStepsSucceeded = true;
 
             foreach (string slot in plan.ResetToDefault)
             {
@@ -242,6 +284,7 @@ namespace RavenIron.Undertow.Config
                 // (FlotsamCommon, FlotsamRare, FlotsamWreckage) would be deleted in silence.
                 if (Lookup(cfg, slot) != null)
                 {
+                    _refused++;
                     Undertow.Log.LogWarning(
                         "Config migration wanted to retire " + slot + ", but this build still binds that key. " +
                         "Nothing was removed — retiring a live setting would delete your value. This is a bug " +
@@ -249,8 +292,10 @@ namespace RavenIron.Undertow.Config
                     continue;
                 }
 
-                ConsumeRetiredKey(cfg, section, key);
+                if (!ConsumeRetiredKey(cfg, section, key)) allRetriableStepsSucceeded = false;
             }
+
+            return allRetriableStepsSucceeded;
         }
 
         /// <summary>
@@ -261,6 +306,7 @@ namespace RavenIron.Undertow.Config
         /// </summary>
         private static void Reset()
         {
+            _refused = 0;
             _snapshot = null;
             _plan = null;
             _path = null;
@@ -333,6 +379,7 @@ namespace RavenIron.Undertow.Config
         /// </summary>
         private static void WarnUnknownSlot(string slot)
         {
+            _refused++;
             Undertow.Log.LogWarning(
                 "Config migration wanted to touch " + slot + " but this build binds no such key. " +
                 "Nothing was changed for it. This is a bug in ConfigLedger, not in your file.");
@@ -370,19 +417,30 @@ namespace RavenIron.Undertow.Config
         /// takes the now-bound entry out of the live set too, so neither collection carries it into
         /// the next Save.
         /// </summary>
-        private static void ConsumeRetiredKey(ConfigFile cfg, string section, string key)
+        /// <returns>
+        /// False when the drop THREW. Bind and Remove share one try block and Bind does real file
+        /// I/O (BepInEx saves after each newly created entry), so a transient lock — antivirus,
+        /// cloud sync, a config manager, a second process in the same directory — leaves the key
+        /// bound and never removed. Reporting that upward is what stops <see cref="Finish"/>
+        /// stamping the version as though the retirement had happened, which would make a
+        /// one-second lock permanent.
+        /// </returns>
+        private static bool ConsumeRetiredKey(ConfigFile cfg, string section, string key)
         {
             try
             {
                 var def = new ConfigDefinition(section, key);
                 cfg.Bind(def, "");
                 cfg.Remove(def);
+                return true;
             }
             catch (Exception ex)
             {
+                _refused++;
                 Undertow.Log.LogError(
-                    "Could not drop the retired key " + section + "." + key + " from the config file " +
-                    "(harmless — it is unbound and ignored from here). Reason: " + ex.Message);
+                    "Could not drop the retired key " + section + "." + key + " from the config file. " +
+                    "The layout version is left unstamped so the next boot tries again. Reason: " + ex.Message);
+                return false;
             }
         }
 

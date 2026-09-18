@@ -297,7 +297,25 @@ namespace BepInEx.Configuration
 
         public bool ContainsKey(ConfigDefinition def) => _entries.ContainsKey(def);
         public ConfigEntryBase this[ConfigDefinition def] => _entries[def];
-        public bool Remove(ConfigDefinition def) => _entries.Remove(def);
+        public virtual bool Remove(ConfigDefinition def) => _entries.Remove(def);
         public void Save() { SaveCount++; }
+    }
+
+    /// <summary>
+    /// A ConfigFile whose Remove throws, standing in for the realistic way a retirement fails on a
+    /// real machine: Bind and Remove both touch the file (BepInEx saves after each newly created
+    /// entry), so a transient lock from antivirus, cloud sync, a config manager or a second process
+    /// in the same directory takes one of them down. Nothing about the migration is wrong in that
+    /// case — it simply has to be told, so it can withhold the stamp and try again next boot.
+    ///
+    /// Undertow's shipped Retirements table is EMPTY, so this path cannot be reached through the
+    /// shipped ledger; the test drives Apply with a hand-built plan instead. The code is identical
+    /// to the sibling mods' by intent (CLAUDE.md: a reader who knows one should read the others),
+    /// and the first live retirement must not be the run that discovers it was never exercised.
+    /// </summary>
+    public class ThrowingConfigFile : ConfigFile
+    {
+        public override bool Remove(ConfigDefinition def)
+            => throw new System.IO.IOException("the file is locked by another process");
     }
 }

@@ -450,6 +450,25 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   `BepInEx\core` — so what compiles against it is what runs, and house rule 5's trap does not apply to
   BepInEx members. It very much still applies to `assembly_valheim_publicized.dll`.
 
+- **A STAMPED CONFIG FILE NEVER MIGRATES AGAIN, so a failed step must withhold the stamp.** This is
+  the rule the whole migration turns on, and it splits failures in two. A retirement's drop is
+  `Bind` then `Remove`, and BepInEx saves after each newly created entry, so a transient file lock —
+  antivirus, cloud sync, a config manager, a second process in the same directory — takes it down
+  through nobody's fault. That could succeed next time, so `ConsumeRetiredKey` returns false, `Apply`
+  reports it, and `Finish` leaves the version unstamped. **The mirror mistake is treating every
+  refusal that way:** a ledger row naming a key this build does not bind cannot succeed next time
+  either, so withholding the stamp for it would re-run the migration on every boot forever, over a
+  bug in our own table that no retry can fix. Those warn and let the stamp through. Undertow retires
+  nothing today, which is exactly why `Finish` takes the plan as a parameter — the same seam, and the
+  same reason, as `ConfigLedger.Plan` taking its tables.
+
+- **A migration's summary is written BEFORE any step runs, so a refusal has to be folded back in.**
+  `LastSummary` comes from `ConfigLedger.Describe(_plan)` inside `Begin`, and `wake status` prints it
+  verbatim. `Apply` can then refuse a step and log a warning several hundred lines earlier — so the
+  one line an owner actually reads claimed a key was dropped that is still sitting in the file.
+  `_refused` counts them and `Finish` appends to the summary. Found by an adversarial audit of
+  FireFront's port, 2026-09-18; all three mods had it.
+
 - **`Utils.GetMainCamera()` does not exist in the shipping `assembly_utils`** — only
   `GetMainCameraFrustumPlanes()` does — and `GameCamera.m_camera` is private. A design review on
   2026-09-18 "verified" the former anyway; the decompile said otherwise. Use

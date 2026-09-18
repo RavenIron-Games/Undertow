@@ -39,6 +39,25 @@ opened.
   source and all twenty-eight were caught by a named assertion. An independent review then went over
   the finished code and found six more real defects in it, each now fixed and pinned the same way.
 
+- **Two more corrections, found by auditing the sibling ports (same day).**
+  - **A retirement that failed was reported as harmless, and the version stamped anyway.**
+    Binding and removing a key both touch the file, so a transient lock — antivirus, cloud
+    sync, a config manager, a second process in the same directory — takes the drop down
+    through nobody's fault. The stamp then wrote "already migrated" and the retirement was
+    never retried: a one-second lock made permanent. The drop reports upward now and the
+    version is left unstamped, so the next boot tries again. Undertow retires nothing today,
+    so this is a guard against the first rung that does — which will be a release, on
+    somebody else's config file. `Finish` takes the plan as a parameter for the same reason
+    `ConfigLedger.Plan` takes its tables: an empty shipped table must not leave live code
+    unmeasured until the rung that uses it ships.
+  - **`wake status` reported the plan's INTENT, not what happened.** The summary is written
+    before a single step runs, and a refused step logged a warning and nothing else — so the
+    one line the owner reads could claim a key was dropped that is still in the file.
+    Refusals now correct the summary, and the count is per boot.
+
+  Harness 357 → 367, and thirteen mutations of the migration are each caught by a named
+  assertion.
+
 ## 0.7.0
 
 The current, visible. **Run in-game the day it was built** — Storm10, Valheim 1.0.15 on both
