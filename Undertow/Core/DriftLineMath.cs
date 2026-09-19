@@ -29,22 +29,60 @@ namespace RavenIron.Undertow.Core
         public const float DepthRampMetres = 6f;
 
         /// <summary>
-        /// 0..1 chance that a candidate point earns a streak. Exactly zero at or below the
-        /// share of MaxSpeed that <see cref="CurrentField"/> itself calls Slack — the same
-        /// constant, not a copy of its value — because slack water is glassy, and that absence
-        /// is the contrast flotsam's slack-water story depends on. Zero again shallower than
-        /// <paramref name="minDepth"/>, which is what actually keeps foam off a beach: the
-        /// field's own shallow fade is a ramp to the waterline, not a cutoff.
+        /// Acceptance weight AT the slack threshold, and the ceiling on everything below it.
+        ///
+        /// This is the constant that decides whether glassy water is bare or merely quiet. At
+        /// zero the function is exactly what shipped in 0.7: a cliff at the slack threshold, and
+        /// no foam at all below it.
         /// </summary>
-        public static float SpawnWeight(float speed, float depth, float maxSpeed, float minDepth)
+        public const float DefaultSlackFloor = 0.08f;
+
+        /// <summary>
+        /// 0..1 chance that a candidate point earns a streak.
+        ///
+        /// UNTIL 0.8 THIS WAS A CLIFF: exactly zero at or below the share of MaxSpeed that
+        /// <see cref="CurrentField"/> calls Slack, on the argument that slack water is glassy and
+        /// that the absence is the contrast flotsam's slack-water story depends on. The argument
+        /// was sound and the consequence was not: an empty sea is also what a player sees when
+        /// the feature is broken, when they have mis-set a config, or when they happen to be
+        /// parked in a slack pocket — and a slack pocket can be over a kilometre across
+        /// (measured on Storm10, 2026-09-19). Three indistinguishable causes for one observation,
+        /// which is the shape of failure this project refuses everywhere else.
+        ///
+        /// So the cliff becomes a FLOOR. Below the threshold the weight ramps from zero at dead
+        /// water up to <paramref name="slackFloor"/>; above it, the old ramp resumes from that
+        /// floor. The information moves from presence-or-absence into DENSITY and LENGTH: at the
+        /// shipped floor a glassy patch carries roughly a dozen short flecks where a race carries
+        /// a hundred and sixty long lines. Pass zero and the 0.7 cliff is back, exactly.
+        ///
+        /// Three properties worth keeping, all algebraic rather than tested-into-existence:
+        ///   - CONTINUOUS at <c>speed == slack</c>, where both branches give the floor.
+        ///   - Still exactly zero where the water is genuinely DEAD, because the sub-slack branch
+        ///     ramps from zero. <see cref="CurrentField"/> returns Speed 0 on land, so foam on dry
+        ///     ground stays unrepresentable rather than merely unlikely.
+        ///   - The floor multiplies the SPEED term only, never the depth term, so it can never
+        ///     lift foam past the beach guard. A mutation that moves it is the one genuinely
+        ///     dangerous edit here, and the harness pins it.
+        ///
+        /// Zero again shallower than <paramref name="minDepth"/>, which is what actually keeps
+        /// foam off a beach: the field's own shallow fade is a ramp to the waterline, not a cutoff.
+        /// </summary>
+        public static float SpawnWeight(float speed, float depth, float maxSpeed, float minDepth,
+                                        float slackFloor)
         {
-            if (float.IsNaN(speed) || float.IsNaN(depth) || float.IsNaN(maxSpeed) || float.IsNaN(minDepth))
+            if (float.IsNaN(speed) || float.IsNaN(depth) || float.IsNaN(maxSpeed) ||
+                float.IsNaN(minDepth) || float.IsNaN(slackFloor))
                 return 0f;
             if (maxSpeed <= 0f) return 0f;
 
+            float floor = Clamp01(slackFloor);
             float slack = CurrentField.SlackShare * maxSpeed;
             float span  = (FullSpeedShare - CurrentField.SlackShare) * maxSpeed;
-            float bySpeed = Clamp01((speed - slack) / span);
+
+            float bySpeed = speed <= slack
+                ? floor * Clamp01(speed / slack)
+                : floor + (1f - floor) * Clamp01((speed - slack) / span);
+
             float byDepth = Clamp01((depth - minDepth) / DepthRampMetres);
             return bySpeed * byDepth;
         }

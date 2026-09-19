@@ -70,8 +70,10 @@ and it is enforced across every setting the config permits.
 
 ### 🌫 The sea shows its set *(0.7.0)*
 Faint foam streaks lie along the current on the water itself, move at the water's own speed and
-ride the swell — thick in a race, sparse at a trickle, **absent in slack water, which stays
-glassy**. From a drifting hull they hold station alongside; under sail they stream past at the
+ride the swell — thick in a race, sparse at a trickle, **down to a few faint flecks where the
+sea goes slack**. (Through 0.7 slack water was bare; since 0.8 it keeps a scattering, so an
+empty sea means dead water rather than a feature that is not running. `DriftLineSlackFloor = 0`
+restores the old contrast exactly.) From a drifting hull they hold station alongside; under sail they stream past at the
 crab angle, and that angle is the set. Nothing states it: no arrow, no number, no screen element.
 The streaks are symmetric end to end, so a glance gives you the line of the flow and only
 watching gives you the sense — which is how a sailor reads a tide.

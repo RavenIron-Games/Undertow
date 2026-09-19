@@ -76,8 +76,15 @@ namespace RavenIron.Undertow.Net
 
         private static float _nextBroadcast;
         private static float _lastBroadcast = float.NegativeInfinity;
+
+        /// <summary>When a client's REQUEST was last answered. Separate from <see cref="_lastBroadcast"/> — see OnRequested.</summary>
+        private static float _lastRequestAnswered = float.NegativeInfinity;
+
         private static int _lastPeerCount = -1;
         private static bool _hooked;
+
+        /// <summary>Whether this client has already asked the server for its config this session.</summary>
+        private static bool _asked;
 
         /// <summary>
         /// True while an admin's push is being written to the server's own entries.
@@ -118,6 +125,17 @@ namespace RavenIron.Undertow.Net
 
         /// <summary>How many values this machine is currently sailing by that are not its own.</summary>
         public static int AdoptedCount => _overrides.Count;
+
+        /// <summary>
+        /// How many keys this build actually BOUND, which is what a server really publishes.
+        ///
+        /// Not the same as <c>ConfigWire.SyncedKeys.Length</c>, and `wake status` printed that
+        /// constant until 2026-09-19. <see cref="Bind"/> logs an error and DROPS a row it cannot
+        /// resolve rather than throwing, and <see cref="Broadcast"/> returns silently when nothing
+        /// is bound — so in the one state worth detecting, the command the protocol tells you to
+        /// run to confirm health reported a confident "12 published" while publishing none.
+        /// </summary>
+        public static int BoundCount => _bound.Count;
 
         /// <summary>One line for the console. Never null.</summary>
         public static string LastEvent = "no config has arrived from a server";
@@ -222,7 +240,12 @@ namespace RavenIron.Undertow.Net
                 EnsureRegistered();
                 HookLocalEdits();
 
-                if (!znet.IsServer()) return;
+                if (!znet.IsServer())
+                {
+                    ZRoutedRpc rpc = ZRoutedRpc.instance;
+                    if (rpc != null) MaybeAsk(znet, rpc);
+                    return;
+                }
 
                 // A peer list that changed means somebody just joined (or left), and a joiner
                 // holding its own MaxCurrentSpeed is sailing a different ocean until it hears
@@ -260,8 +283,18 @@ namespace RavenIron.Undertow.Net
             _registeredWith = null;
             _lastPeerCount = -1;
             _nextBroadcast = 0f;
+            _lastRequestAnswered = float.NegativeInfinity;
+            _asked = false;
 
-            if (_overrides.Count == 0) return;
+            if (_overrides.Count == 0)
+            {
+                // Still clear the note, and that is not tidiness. A payload this build could not
+                // read sets LastEvent WITHOUT ever filling the table, so a refusal on one server
+                // followed by a clean disconnect left `wake status` reading "refused a payload
+                // this build cannot read" at the main menu, about a server the player had left.
+                LastEvent = "no config has arrived from a server";
+                return;
+            }
 
             _overrides.Clear();
             _any = false;
@@ -280,13 +313,39 @@ namespace RavenIron.Undertow.Net
             _registeredWith = rpc;
 
             Undertow.Log.LogInfo("ConfigSync: RPCs registered (" + ConfigWire.Header + ").");
+        }
 
-            // Ask, now that this end can certainly hear the answer. The two-argument overload
-            // routes to the server without needing its peer id, which is just as well: vanilla's
-            // GetServerPeerID is private and house rule 5 forbids naming it.
-            ZNet znet = ZNet.instance;
-            if (znet != null && !znet.IsServer())
-                rpc.InvokeRoutedRPC(RpcRequest, ConfigWire.Header);
+        /// <summary>
+        /// Ask the server for the sea, once, as soon as there is a server to ask.
+        ///
+        /// THIS USED TO LIVE IN <see cref="EnsureRegistered"/> AND WAS DEAD THERE. The
+        /// two-argument <c>InvokeRoutedRPC</c> resolves its target through vanilla's private
+        /// <c>GetServerPeerID()</c>, whose body returns **0L when the client's peer list is still
+        /// empty** (read out of the real assembly, 2026-09-19). <c>ZRoutedRpc.AddPeer</c> is
+        /// called at the very END of <c>ZNet.RPC_PeerInfo</c>, after the whole handshake, while
+        /// registration happens on the first frame <c>ZNet.instance</c> exists — so the request
+        /// was addressed to 0, handled locally by this same client (which stands down on
+        /// <c>!IsServer()</c>), and routed onward to an empty peer list. Nothing reached the wire,
+        /// nothing threw, and <c>_registeredWith</c> was already latched so it never retried.
+        ///
+        /// MEASURED, not merely reasoned: across two separate client joins on 2026-09-19 with
+        /// VerboseLogging on, the server logged `published (peer list changed)` and heartbeats and
+        /// **never once logged `published (peer N asked)`**. The feature had never worked and the
+        /// only reason nothing was wrong is that the peer-change broadcast covers the same case.
+        ///
+        /// So: gate on <c>GetServerPeer()</c> being non-null, which is exactly the condition that
+        /// was missing, and keep a one-shot flag rather than relying on registration happening once.
+        /// </summary>
+        private static void MaybeAsk(ZNet znet, ZRoutedRpc rpc)
+        {
+            if (_asked || znet.IsServer()) return;
+            if (znet.GetServerPeer() == null) return;
+
+            _asked = true;
+            rpc.InvokeRoutedRPC(RpcRequest, ConfigWire.Header);
+
+            if (ModConfig.VerboseLogging.Value)
+                Undertow.Log.LogInfo("ConfigSync: asked the server for its config.");
         }
 
         /// <summary>A client has just arrived and wants the sea it is joining.</summary>
@@ -298,12 +357,24 @@ namespace RavenIron.Undertow.Net
                 if (znet == null || !znet.IsServer()) return;
 
                 // One answer a second, at most. A request costs the server a payload to EVERY
-                // client, so an asking client is spending somebody else's bandwidth — and a
-                // client that asks in a loop, whether through a bug of ours or on purpose, must
-                // not be able to turn that into traffic for the whole lobby. A joiner asks once,
-                // so this never delays the case it exists for.
-                if (Time.realtimeSinceStartup - _lastBroadcast < RequestFloorSeconds) return;
+                // client, so an asking client spends somebody else's bandwidth, and a client that
+                // asks in a loop must not be able to turn that into traffic for the whole lobby.
+                //
+                // Its OWN timestamp, not _lastBroadcast. Sharing that one meant the peer-change
+                // broadcast fired by a join suppressed the catch-up request sent by that same
+                // join, moments later — so the floor swallowed precisely the case the request
+                // exists for. A joiner asks once, and now that ask is answered.
+                float now = Time.realtimeSinceStartup;
+                if (now - _lastRequestAnswered < RequestFloorSeconds)
+                {
+                    if (ModConfig.VerboseLogging.Value)
+                        Undertow.Log.LogInfo(
+                            "ConfigSync: peer " + sender + " asked again within " +
+                            RequestFloorSeconds + "s — not answered twice.");
+                    return;
+                }
 
+                _lastRequestAnswered = now;
                 Broadcast("peer " + sender + " asked");
             }
             catch (Exception ex)
@@ -466,6 +537,18 @@ namespace RavenIron.Undertow.Net
                 before = ConfigWire.Write(f.Live());
                 incoming = Clamp(entry, v);
                 after = ConfigWire.Write((float)incoming);
+
+                // SAY SO when the clamp moved it. The wire carries no range, so the clamp is
+                // always the LOCAL build's — which is the safety property, and also means a newer
+                // server whose range is wider gets silently substituted here. Without this the
+                // diff line reads "1.2 -> 3" whether the server said 3 or said 9, and the player
+                // and the server owner both believe they agree about the sea when they do not.
+                if (Math.Abs(v - (float)incoming) > 1e-6f)
+                    Undertow.Log.LogWarning(
+                        "ConfigSync: the server set " + ShortName(address) + " to " +
+                        ConfigWire.Write(v) + ", which is outside what this build allows — using " +
+                        after + " instead. The sea here is NOT what that server intended; the two " +
+                        "ends are probably running different versions of Undertow.");
             }
             else if (entry is ConfigEntry<bool> b)
             {
@@ -530,6 +613,16 @@ namespace RavenIron.Undertow.Net
                     return;
                 }
 
+                // KNOWN LIMIT, and it is vanilla's, not ours. LocalPlayerIsAdminOrHost falls
+                // through to PlayerIsAdmin, which does `adminList.Contains(userId.ToString())` —
+                // the FULL "Steam_7656…" form only, with none of the fallbacks the server's own
+                // IsAdmin applies. So an admin listed ONLY in the bare-numeric or "V_" form is
+                // refused HERE while the server would have accepted them. The asymmetry fails
+                // closed, which is the right direction, and it is not worth a new assembly
+                // reference to fix: reading this machine's own platform id means PlatformUserID,
+                // which lives in Splatform.dll — not in libs\ and not referenced. If an admin
+                // ever reports that a push does nothing, the answer is almost always that their
+                // adminlist.txt entry is not in the full form.
                 if (!znet.LocalPlayerIsAdminOrHost())
                 {
                     // Deliberately visible. Editing a synced value on a client and watching
@@ -537,7 +630,8 @@ namespace RavenIron.Undertow.Net
                     Undertow.Log.LogInfo(
                         "ConfigSync: " + ShortName(address) + " changed locally, but the server " +
                         "sets it here and you are not an admin. Your file keeps the value; the sea " +
-                        "does not.");
+                        "does not. (If you ARE an admin, check that adminlist.txt holds your id in " +
+                        "the full 'Steam_…' form — the client-side check accepts no other.)");
                     return;
                 }
 
@@ -575,7 +669,21 @@ namespace RavenIron.Undertow.Net
                 }
 
                 List<KeyValuePair<string, string>> pairs = ConfigWire.Parse(payload);
-                if (pairs == null || pairs.Count == 0) return;
+                if (pairs == null || pairs.Count == 0)
+                {
+                    // Say so. The pushing client already logged "pushed X to the server" and gets
+                    // no acknowledgement back, so a bare return here means an admin watches their
+                    // own success message and nothing happens, with both logs silent about why.
+                    // OnPublished's mirror of this branch has always named the failure; this one
+                    // did not, and the admin push is exactly where somebody meets it.
+                    Undertow.Log.LogWarning(
+                        "ConfigSync: a config push arrived that this build cannot read — " +
+                        (pairs == null
+                            ? "it is not '" + ConfigWire.Header + "'."
+                            : "it carried no usable values.") +
+                        " Nothing was changed. Check that both ends run the same Undertow.");
+                    return;
+                }
 
                 bool any = false;
                 _applyingPush = true;
@@ -631,40 +739,37 @@ namespace RavenIron.Undertow.Net
         }
 
         /// <summary>
-        /// Is this peer an admin?
+        /// Is this peer an admin? Vanilla's own answer, asked of vanilla.
         ///
-        /// Vanilla's own answer lives in ZNet.ListContainsId, which is PRIVATE — so by house rule
-        /// 5 this cannot call it and must not name it. What it does is reproduced here from the
-        /// decompiled body (2026-09-19): the admin list may hold either the full platform id
-        /// ("Steam_76561198…") or the bare numeric part, and vanilla accepts both. The public
-        /// PlayerIsAdmin accepts only the full form, so leaning on that alone would lock out an
-        /// admin whose id was entered bare — a real and common way to write an adminlist.
+        /// **`ZNet.IsAdmin(string hostName)` IS PUBLIC** in the shipping assembly — a one-line
+        /// forwarder to the private `ListContainsId(m_adminList, hostName)` (read out of the REAL
+        /// assembly_valheim.dll, line 3078, 2026-09-19). An earlier version of this method
+        /// reimplemented that comparison from the decompiled body, on a comment asserting the
+        /// check was private and unreachable under house rule 5. `ListContainsId` is private;
+        /// `IsAdmin` is not, and it is the whole answer. The reimplementation was both unnecessary
+        /// and WRONG, in a way no single-machine test could show:
         ///
-        /// Deny by default: no ZNet, no peer, no socket or no host name all mean no.
+        ///   - `ISocket.GetHostName()` returns a DIFFERENT SHAPE per socket type.
+        ///     `ZSteamSocket` returns `m_peerID.GetSteamID().ToString()` — bare numeric, NO
+        ///     underscore — while `ZPlayFabSocket` returns the prefixed `Steam_…` form. So the
+        ///     old underscore-strip was dead code on a direct Steam connection and live only
+        ///     under crossplay, which is an accident of how the server was started.
+        ///   - Vanilla also accepts a THIRD form. `ListContainsId` runs the id through
+        ///     `PlatformUserID.FilterPlatformUserID`, which maps Steam to the display prefix "V",
+        ///     so `V_76561198…` is admin to vanilla and was unreachable here.
+        ///
+        /// Calling `IsAdmin` also keeps this correct for free the day Valheim adds a platform.
+        ///
+        /// SERVER ONLY. `m_adminList` is constructed exclusively inside `if (m_isServer)`
+        /// (ZNet lines 356-367), so it is null on a client and `IsAdmin` would throw there. The
+        /// only caller checks `IsServer()` first, and must keep doing so.
+        ///
+        /// Deny by default: no peer, no socket or no host name all mean no.
         /// </summary>
         private static bool SenderIsAdmin(ZNet znet, long sender)
         {
-            List<string> admins = znet.GetAdminList();
-            if (admins == null || admins.Count == 0) return false;
-
-            ZNetPeer peer = znet.GetPeer(sender);
-            string id = peer?.m_socket?.GetHostName();
-            if (string.IsNullOrEmpty(id)) return false;
-
-            int underscore = id.IndexOf('_');
-            string bare = underscore >= 0 && underscore < id.Length - 1
-                ? id.Substring(underscore + 1)
-                : null;
-
-            for (int i = 0; i < admins.Count; i++)
-            {
-                string listed = admins[i];
-                if (string.IsNullOrEmpty(listed)) continue;
-
-                if (string.Equals(listed, id, StringComparison.OrdinalIgnoreCase)) return true;
-                if (bare != null && string.Equals(listed, bare, StringComparison.OrdinalIgnoreCase)) return true;
-            }
-            return false;
+            string id = znet.GetPeer(sender)?.m_socket?.GetHostName();
+            return !string.IsNullOrEmpty(id) && znet.IsAdmin(id);
         }
 
         // ------------------------------------------------------------------------------------

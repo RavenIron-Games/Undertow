@@ -12,7 +12,9 @@ namespace RavenIron.Undertow.Visuals
     /// <summary>
     /// The current, visible: drift lines. Faint foam streaks lying flat on the water along the
     /// flow, moving at the water's own speed, riding vanilla's wave surface, thick in a race,
-    /// sparse at a trickle and ABSENT in slack water, which stays glassy. A drifting hull sees
+    /// sparse at a trickle, and down to a few faint flecks where the sea goes slack. (Through 0.7
+    /// slack water was BARE; 0.8 gave it a floor, because a bare sea was also what a player saw
+    /// when the feature was broken or mis-configured — see DriftLineMath.SpawnWeight.) A drifting hull sees
     /// them hold station alongside; a hull under sail sees them stream past at the crab angle.
     /// That angle is the set, and nothing says so.
     ///
@@ -222,6 +224,7 @@ namespace RavenIron.Undertow.Visuals
                 float opacity = Mathf.Clamp(ModConfig.DriftLineOpacity.Value, 0f, 2f);
                 float maxSpeed = ModConfig.MaxCurrentSpeed.Live();
                 float minDepth = Mathf.Clamp(ModConfig.DriftLineMinDepth.Value, 2f, 30f);
+                float slackFloor = Mathf.Clamp01(ModConfig.DriftLineSlackFloor.Value);
 
                 _spawnDebt = Mathf.Min(MaxSpawnDebt, _spawnDebt + dt * _effectivePool / MeanLifeSeconds);
                 int attempts = Mathf.Min(MaxAttemptsPerFrame, (int)_spawnDebt);
@@ -238,7 +241,7 @@ namespace RavenIron.Undertow.Visuals
                         if (_retry[i] > 0f || attempts <= 0) continue;
                         attempts--;
                         _spawnDebt -= 1f;
-                        TrySpawnCluster(i, radius, level, now, chop, maxSpeed, minDepth);
+                        TrySpawnCluster(i, radius, level, now, chop, maxSpeed, minDepth, slackFloor);
                         continue;
                     }
 
@@ -261,7 +264,7 @@ namespace RavenIron.Undertow.Visuals
                         _retiredReflect++;
                         _x[i] = _centre.x + dx;
                         _z[i] = _centre.z + dz;
-                        if (!Reroll(i, now, chop, maxSpeed, minDepth)) continue;
+                        if (!Reroll(i, now, chop, maxSpeed, minDepth, slackFloor)) continue;
                         forceRide = true;
                     }
 
@@ -336,7 +339,7 @@ namespace RavenIron.Undertow.Visuals
         // ---- spawning -----------------------------------------------------------------------
 
         private void TrySpawnCluster(int slot, float radius, float level, float now,
-                                     float chop, float maxSpeed, float minDepth)
+                                     float chop, float maxSpeed, float minDepth, float slackFloor)
         {
             _wTried++;
             DriftLineMath.DiscPoint(Roll(), Roll(), radius, out float dx, out float dz);
@@ -349,7 +352,7 @@ namespace RavenIron.Undertow.Visuals
                 return;
             }
 
-            float weight = DriftLineMath.SpawnWeight(sample.Speed, sample.Depth, maxSpeed, minDepth);
+            float weight = DriftLineMath.SpawnWeight(sample.Speed, sample.Depth, maxSpeed, minDepth, slackFloor);
             if (weight <= 0f || Roll() >= weight)
             {
                 if (sample.Speed <= CurrentField.SlackShare * maxSpeed) _wRejSlack++;
@@ -417,14 +420,14 @@ namespace RavenIron.Undertow.Visuals
         }
 
         /// <summary>A reflected streak is re-rolled where it landed; false means it went dormant.</summary>
-        private bool Reroll(int i, float now, float chop, float maxSpeed, float minDepth)
+        private bool Reroll(int i, float now, float chop, float maxSpeed, float minDepth, float slackFloor)
         {
             if (!FieldAt(_x[i], _z[i], now, out FieldSample sample))
             {
                 Retire(i, 1f);
                 return false;
             }
-            float weight = DriftLineMath.SpawnWeight(sample.Speed, sample.Depth, maxSpeed, minDepth);
+            float weight = DriftLineMath.SpawnWeight(sample.Speed, sample.Depth, maxSpeed, minDepth, slackFloor);
             if (weight <= 0f || Roll() >= weight)
             {
                 Retire(i, 0.5f + Roll());

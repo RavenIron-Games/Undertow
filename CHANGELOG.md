@@ -1,6 +1,50 @@
 # Changelog
 
-## Unreleased
+## 0.8.0
+
+- **The drift lines now show in all moving water.** Two shipped values were keeping the foam off
+  the sea, and both were found by standing in the water and reading `wake lines` rather than by
+  reasoning about the code.
+
+  **`DriftLineMinDepth` shipped at 10 m, and that was wrong for the feature it constrains.**
+  Valheim's open ocean is a flat 30 m floor, so every race, strait, shelf and coastal set is
+  shallower than that *by definition* — which meant the "fast water between islands" this mod
+  exists to show was gated out of its own habitat. Measured in game: 0.665 m/s of genuine Race at
+  5.1 m depth, and `wake lines` reporting `rejected shallow 63`. The floor is now **2 m**, where
+  it stops being a filter and becomes what it was always described as: a beach guard. The number
+  is not arbitrary — acceptance ramps over the 6 m above it, so it finishes at a depth of 8,
+  exactly where `CurrentField`'s own shallow fade finishes. Two unrelated thresholds became one
+  curve. Foam on land remains impossible at any setting.
+
+  **Slack water is no longer bare.** It used to be a cliff: below 12% of `MaxCurrentSpeed` the
+  foam was strictly absent, on the argument that slack water is glassy. The argument was sound and
+  the consequence was not — an empty sea is *also* what you see when the feature is broken, when a
+  config is mis-set, or when you happen to be parked in a slack pocket, and a slack pocket can be
+  over a kilometre across (measured). Three indistinguishable causes for one observation. The
+  cliff is now a floor: below the threshold, density ramps from nothing at dead-still water up to
+  a new `DriftLineSlackFloor` (default 0.08), so a glassy patch carries roughly a dozen short
+  flecks where a race carries a hundred and sixty long lines.
+
+  **What this costs, plainly: an empty sea no longer means slack water.** The contrast that makes
+  the set learnable becomes a difference of density and streak length rather than of presence and
+  absence. `DriftLineSlackFloor = 0` restores 0.7's behaviour exactly, and the harness pins that
+  it does. At and above 60% of `MaxCurrentSpeed` nothing changed at all — a race looks
+  pixel-for-pixel as it did.
+
+  No new frame cost: the field is sampled *before* the spawn test, so widening what is accepted
+  adds no field evaluations. The pool is still hard-capped, and the capped state was already
+  measured at 0.37 ms against a 0.50 ms budget.
+
+- **The config migration ran its first destructive step, on a real server.** Moving a shipped
+  default is exactly what `ConfigLedger` was built for and had never done: BepInEx never rewrites
+  a value already in a file, so changing the C# default alone would have shipped the fix disabled
+  for every existing install, silently. Version 2 carries one rebase row. On Storm10 it logged
+  `config: version 1 -> 2: 1 value(s) moved to their new defaults: 7 - Drift lines.DriftLineMinDepth
+  (your previous config is backed up beside it, .v1.bak)`, and the backup was verified
+  byte-identical to the pre-migration file. A value you set yourself is kept and named instead.
+  The ladder was built two releases before anything needed it, and the first rung turned out to be
+  a data edit rather than new code on the boot path — which was the whole claim.
+
 
 - **The server's sea, on every client.** `CurrentField` is a pure function of seed, position,
   world time and season, which is why it needs no save file and no per-tick traffic — every

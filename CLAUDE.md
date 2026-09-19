@@ -28,9 +28,17 @@ Design document (the reasoning behind every decision here):
 than assumed: `latest 0.7.2`, and the version list reads 0.7.2, 0.6.0, 0.5.1 — **0.7.0 and 0.7.1
 never shipped**, so every existing installation jumps 0.6.0 → 0.7.2 and gets the drift lines and
 the config migration in the same step. That is the first time the migration runs on a config file
-belonging to somebody who is not the owner, and it is the stamp-only path: all three ledger tables
-are empty by measurement, so the only reachable behaviour is writing `[0 - Meta] ConfigVersion = 1`
-and touching nothing else.
+belonging to somebody who is not the owner, and for 0.7.2 it was the stamp-only path.
+
+**0.8.0 IS BUILT AND RUN IN-GAME (2026-09-19), NOT YET PUBLISHED.** Two changes, both driven by the
+owner standing in the water and reading `wake lines` rather than by reasoning about the code:
+the **config sync** (the server's twelve gameplay dials, adopted in memory by every client, never
+written to their file) and **foam in all moving water** (`DriftLineMinDepth` 10 → 2, and the slack
+cliff replaced by a floor). The second of those moves a shipped default, which is what
+`ConfigLedger` was built for and had never done — so **`Rebases[2]` is the first rung this mod has
+ever had, and it has now run on a real config**, taking a verified-identical `.v1.bak` with it. The
+sentence above about "all three tables empty by measurement" was true of 0.7.x and is no longer;
+see the task 8 entry below. Harness **369 → 441**.
 
 
 **THE ROADMAP IS BUILT.** Tasks 0–5, harness **162/162**, every assertion proven to fail without
@@ -142,9 +150,16 @@ taken with none installed.
   migration.** The profile's config was already stamped, so it correctly short-circuited and
   logged nothing — the behaviour is right, the observation is missing, and a file at version 1 is
   not evidence because `Finish` stamps a fresh file silently. Aging that config the way the
-  server's was aged is the five-minute way to close it. (b) **No destructive rung has ever run
-  anywhere** — all three tables are empty by measurement, so the only reachable path is the
-  stamp. Watch the first real rebase or retirement on a copied config before it ships.
+  server's was aged is the five-minute way to close it. (b) ~~**No destructive rung has ever run
+  anywhere**~~ — **CLOSED 2026-09-19.** 0.8.0's version-2 rebase ran on Storm10 against a real
+  config holding the old shipped `DriftLineMinDepth = 10`, and did every part of what the family
+  promises: `config: version 1 -> 2: 1 value(s) moved to their new defaults:
+  7 - Drift lines.DriftLineMinDepth (your previous config is backed up beside it, .v1.bak)`, at
+  WARNING because a value moved, naming the key, and leaving a `.v1.bak` beside the file that was
+  verified **byte-identical** to the pre-migration original with `cmp` rather than by eye. The
+  protective branch is what remains half-observed: a client whose stored value is NOT an old
+  shipped default should be Kept and named rather than reset, which is the branch that guards an
+  admin's deliberate setting.
 
   The 2026-09-18 server-only run and its corrections follow, kept because the reasoning is the
   lesson.
@@ -173,11 +188,17 @@ taken with none installed.
   key at its SHIPPED default, which is a statement about a NEW world; when that differs from what an
   existing world already does, an owner who changed nothing gets different behaviour with nothing in
   the log. `Core/ConfigLedger.cs` holds the decisions (PURE, under test) and `Config/ConfigMigration.cs`
-  the engine. Three step kinds — rebase, backfill, retire — and **all three tables are empty by
-  MEASUREMENT**: Undertow's config has only ever grown, checked against the source at all four commits,
-  the shipped 0.5.1/0.6.0 DLL string tables, and nine real config files. 0.5.1 was the first release and
-  all 27 keys it published are still bound, so the retire surface is closed rather than unobserved.
-  Version 1 only stamps. **Harness 248 → 357, 28 mutations applied to the shipping source and 28
+  the engine. Three step kinds — rebase, backfill, retire.
+
+  **SUPERSEDED 2026-09-19 — VERSION 2 IS THE FIRST RUNG, AND IT HAS RUN.** This section used to say
+  all three tables were empty by measurement, and that was true of 0.7.x: Undertow's config had only
+  ever grown, checked against the source at all four commits, the shipped 0.5.1/0.6.0 DLL string
+  tables, and nine real config files. 0.8.0 moves `DriftLineMinDepth`'s shipped default from 10 to 2
+  (see the drift-lines entry below), so `Rebases[2]` holds one row and `CurrentVersion` is 2. The
+  claim the empty ladder made turned out to be exactly right: the first default this mod ever moved
+  was **a data edit in `ConfigLedger` and not one line of new code on the boot path**. Backfills and
+  Retirements are still empty, for their original reasons; 0.5.1 was the first release and all 27
+  keys it published are still bound, so the retire surface is closed rather than unobserved. **Harness 248 → 357, 28 mutations applied to the shipping source and 28
   caught.** An adversarial review then raised 25 findings, 22 survived triple refutation, and six were
   real defects in already-green code — the comparer mismatch with BepInEx, a stamp that could move
   DOWN, a retirement that could delete a live string setting, a backfill read-back blind to clamping, a
@@ -592,6 +613,31 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   particle glows at night unless the code dims it from the scene's own light. Inherited from
   Ragnarok's Wrath (its 0.7.0 shipped a fog nobody could see); `Visuals/ParticleKit.cs` carries
   the candidate chain verbatim and must never fork from RW's.
+
+- **RAISING `MaxCurrentSpeed` MAKES THE DRIFT LINES DISAPPEAR, and nothing says so.** Measured
+  2026-09-19 on Storm10, after the owner reported seeing no foam. `MaxCurrentSpeed` is a CEILING —
+  raising it does not make ordinary water any faster — but "slack" is defined as a SHARE of that
+  ceiling (`DriftLineMath.SpawnWeight`: `slack = CurrentField.SlackShare * maxSpeed`, SlackShare
+  0.12). So doubling the ceiling doubles the slack threshold, and water that was drawing foam
+  silently stops qualifying. The run: the server was set to 2.4 for a sync test, the water there
+  was 0.21 m/s, the threshold went 0.144 → 0.288, and the client logged `active 0/160` with the
+  emitter built and healthy. Nothing in the log says "your ceiling suppressed your visual"; the
+  only tell is `active 0/N` in a `wake lines` readout beside a non-zero field speed. A server
+  owner who raises `MaxCurrentSpeed` to allow faster water in the fast places will lose the foam
+  everywhere else and have no way to know why. Worth a config-description warning at least, and
+  arguably slack should be absolute rather than a share — but that is a tuning decision, not a
+  bug fix, so it is written down rather than changed.
+
+- **...but slack POCKETS can be enormous, and "rare" was an origin-local measurement.** The note
+  below was taken within a kilometre of (0,0). On Storm10 (seed -295822236) the owner sat at
+  (-3200, 3400) in water running **0.091 m/s** — well under the 0.144 threshold — and a transect
+  due north stayed slack for **at least 1.2 km** (0.052 m/s at its slowest). The nearest water
+  worth drawing foam on was ~500 m to the SOUTHWEST. So "a scan that is too narrow finds no slack"
+  and "a player can easily be parked in slack for a kilometre" are both true, in different places,
+  and the second one is what a bug report looks like: the drift lines were working perfectly,
+  `wake lines` said `rejected slack 145` of 160 attempts, and the sea was simply not running
+  there. **Diagnose a "no foam" report with `wake lines` before touching anything** — its
+  rejection breakdown names the cause outright.
 
 - **Slack water is rarer and smaller than a test expects.** On a flat seabed at default tuning,
   the slowest water within a kilometre of the origin is 0.24 m/s against a 0.144 m/s slack

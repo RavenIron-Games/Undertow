@@ -73,6 +73,7 @@ namespace RavenIron.Undertow.Config
         public static ConfigEntry<float> DriftLineRadius;
         public static ConfigEntry<float> DriftLineOpacity;
         public static ConfigEntry<float> DriftLineMinDepth;
+        public static ConfigEntry<float> DriftLineSlackFloor;
         public static ConfigEntry<float> DriftLineBudgetMs;
 
         // ---- The stamp -------------------------------------------------------------------
@@ -333,12 +334,32 @@ namespace RavenIron.Undertow.Config
                     "the daytime baseline.",
                     new AcceptableValueRange<float>(0f, 2f)));
 
-            DriftLineMinDepth = cfg.Bind(lines, "DriftLineMinDepth", 10f,
+            DriftLineMinDepth = cfg.Bind(lines, "DriftLineMinDepth", 2f,
                 new ConfigDescription(
-                    "Streaks need at least this much water under them. The current already fades " +
-                    "out over the last eight metres of depth, so this mostly keeps foam off the " +
-                    "beach, where a player would see it from the sand, and off shallow inland lakes.",
+                    "Streaks need at least this much water under them — a beach guard, not a " +
+                    "filter on interesting water. Acceptance ramps up over the six metres above " +
+                    "this floor, so at the default it finishes at a depth of eight, which is " +
+                    "exactly where the current's OWN shallow fade finishes: one curve rather than " +
+                    "two unrelated thresholds. This shipped at 10 through 0.7 and that was wrong " +
+                    "for the feature it constrains — the open ocean is a flat 30 m, so every race, " +
+                    "strait, shelf and coastal set is shallower than that by definition, and the " +
+                    "'fast water between islands' this mod exists to show was gated out of its own " +
+                    "habitat. Raise it toward 10-30 to keep foam offshore the way 0.7 did, at the " +
+                    "cost of that water. Foam on land stays impossible at any setting.",
                     new AcceptableValueRange<float>(2f, 30f)));
+
+            DriftLineSlackFloor = cfg.Bind(lines, "DriftLineSlackFloor", DriftLineMath.DefaultSlackFloor,
+                new ConfigDescription(
+                    "How readily slack water earns a streak, as a share of what a full current " +
+                    "earns. Slack water is no longer bare: it carries a scattering of short, faint " +
+                    "flecks instead, so an EMPTY sea now means dead water rather than a feature " +
+                    "that is not running — which was three indistinguishable things before. At the " +
+                    "default a glassy patch holds roughly a dozen short streaks where a race holds " +
+                    "a hundred and sixty long ones, so the set is still legible, as a difference of " +
+                    "density rather than of presence. Set 0 for the 0.7 behaviour: foam strictly " +
+                    "absent in slack water, a cleaner contrast that costs you the ability to tell " +
+                    "slack water from a broken mod at a glance.",
+                    new AcceptableValueRange<float>(0f, 0.5f)));
 
             DriftLineBudgetMs = cfg.Bind(lines, "DriftLineBudgetMs", 0.5f,
                 new ConfigDescription(

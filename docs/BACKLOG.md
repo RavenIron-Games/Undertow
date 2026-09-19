@@ -1212,9 +1212,89 @@ run cannot see: a key on the wire that ModConfig does not bind under exactly tha
 against a real `ModConfig.Bind`, ordinal and case-sensitive), and a float written or read in the
 machine's own culture.
 
-### What is owed: the in-game run
+### RUN IN-GAME 2026-09-19 — Storm10 (dedicated) + the `testing` Gale profile, both on 1.0.15
 
-Nothing here has been observed in a game. **Two machines are the minimum** — this feature is
+Deployed from `bin\Release`, hash-matched repo → server → client (`EC9FE5B7…`) BEFORE either
+booted. The two ends were deliberately set APART first — server `MaxCurrentSpeed = 2.4`,
+`SwimmerDriftFactor = 0.9`, client left at 1.2 / 0.5 — because a run where both ends already
+agree cannot tell adoption from a no-op, which is the vacuous-pass trap this file keeps naming.
+
+**The handshake, both halves.** Server: `ConfigSync: RPCs registered (undertow-cfg/1).` then
+`published (peer list changed) — 12 value(s): MaxCurrentSpeed=2.4, TidePeriodSeconds=3600,
+TideAmplitude=0.25 and 9 more`, followed by 30 s heartbeats. Client:
+`ConfigSync: the server's sea is in force — MaxCurrentSpeed 1.2 -> 2.4, TideAmplitude 0.4988263
+-> 0.25, SwimmerDriftFactor 0.5 -> 0.9.` **Zero exceptions on either side**, and no
+`ConfigSync:` error about an unbound wire key — which is the first live confirmation that all
+twelve rows in `SyncedKeys` resolve to real entries under exactly those names.
+
+**IT FOUND A REAL DIVERGENCE ON ITS FIRST RUN, AND NOBODY PUT IT THERE FOR THE TEST.** Only two
+keys were set apart; a THIRD moved. The client's `TideAmplitude` was **0.4988263**, not the
+shipped 0.25 — a config-manager slider dragged at some forgotten point. That profile had been
+sailing a measurably different tide from the server, silently, and the only reason anybody knows
+now is that this feature printed it. That is the whole argument for the feature, observed rather
+than reasoned about.
+
+**The override reaches GAMEPLAY, not merely a dictionary.** The verbose swimmer lines settle it
+arithmetically, so this needed no sailing:
+
+```
+water 0.204  drift 0.184  ratio 0.9020
+water 0.203  drift 0.183  ratio 0.9015
+water 0.200  drift 0.180  ratio 0.9000
+```
+
+Ratio 0.90 is the SERVER's `SwimmerDriftFactor`. On the client's own 0.5 the drift would read
+0.102, not 0.184. (`cap 0.7` also checks out: swimSpeed 2 × `SwimmerMaxShareOfSwimSpeed` 0.35.)
+
+**The client's config file was NOT written, measured rather than assumed.** Hashed before joining
+and again mid-session. The hash DID change, which looked at first like the design's central
+promise failing — the diff is one line, `VerboseLogging false → true`, a key deliberately NOT on
+the wire and changed by the owner in ConfigurationManager. All three synced keys still hold the
+client's own values on disk (1.2 / 0.4988263 / 0.5) while the running game uses the server's.
+Worth keeping: the hash alone would have read as a failure, and only the diff said otherwise.
+
+**`wake status` on the client read `sailing the server's sea — 12 value(s)`** — the one piece of
+evidence that can never reach a log, because the console writes through `Terminal.AddString`.
+
+**The disconnect path is CLOSED, on two independent instruments.** After a log-out to the main
+menu the client logged `ConfigSync: disconnected — local config back in force.` and `wake status`
+read `config sync: on your own values (left the server — back on local values)`. The parenthesis
+is the load-bearing half: that string is `LastEvent`, assigned ONLY inside `Reset()`'s non-empty
+branch, so it proves the table really held values and was really cleared — a bare "on your own
+values" would also be what a `Reset()` that never ran on an empty table produced.
+
+That path is not cosmetic, and here is the one case where it would have bitten. Joining a
+DIFFERENT server self-heals, because the new server publishes all twelve keys and overwrites
+every override. Going from a server to SINGLE PLAYER does not: single player is
+`IsServer() == true`, so `OnPublished` stands down by design and nothing would ever overwrite a
+stale table — `_any` would still be true and `Live()` would hand the player the last server's sea
+in their own world.
+
+**Two instrument failures were hit getting that one line, and neither was a bug in the mod.**
+Both are the "audit the instrument" rule, and both will happen again:
+
+  1. **Quitting to desktop does not test it.** `Reset()` runs from `SeaTick.Update`'s
+     `ZNet.instance == null` branch, so the PROCESS must outlive the disconnection. Quit and it
+     dies first — and BepInEx truncates `LogOutput.log` on the relaunch, taking the evidence with
+     it. Log out to the MENU. (Snapshot the log before a relaunch either way.)
+  2. **BepInEx's disk log lags, and a grep run too soon reads as a missing line.** The second
+     attempt DID log correctly; the file was 24 KB when first read and 51 KB a moment later, with
+     the line in the gap. A defect was nearly filed against correct code on the strength of an
+     absence. An absent log line is evidence only after the writer has caught up — confirm with a
+     second read, or with `wake status`, which goes through `Terminal.AddString` and never touches
+     the log file at all.
+
+**STILL OWED after this run:** **the admin push in both directions — the half with no fallback
+and the only part still entirely unobserved** — and two Undertow versions meeting across the wire.
+
+One incidental correction this run produced: the client logged `CurrentField live — … season
+index 1 (read from Wrath)`. Task 7 and CLAUDE.md state that line will "always say 0 on a client"
+because it is logged before the season RPC arrives. It is a RACE, not a guarantee, and it can
+land the other way.
+
+### The protocol (written before the run above; steps 8 and 9 are still owed)
+
+**Two machines are the minimum** — this feature is
 unobservable on one, because a listen host stands down on `IsServer()` by design.
 
 1. Deploy to Storm10 and to the `testing` profile. **Deliberately set them apart first**: put
@@ -1255,6 +1335,65 @@ unobservable on one, because a listen host stands down on `IsServer()` by design
   are under test — but no two versions have ever actually met.
 - **Ordering against other ServerSync-style mods.** Undertow's sync is its own; it does not use
   ServerSync and does not contend with one.
+
+## 10. Foam in all moving water (0.8.0) — BUILT 2026-09-19, SERVER LEG RUN THE SAME DAY
+
+The owner's instruction, verbatim: *"i need the drift lines to show in all water"*, after two
+sessions of never seeing foam anywhere they stood.
+
+### Why they saw nothing, which took two readings to establish and neither was a bug
+
+1. **(-3200, 3400): `rejected slack 145` of 160.** Water 0.091 m/s against a slack threshold of
+   `0.12 × MaxCurrentSpeed` = 0.144. Working exactly as designed — they were parked in a slack
+   pocket that a scan later showed to be **over 1.2 km across**, which the CLAUDE.md note calling
+   slack "rare" had not anticipated (that note was measured near the origin).
+2. **(-3287, 3954): `rejected shallow 63`.** 0.665 m/s of genuine **Race** at 5.1 m depth against
+   `DriftLineMinDepth` = 10. This one IS a design fault: Valheim's open ocean is a flat 30 m, so
+   every race, strait, shelf and coastal set is shallower than that by definition. The headline
+   feature — "fast water between islands" — shipped gated out of its own habitat.
+
+A third cause was mine: setting the server's `MaxCurrentSpeed` to 2.4 for the sync test doubled
+the slack threshold to 0.288 and suppressed the foam everywhere. Recorded as a trap in CLAUDE.md.
+
+### What changed
+
+- **`DriftLineMinDepth` 10 → 2.** Not a round number chosen by feel: acceptance ramps over the
+  6 m above the floor (`DepthRampMetres`), so at 2 it finishes at depth 8 — exactly where
+  `CurrentField`'s own `ShallowFadeDepth` finishes. Two unrelated thresholds became one curve, and
+  the harness pins `minDepth + DepthRampMetres == ShallowFadeDepth` so a future re-tune has to
+  re-derive it rather than break it quietly.
+- **The slack cliff became a floor.** `SpawnWeight` now ramps from 0 at dead-still water up to
+  `DriftLineSlackFloor` (new key, default 0.08) below the threshold, then resumes the old ramp
+  from that floor. Continuous at the threshold, so there is no visible edge on the water. **At and
+  above 60% of MaxCurrentSpeed nothing changed at all.**
+- **`ConfigLedger` version 2**, one rebase row — the first rung this ledger has ever had.
+
+Harness **414 → 441**; 14 mutations against the shipping source, 14 caught. One MISS was found and
+fixed in the process: the "shipped default" assertion used a literal `2f` rather than reading
+`ModConfig.DriftLineMinDepth.DefaultValue`, so reverting the default to 10 left the harness green —
+a decorative assertion, which is exactly what the mutation suite exists to expose. A fifteenth
+mutation was identified as an **equivalent mutant** (a symbolic constant swapped for a numerically
+identical literal) and removed rather than chased: no runtime assertion can distinguish them, and
+contorting one to try would be theatre.
+
+### What was observed in game, and what was not
+
+✅ **The first destructive migration rung, on Storm10.** Against a real config holding
+`ConfigVersion = 1` and `DriftLineMinDepth = 10`:
+`config: version 1 -> 2: 1 value(s) moved to their new defaults: 7 - Drift lines.DriftLineMinDepth
+(your previous config is backed up beside it, .v1.bak)` — at WARNING, naming the key, and the
+`.v1.bak` verified **byte-identical** to the pre-migration file with `cmp`. Afterwards the file
+reads `ConfigVersion = 2`, `DriftLineMinDepth = 2`, `DriftLineSlackFloor = 0.08`.
+
+⬜ **STILL OWED.** (a) The **protective** rebase branch: a client whose stored value is NOT an old
+shipped default must be Kept and named rather than reset. The `testing` profile holds a hand-set
+`DriftLineMinDepth = 2`, so booting it exercises exactly that branch. (b) **Foam actually seen**,
+at both reported coordinates — the whole point, and no log can settle it. (c) `wake lines` cost at
+a saturated pool, to confirm 0.37 ms still holds now that saturation is common rather than rare.
+(d) One look at an inland lake deeper than 2 m: the old 10 m floor was the de facto lake guard, and
+its description said so. The locked "Rivers and lakes — ocean only" row is about FORCE ("a sideways
+force pins players against terrain") and is untouched by a visual, but if foam on a pond looks
+wrong, `DriftLineMinDepth` is the dial.
 
 ## 5z. Original task 5 specification (its AddPushbackForce advice was WRONG - see above)
 

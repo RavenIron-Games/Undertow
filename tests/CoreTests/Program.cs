@@ -708,6 +708,22 @@ namespace Undertow.Tests
                 }
             }
 
+            // 5b. The new slack floor is bound where it belongs, at the constant the maths owns,
+            //     and RANGED. Without an AcceptableValueRange a hand-edited 50 would sail through
+            //     to SpawnWeight, where Clamp01 would silently make it 1 and put a streak on every
+            //     candidate point in the sea. The clamp is the safety net; the range is the
+            //     instrument that tells an owner they asked for something out of bounds.
+            ConfigFile.BoundEntry floorEntry =
+                cfg.Bound.Find(e => e.Key == "DriftLineSlackFloor");
+            Check(floorEntry != null && floorEntry.Section == "7 - Drift lines",
+                "DriftLineSlackFloor is bound under '7 - Drift lines'");
+            Check(floorEntry != null && floorEntry.DefaultValue is float df
+                  && df == DriftLineMath.DefaultSlackFloor,
+                "...at DriftLineMath's own constant, not a second copy of the number");
+            Check(floorEntry?.Description?.AcceptableValues is AcceptableValueRange<float> fr
+                  && fr.MinValue == 0f && fr.MaxValue == 0.5f,
+                "...and ranged [0, 0.5], so 0 (the 0.7 cliff) stays reachable and 50 does not");
+
             // 6. The drift lines' entries live where the console help and the README say they
             //    do. A section name that drifts from the docs is a support question.
             Check(cfg.Bound.Exists(e => e.Section == "2 - Systems" && e.Key == "EnableDriftLines"),
@@ -750,30 +766,74 @@ namespace Undertow.Tests
             float slack = CurrentField.SlackShare * max;
             Check(CurrentField.SlackShare == 0.12f, "SlackShare is the 0.12 Classify has always used");
 
-            bool zeroInSlack = true;
-            for (int i = 0; i <= 20; i++)
-            {
-                float sp = slack * i / 20f;
-                for (int d = 0; d <= 60; d += 10)
-                    if (DriftLineMath.SpawnWeight(sp, d, max, 10f) != 0f) zeroInSlack = false;
-            }
-            Check(zeroInSlack, "SpawnWeight is exactly 0 at or below the slack share, at any depth");
+            // A GREEN ASSERTION WAS DELETED HERE, and it is named rather than quietly dropped
+            // because deleting a passing test is the thing this project distrusts most. It read
+            // "SpawnWeight is exactly 0 at or below the slack share, at any depth" and it was the
+            // behaviour 0.8 removes on the owner's instruction. Everything below replaces it, and
+            // the last of them restores it exactly when the floor is zero.
+            const float floor = DriftLineMath.DefaultSlackFloor;
 
-            bool zeroShallow = true;
-            for (int i = 0; i <= 20; i++)
+            // 1. THE REQUEST ITSELF: moving water always earns SOME chance, however slow.
+            bool someEverywhere = true;
+            for (int i = 1; i <= 40; i++)
+                if (DriftLineMath.SpawnWeight(slack * i / 40f, 30f, max, 2f, floor) <= 0f)
+                    someEverywhere = false;
+            Check(someEverywhere, "in deep water every speed above zero earns a non-zero weight");
+
+            // 2. ...but slack water never earns more than the floor, so a race still dominates.
+            bool cappedInSlack = true;
+            foreach (float fl in new[] { 0f, 0.08f, 0.3f })
+                for (int i = 0; i <= 40; i++)
+                    if (DriftLineMath.SpawnWeight(slack * i / 40f, 30f, max, 2f, fl) > fl + 1e-6f)
+                        cappedInSlack = false;
+            Check(cappedInSlack, "at or below the slack share the weight never exceeds the floor");
+            Check(Math.Abs(DriftLineMath.SpawnWeight(slack, 30f, max, 2f, floor) - floor) < 1e-6f,
+                "the weight is exactly the floor AT the slack threshold");
+
+            // 3. Dead water is still the faintest thing in the sea. A flat floor would pass 1 and
+            //    2 above and lose this, which is the whole reason the sub-slack branch ramps.
+            bool risingInSlack = true; prev = -1f;
+            for (int i = 0; i <= 40; i++)
             {
-                float sp = max * i / 20f;
-                for (int d = -5; d <= 10; d += 5)
-                    if (DriftLineMath.SpawnWeight(sp, d, max, 10f) != 0f) zeroShallow = false;
+                float w = DriftLineMath.SpawnWeight(slack * i / 40f, 30f, max, 2f, floor);
+                if (w <= prev) risingInSlack = false;
+                prev = w;
             }
-            Check(zeroShallow, "SpawnWeight is exactly 0 at or below MinDepth, at any speed");
-            Check(DriftLineMath.SpawnWeight(0.6f * max, 30f, max, 10f) == 1f,
-                "full weight at 60% of MaxSpeed in deep water");
+            Check(risingInSlack, "below the slack threshold the weight still RISES with speed");
+
+            // 4. Continuity. An if/else that applied the floor only strictly below the threshold
+            //    would leave a step here, and a step is a visible edge on the water.
+            Check(Math.Abs(DriftLineMath.SpawnWeight(slack - 1e-4f, 30f, max, 2f, floor)
+                         - DriftLineMath.SpawnWeight(slack + 1e-4f, 30f, max, 2f, floor)) < 1e-3f,
+                "the weight is continuous across the slack threshold - no visible edge");
+
+            // 5. THE SAFETY-CRITICAL ONE. The floor multiplies the SPEED term only. Move it onto
+            //    the depth term, or apply it after the depth multiply, and foam lifts onto beaches.
+            bool zeroShallow = true;
+            foreach (float fl in new[] { 0f, 0.08f, 0.5f })
+                for (int i = 0; i <= 20; i++)
+                {
+                    float sp = max * i / 20f;
+                    for (int d = -5; d <= 2; d += 1)
+                        if (DriftLineMath.SpawnWeight(sp, d, max, 2f, fl) != 0f) zeroShallow = false;
+                }
+            Check(zeroShallow, "exactly 0 at or below MinDepth, at any speed AND any slack floor");
+
+            // 6. Land stays bare. CurrentField reports Speed 0 on land, so this makes foam on dry
+            //    ground unrepresentable rather than merely unlikely.
+            bool deadIsBare = true;
+            foreach (float fl in new[] { 0f, 0.08f, 0.5f })
+                for (int d = 0; d <= 60; d += 10)
+                    if (DriftLineMath.SpawnWeight(0f, d, max, 2f, fl) != 0f) deadIsBare = false;
+            Check(deadIsBare, "dead-still water earns exactly 0 at any depth and any floor");
+
+            Check(DriftLineMath.SpawnWeight(0.6f * max, 30f, max, 2f, floor) == 1f,
+                "full weight at 60% of MaxSpeed in deep water, floor or no floor");
 
             bool mono = true; prev = -1f;
             for (int i = 0; i <= 200; i++)
             {
-                float w = DriftLineMath.SpawnWeight(max * 1.5f * i / 200f, 30f, max, 10f);
+                float w = DriftLineMath.SpawnWeight(max * 1.5f * i / 200f, 30f, max, 2f, floor);
                 if (w < prev || w > 1f) mono = false;
                 prev = w;
             }
@@ -781,15 +841,60 @@ namespace Undertow.Tests
             mono = true; prev = -1f;
             for (int i = 0; i <= 200; i++)
             {
-                float w = DriftLineMath.SpawnWeight(max, 40f * i / 200f, max, 10f);
+                float w = DriftLineMath.SpawnWeight(max, 40f * i / 200f, max, 2f, floor);
                 if (w < prev || w > 1f) mono = false;
                 prev = w;
             }
             Check(mono, "SpawnWeight is non-decreasing in depth");
-            Check(DriftLineMath.SpawnWeight(float.NaN, 30f, max, 10f) == 0f
-                  && DriftLineMath.SpawnWeight(1f, float.NaN, max, 10f) == 0f
-                  && DriftLineMath.SpawnWeight(1f, 30f, 0f, 10f) == 0f,
-                "SpawnWeight answers 0, never NaN, for NaN inputs or a zero MaxSpeed");
+
+            // 7. An out-of-range floor is clamped rather than trusted.
+            bool floorClamped = true;
+            foreach (float fl in new[] { -1f, 0f, 0.08f, 0.5f, 1f, 2f })
+                for (int i = 0; i <= 40; i++)
+                {
+                    float w = DriftLineMath.SpawnWeight(max * 1.5f * i / 40f, 30f, max, 2f, fl);
+                    if (w < 0f || w > 1f || float.IsNaN(w)) floorClamped = false;
+                }
+            Check(floorClamped, "any slack floor, in range or not, keeps the weight inside [0,1]");
+
+            Check(DriftLineMath.SpawnWeight(float.NaN, 30f, max, 2f, floor) == 0f
+                  && DriftLineMath.SpawnWeight(1f, float.NaN, max, 2f, floor) == 0f
+                  && DriftLineMath.SpawnWeight(1f, 30f, 0f, 2f, floor) == 0f
+                  && DriftLineMath.SpawnWeight(1f, 30f, max, 2f, float.NaN) == 0f,
+                "SpawnWeight answers 0, never NaN, for NaN in ANY of five inputs or a zero MaxSpeed");
+
+            // 8. A ZERO FLOOR IS THE 0.7 CLIFF, EXACTLY. This is what makes the deleted assertion
+            //    above recoverable rather than lost: the old behaviour is still reachable, still
+            //    tested, and one config value away.
+            bool cliffRestored = true;
+            for (int i = 0; i <= 40; i++)
+                if (DriftLineMath.SpawnWeight(slack * i / 40f, 30f, max, 2f, 0f) != 0f)
+                    cliffRestored = false;
+            Check(cliffRestored, "a slack floor of 0 restores 0.7's cliff exactly - no foam below slack");
+
+            // 9. THE TWO READINGS THAT CAUSED THIS CHANGE, pinned as regressions. Both were taken
+            //    in game on Storm10, 2026-09-19, and both showed a bare sea.
+            // READ THE SHIPPED DEFAULT, do not spell it. A literal 2f here was a decorative
+            // assertion: a mutation reverting ModConfig's default to 10 left the harness GREEN,
+            // because nothing in this block was actually looking at what the mod binds. Caught by
+            // the mutation suite on 2026-09-19, which is the entire reason that suite exists.
+            float shippedMinDepth = (float)ModConfig.DriftLineMinDepth.DefaultValue;
+            Check(shippedMinDepth == 2f,
+                "ModConfig binds DriftLineMinDepth at 2 - the whole point of the 0.8 rebase");
+            float ownersRace = DriftLineMath.SpawnWeight(0.665f, 5.1f, 1.2f, shippedMinDepth, floor);
+            Check(ownersRace > 0.3f && ownersRace < 0.6f,
+                $"the owner's 0.665 m/s race at 5.1 m now spawns freely (weight {Fmt(ownersRace)})");
+            Check(DriftLineMath.SpawnWeight(0.665f, 5.1f, 1.2f, 10f, floor) == 0f,
+                "...and is exactly 0 at the OLD MinDepth of 10 - the negative control for the rebase");
+            float ownersSlack = DriftLineMath.SpawnWeight(0.091f, 30f, 1.2f, shippedMinDepth, floor);
+            Check(ownersSlack > 0f && ownersSlack < 0.1f,
+                $"the owner's 0.091 m/s slack is sparse but no longer bare (weight {Fmt(ownersSlack)})");
+
+            // 10. THE ANCHOR. MinDepth 2 + a 6 m ramp finishes at 8, which is exactly where
+            //     CurrentField's own shallow fade finishes. That coincidence is the entire
+            //     justification for the new default, so it is pinned rather than left in a comment.
+            Check(shippedMinDepth + DriftLineMath.DepthRampMetres == FieldSettings.Defaults.ShallowFadeDepth,
+                "the depth ramp ends exactly where CurrentField's shallow fade ends (2 + 6 == 8)");
 
             // ---- THE CROSS-TEST: Classify's Slack and SpawnWeight's zero are ONE definition --
             // Two definitions of "slack" that silently disagree would have `wake here` say Slack
@@ -811,12 +916,22 @@ namespace Undertow.Tests
                 if (Math.Abs(f.Speed - CurrentField.SlackShare * s.MaxSpeed) < 1e-6f) continue;
                 points++;
                 bool isSlack = f.Dominant == CurrentTerm.Slack;
-                bool noFoam = DriftLineMath.SpawnWeight(f.Speed, f.Depth, s.MaxSpeed, 10f) == 0f;
+
+                // REWRITTEN FROM AN EQUALITY TO AN ORDERING, because 0.8 replaced the cliff with
+                // a floor. The property being defended is unchanged and is the one that mattered:
+                // Classify's Slack and SpawnWeight's idea of slack are ONE definition, so they can
+                // never silently drift apart and have `wake here` say Slack while foam pours. The
+                // old form asserted "Slack <=> zero foam"; the new form asserts "Slack <=> at most
+                // the floor, running water <=> more than the floor", which is the same agreement
+                // with the same single source for the constant.
+                float w = DriftLineMath.SpawnWeight(f.Speed, f.Depth, s.MaxSpeed, 2f,
+                                                    DriftLineMath.DefaultSlackFloor);
+                bool foamIsSlackGrade = w <= DriftLineMath.DefaultSlackFloor + 1e-6f;
                 if (isSlack) slackCount++;
-                if (isSlack != noFoam) mismatches++;
+                if (isSlack != foamIsSlackGrade) mismatches++;
             }
             Check(points > 90000 && mismatches == 0,
-                $"over {points} deep flat-seabed points, Slack <=> no foam ({mismatches} disagree)");
+                $"over {points} deep flat-seabed points, Slack <=> at most floor-grade foam ({mismatches} disagree)");
             Check(slackCount > 0 && slackCount < points,
                 $"the cross-test saw both slack and running water ({slackCount} slack of {points}, slowest {Fmt(slowest)} m/s against a {Fmt(CurrentField.SlackShare * s.MaxSpeed)} threshold)");
 
@@ -1308,9 +1423,58 @@ namespace Undertow.Tests
                 "3 - The current::MaxCurrentSpeed", "1.951174",
                 "5 - Flotsam::FlotsamPerHour", "120"), 0);
             Check(realWorld.IsEmpty,
-                "against the SHIPPED tables a real pre-0.7.1 config plans nothing: version 1 is the ladder, not a rung");
+                "a real config with no drift-line keys still plans nothing against the SHIPPED tables");
             Check(!realWorld.IsDestructive, "so it can never lose a setting");
             Check(realWorld.ToVersion == ConfigLedger.CurrentVersion, "and it targets the current layout version");
+
+            // ---- VERSION 2: THE FIRST RUNG THIS LEDGER HAS EVER HAD -------------------------
+            //
+            // Everything above was written while all three tables were empty, which made this
+            // whole file a ladder with nothing on it. 0.8 moves DriftLineMinDepth's shipped
+            // default from 10 to 2, and BepInEx never rewrites a value already in a file — so
+            // without this rung the fix would ship DISABLED for every existing install, silently.
+            // That is the exact failure the ledger was built for, met for the first time.
+            Check(ConfigLedger.CurrentVersion == 2,
+                "the layout version is 2 - a table that exists but is never reached is not a migration");
+
+            var rung = ConfigLedger.Plan(Snapshot(
+                "0 - Meta::ConfigVersion", "1",
+                "7 - Drift lines::DriftLineMinDepth", "10",
+                "7 - Drift lines::DriftLineOpacity", "0.83"), 1);
+            Check(!rung.IsEmpty && rung.ToVersion == 2, "a file at version 1 holding the old default plans a step to 2");
+            Check(rung.ResetToDefault.Contains("7 - Drift lines::DriftLineMinDepth"),
+                "...and that step resets DriftLineMinDepth, which was never the admin's value");
+            Check(rung.IsDestructive,
+                "the plan is DESTRUCTIVE, so ConfigMigration takes a .v1.bak before touching the file");
+
+            // THE MUTATION THAT MATTERS MOST: a rebase that fires regardless of the stored value
+            // would delete a setting an admin chose on purpose. 20 is nobody's shipped default.
+            var chosen = ConfigLedger.Plan(Snapshot(
+                "0 - Meta::ConfigVersion", "1",
+                "7 - Drift lines::DriftLineMinDepth", "20"), 1);
+            Check(!chosen.ResetToDefault.Contains("7 - Drift lines::DriftLineMinDepth"),
+                "a DriftLineMinDepth the admin chose themselves is NOT reset");
+            Check(chosen.Kept.Exists(k => k.Slot == "7 - Drift lines::DriftLineMinDepth" && k.Value == "20"),
+                "...it is kept, and named, so the boot line can tell them it was left alone");
+
+            // Ordinal TEXT comparison, which is the trap ConfigLedger's own comment warns about:
+            // spelling the old default "10.0" in the table would match nothing and do nothing,
+            // green all the way.
+            var spelledLong = ConfigLedger.Plan(Snapshot(
+                "0 - Meta::ConfigVersion", "1",
+                "7 - Drift lines::DriftLineMinDepth", "10.0"), 1);
+            Check(!spelledLong.ResetToDefault.Contains("7 - Drift lines::DriftLineMinDepth"),
+                "'10.0' is a different string from '10' - the ledger compares text, never numbers");
+
+            // A file that already ran the rung must never run it again.
+            Check(ConfigLedger.Plan(Snapshot(
+                    "0 - Meta::ConfigVersion", "2",
+                    "7 - Drift lines::DriftLineMinDepth", "2"), 2).IsEmpty,
+                "a file already at version 2 plans nothing");
+
+            // A FRESH install has no drift-line slot at all, so the rung must not invent work.
+            Check(!ConfigLedger.Plan(Snapshot("1 - Core::TickBudgetMs", "2"), 1).IsDestructive,
+                "a file with no DriftLineMinDepth at all plans nothing destructive");
 
             // ---- The stamp's own slot. It is a migration key forever, so it is pinned here.
             Check(ConfigLedger.MetaSection == "0 - Meta",
@@ -1363,7 +1527,11 @@ namespace Undertow.Tests
                 Check(ModConfig.VerboseLogging.Value, "so does a bool the owner set");
                 Check(cfg.SaveCount > 0,
                     "the config is saved - in the stamp-only case that Save is the ONLY thing that writes");
-                Check(ConfigMigration.LastSummary.Contains("0 -> 1"),
+                // Reads CurrentVersion rather than hardcoding it: the literal "0 -> 1" here broke
+                // the moment version 2 existed, which is a test failing for the right reason but
+                // the wrong cause. What is being defended is that the summary SURVIVES, not which
+                // number it names.
+                Check(ConfigMigration.LastSummary.Contains("0 -> " + ConfigLedger.CurrentVersion),
                     "the boot line SURVIVES the migration that wrote it, so `wake status` can read it back");
                 Check(!File.Exists(cfgPath + ".v0.bak"),
                     "a stamp-only migration writes no backup: there is nothing to lose and the copy would be identical");

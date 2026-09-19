@@ -75,7 +75,13 @@ namespace RavenIron.Undertow.Core
         /// </summary>
         public const string MetaSection = "0 - Meta";
         public const string VersionKey = "ConfigVersion";
-        public const int CurrentVersion = 1;
+
+        /// <summary>
+        /// Version 1 stamped and did nothing. **Version 2 is the first rung this mod has ever
+        /// had** — see <see cref="Rebases"/> — so it is also the first time the destructive path
+        /// (a backup beside the file before anything moves) runs anywhere outside the harness.
+        /// </summary>
+        public const int CurrentVersion = 2;
 
         /// <summary>
         /// One slot's every old shipped default. A stored value equal to ANY of them is the mod's
@@ -116,11 +122,42 @@ namespace RavenIron.Undertow.Core
 
         /// <summary>
         /// Keyed by the version the step PRODUCES: <c>Rebases[n]</c> takes a file at n-1 up to n.
-        /// Empty; see the class remarks for why that is a finding rather than a gap. The ladder
-        /// exists before the rung that needs it, so the first default Undertow ever moves is a
-        /// data edit here and not new code on the boot path.
+        ///
+        /// **NO LONGER EMPTY, and the claim the empty version made turned out to be exactly
+        /// right.** The ladder was built before any rung needed it, precisely so that the first
+        /// default Undertow ever moved would be a data edit here rather than new code on the boot
+        /// path. That is what version 2 is: one row, no new machinery.
         /// </summary>
-        private static readonly Dictionary<int, Rebase[]> Rebases = new Dictionary<int, Rebase[]>();
+        private static readonly Dictionary<int, Rebase[]> Rebases = new Dictionary<int, Rebase[]>
+        {
+            {
+                2, new[]
+                {
+                    // WHY THIS IS A REBASE AND NOT A SHRUG. DriftLineMinDepth has been bound since
+                    // 0.7.0, so BepInEx has written it to every existing config file at its shipped
+                    // 10. BepInEx never rewrites a value already present in a file — so moving the
+                    // C# default alone would ship this fix DISABLED for every existing install,
+                    // with nothing in the log and no way for an owner to know. That is the exact
+                    // failure this whole ledger exists for, met for the first time.
+                    //
+                    // "10" is MEASURED, not assumed: both Storm10's config and a pre-session backup
+                    // of a real client profile read `DriftLineMinDepth = 10` literally (2026-09-19).
+                    // The comparison is ordinal TEXT, so "10.0" here would be a silent no-op.
+                    new Rebase
+                    {
+                        Section = "7 - Drift lines",
+                        Key = "DriftLineMinDepth",
+                        OldDefaults = new[] { "10" },
+                        Because =
+                            "0.7 shipped this at 10 m, which excluded every race, strait, shelf and " +
+                            "coastal set — the open ocean is a flat 30 m, so the 'fast water between " +
+                            "islands' the drift lines exist to show was gated out of its own habitat. " +
+                            "The new floor of 2 m ends its ramp exactly where the current's own " +
+                            "shallow fade ends. A value you chose yourself is kept and named."
+                    }
+                }
+            }
+        };
 
         /// <summary>Same keying, same reason. Empty.</summary>
         private static readonly Dictionary<int, Backfill[]> Backfills = new Dictionary<int, Backfill[]>();

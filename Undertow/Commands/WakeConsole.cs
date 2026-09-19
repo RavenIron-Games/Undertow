@@ -205,9 +205,16 @@ namespace RavenIron.Undertow.Commands
             sb.Append("config sync: ");
             if (ZNet.instance != null && ZNet.instance.IsServer())
             {
+                // BoundCount, not SyncedKeys.Length. The constant would report a healthy 12 on a
+                // machine that binds none of them and therefore publishes nothing at all.
+                int bound = ConfigSync.BoundCount;
                 sb.Append("this machine is the source — ")
-                  .Append(ConfigWire.SyncedKeys.Length.ToString(c))
-                  .Append(" value(s) published to every client\n");
+                  .Append(bound.ToString(c))
+                  .Append(" value(s) published to every client");
+                if (bound != ConfigWire.SyncedKeys.Length)
+                    sb.Append($" — WARNING: {ConfigWire.SyncedKeys.Length} are on the wire but only " +
+                              $"{bound} are bound; see the ConfigSync errors at boot");
+                sb.Append("\n");
             }
             else
             {
