@@ -1284,8 +1284,43 @@ Both are the "audit the instrument" rule, and both will happen again:
      second read, or with `wake status`, which goes through `Terminal.AddString` and never touches
      the log file at all.
 
-**STILL OWED after this run:** **the admin push in both directions — the half with no fallback
-and the only part still entirely unobserved** — and two Undertow versions meeting across the wire.
+**THE ADMIN PUSH IS CLOSED — verified in game 2026-09-19, and it took a real fix to get there.**
+
+The first attempt failed at the CLIENT gate, not the server's. Undertow refused to send because
+`ZNet.LocalPlayerIsAdminOrHost()` said the owner was not an admin — while they were in
+`adminlist.txt` in all three forms (bare numeric, `V_`, `Steam_`). That accessor falls through to
+`PlayerIsAdmin(UserInfo.GetLocalUser().UserId)`, a single `adminList.Contains(userId.ToString())`,
+and under `-crossplay` the local identity is a PlayFab one (the server's own handshake logs
+`playfab/8BF4F5368AF43770`) while the list holds Steam ids. Vanilla survives this because the
+method only drives cosmetic client-side UI hints.
+
+**This file had already recorded that gate as an acceptable "known limit" that fails closed. It
+does fail closed — on a legitimate admin, silently, with the feature unusable.** That is a defect,
+not a limit, and the note was wrong. The fix was to stop the client deciding at all: it sends
+optimistically and the server judges with `ZNet.IsAdmin(hostName)`, vanilla's own authoritative
+check, which matched the same player instantly. The server then ACKNOWLEDGES every push over a
+one-to-one RPC so an optimistic send can never become a silent no-op.
+
+Measured, both legs, on Storm10 against a real client:
+
+```
+CLIENT  ConfigSync: the server accepted it and told every client.
+SERVER  ConfigSync: admin (peer 739844175) set DriftStrength 3.169014 -> 4.
+        ConfigSync: published (an admin changed a value) — 12 value(s)
+DISK    DriftStrength = 4
+```
+
+The last line is the one that matters: an admin's change reaches the server's own config file and
+survives a restart, rather than living only in memory.
+
+**STILL OWED:** two Undertow versions meeting across the wire (the wire is forward-compatible by
+construction and both paths are under test, but no two versions have ever actually met).
+
+**KNOWN, NOT YET FIXED — the slider storm.** ConfigurationManager raises `SettingChanged` on every
+increment of a drag, so one gesture sent FOUR pushes (1.56 → 2.06 → 2.52 → 3.17 → 4) and the server
+answered each with a full twelve-value broadcast to every client. Four round trips for one human
+action. Harmless with a single player and it scales with the lobby, so it wants a ~0.5 s debounce
+holding only the last value per key. Predicted before the test and confirmed by it.
 
 One incidental correction this run produced: the client logged `CurrentField live — … season
 index 1 (read from Wrath)`. Task 7 and CLAUDE.md state that line will "always say 0 on a client"
