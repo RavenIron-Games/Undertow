@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using HarmonyLib;
 using UnityEngine;
 using RavenIron.Undertow.Config;
@@ -37,6 +38,14 @@ namespace RavenIron.Undertow.Patches
 
         private const float LogIntervalSeconds = 3f;
         private static float _nextLogTime;
+
+        /// <summary>
+        /// Throttle for the catch-all below - same reasoning as the ship patch. This runs in
+        /// every swimming character's motion update, so a persistent throw would bury the log.
+        /// </summary>
+        private const float ErrorIntervalSeconds = 30f;
+        private static float _nextErrorLogTime;
+        private static long _suppressedErrors;
 
         private static void Postfix(
             Character __instance,
@@ -90,9 +99,35 @@ namespace RavenIron.Undertow.Patches
             catch (Exception ex)
             {
                 // This runs inside every swimming character's motion update. Never let it throw
-                // into vanilla's physics.
-                Undertow.Log.LogWarning($"swim postfix: {ex.Message}");
+                // into vanilla's physics, and never let it flood the log either.
+                ReportError("swim postfix", ex);
             }
         }
+
+        /// <summary>
+        /// Report a fault from the hot path without flooding the log. The FIRST one is always
+        /// written in full, because a fault nobody is told about is the same as no instrument at
+        /// all; after that it is one line per <see cref="ErrorIntervalSeconds"/>, carrying the
+        /// number suppressed in between so the reader can tell "once, oddly" from "constantly".
+        /// </summary>
+        private static void ReportError(string where, Exception ex)
+        {
+            float now = Time.realtimeSinceStartup;
+            if (now < _nextErrorLogTime)
+            {
+                _suppressedErrors++;
+                return;
+            }
+
+            string tail = _suppressedErrors > 0
+                ? " (and " + _suppressedErrors.ToString(CultureInfo.InvariantCulture) +
+                  " more like it since the last line)"
+                : "";
+            _suppressedErrors = 0;
+            _nextErrorLogTime = now + ErrorIntervalSeconds;
+
+            Undertow.Log.LogWarning(where + ": " + ex.Message + tail);
+        }
+
     }
 }

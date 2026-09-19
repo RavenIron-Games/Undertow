@@ -278,7 +278,17 @@ namespace RavenIron.Undertow.Systems
                     }
                     catch (Exception ex)
                     {
-                        Undertow.Log.LogWarning($"[{Name}] could not reclaim flotsam: {ex.Message}");
+                        // KEEP IT COUNTED. The removal below is on the success path deliberately:
+                        // if the reclaim threw, the item may well still be out there, and the cap
+                        // is the only thing standing between a long-running server and an
+                        // unbounded ZDO table. Dropping it here would leak one slot per failure,
+                        // permanently, while the log looked healthy. Next Prune tries again — and
+                        // if it really did go away in the meantime, the IsValid() check at the top
+                        // of the loop collects it instead.
+                        Undertow.Log.LogWarning(
+                            $"[{Name}] could not reclaim flotsam; it stays counted against the cap " +
+                            $"and will be retried: {ex.Message}");
+                        continue;
                     }
 
                     _alive.RemoveAt(i);

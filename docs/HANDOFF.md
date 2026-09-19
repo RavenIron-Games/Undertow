@@ -153,8 +153,13 @@ already warns about; revisit when a release changes the field's maths, copying R
    read `synced from the server` — that is the season fix verified, and then `wake here` to
    see the field's seasonal term move with it. **Deploying RW to Ravenrest means a restart;
    ask before touching that server** (see memory: the join code dies with it).
-3. **Publish 0.5.1.** Thunderstore and Hexium, team `RavenIronStudios` (NOT the GitHub org
-   name). `tools\package.ps1` only, never by hand.
+3. **Publish.** **Hexium only** (hexium.gg), team `RavenIronStudios` (NOT the GitHub org
+   name, which is `RavenIron-Games`). `tools\package.ps1` only, never by hand.
+   **Corrected 2026-09-19: THUNDERSTORE IS NOT A CHANNEL.** This line used to say
+   "Thunderstore and Hexium", which contradicts the owner's call of 2026-09-03 — nothing
+   has ever been uploaded to Thunderstore and nothing will be. The zip is still built to
+   Thunderstore's package FORMAT, because that is what Hexium consumes; format and channel
+   are different things and these docs conflated them. Live on Hexium today: **0.6.0**.
 4. **Dive In, task 5c, on `Wonderland`.** Six steps; step 2 reads which postfix ordering the
    profile actually produced from the `swimSpeed` the log line prints.
 5. **The "without" runs** for 2c and 2d, each a both-sides park (both mods are ServerSync-pinned).

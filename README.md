@@ -46,9 +46,11 @@ Ragnarok's Wrath the bridge logs its absence once and the sea runs regardless.
 
 ### ⛵ Boats are carried, never braked
 The current adds to a hull rather than fighting it, so sailing is never slowed — you are simply
-somewhere else than you expected. A boat left drifting settles at **the water's own speed**, and
-that is true of a raft, a karve and a longship alike. A hull resists sideways drift about twice
-as hard as forward drift, which falls out of Valheim's own physics rather than being imposed.
+somewhere else than you expected. A boat left drifting settles at **the water's own speed**:
+measured at 0.86 for a karve and 0.96 for a longship against the water's 1.0, which is the point,
+because those two hulls damp very differently. A hull also resists sideways drift more than
+forward drift, so a current on the beam moves you less than one off the bow — that falls out of
+Valheim's own per-hull physics rather than being imposed, and it differs from hull to hull.
 
 **Boats with nobody aboard are not touched, by default.** Vanilla already damps an unmanned hull
 almost to a stop, and a moored longship wandering off while you are away is not a feature.

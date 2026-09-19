@@ -4,7 +4,7 @@
     <TargetFramework>net472</TargetFramework>
     <AssemblyName>Undertow</AssemblyName>
     <RootNamespace>RavenIron.Undertow</RootNamespace>
-    <Version>0.7.1</Version>
+    <Version>0.7.2</Version>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -17,7 +17,7 @@
   <!--
     Shared libs folder at the repository root, populated by tools\fetch-libs.ps1.
     Deliberately NOT a hardcoded Steam path: this repo gets cloned, and a Steam library
-    move would break every checkout. libs\ is gitignored â€” each dev runs fetch-libs once.
+    move would break every checkout. libs\ is gitignored — each dev runs fetch-libs once.
   -->
   <PropertyGroup>
     <LibsDir>$(MSBuildThisFileDirectory)..\libs</LibsDir>

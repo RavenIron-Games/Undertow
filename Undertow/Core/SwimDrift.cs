@@ -3,7 +3,7 @@
 namespace RavenIron.Undertow.Core
 {
     /// <summary>
-    /// What the current does to a swimmer. Pure arithmetic â€” no Unity, no game types â€” so the
+    /// What the current does to a swimmer. Pure arithmetic — no Unity, no game types — so the
     /// harness tests the shipping source.
     ///
     /// A SWIMMER IS NOT A BOAT, AND NEITHER OF THE OBVIOUS MECHANISMS WORKS.
@@ -12,15 +12,15 @@ namespace RavenIron.Undertow.Core
     /// `force = m_currentVel - m_body.linearVelocity` applied as a VelocityChange, so any
     /// external velocity is corrected away on the next tick.
     ///
-    /// `AddPushbackForce` â€” vanilla's own "fold an external push into the target" helper, and
-    /// the mechanism this file's own backlog entry originally prescribed â€” is WORSE. Read it:
+    /// `AddPushbackForce` — vanilla's own "fold an external push into the target" helper, and
+    /// the mechanism this file's own backlog entry originally prescribed — is WORSE. Read it:
     /// it ignores the magnitude of `m_pushForce` completely and drives velocity to a flat 20 m/s
     /// along its direction (halved to 10 while swimming). It exists to shove a body out of a
     /// creature it is clipping through. Routing a 0.3 m/s current through it would launch a
     /// swimmer at five times swim speed. Verified by decompile 2026-08-28, after the plan said
     /// otherwise.
     ///
-    /// So the current is added to `m_currentVel` directly â€” but SCALED BY THE SWIM ACCELERATION,
+    /// So the current is added to `m_currentVel` directly — but SCALED BY THE SWIM ACCELERATION,
     /// which is the part that is easy to get wrong by a factor of twenty.
     ///
     /// Vanilla lerps the target toward the swimmer's intent every frame:
@@ -30,7 +30,7 @@ namespace RavenIron.Undertow.Core
     ///     v* = target + d / m_swimAcceleration
     /// At vanilla's `m_swimAcceleration = 0.05` a naive `d = current` would settle at TWENTY
     /// TIMES the current. Multiplying by the acceleration first cancels it exactly, leaving
-    /// `v* = target + current` â€” the swimmer's own intent plus the water, which is what a
+    /// `v* = target + current` — the swimmer's own intent plus the water, which is what a
     /// current is.
     /// </summary>
     public static class SwimDrift
@@ -44,7 +44,7 @@ namespace RavenIron.Undertow.Core
         /// <param name="maxShareOfSwimSpeed">
         /// THE DROWNING GUARD. Hard ceiling on drift as a share of the swimmer's own speed, so a
         /// swimmer can always out-swim the water and reach shore. If a player can be held
-        /// offshore until they drown, the feature is wrong â€” not the tuning â€” so this cap is not
+        /// offshore until they drown, the feature is wrong — not the tuning — so this cap is not
         /// a balance dial, it is a safety property, and the harness sweeps the whole config range
         /// to prove it holds.
         /// </param>

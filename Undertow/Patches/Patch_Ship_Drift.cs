@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
@@ -42,6 +43,17 @@ namespace RavenIron.Undertow.Patches
         /// <summary>Seconds between verbose drift lines. Two is enough to watch a hull settle.</summary>
         private const float LogIntervalSeconds = 2f;
         private static float _nextLogTime;
+
+        /// <summary>
+        /// Throttle for the catch-all below. This postfix runs in the physics step of EVERY
+        /// hull in the world, so an exception that keeps happening - the realistic case after
+        /// a game update moves an API - would write about fifty warnings a second per boat and
+        /// bury the one instrument this mod has under its own noise. Say it once in full, then
+        /// once per interval, and carry the suppressed count so the log still reports the scale.
+        /// </summary>
+        private const float ErrorIntervalSeconds = 30f;
+        private static float _nextErrorLogTime;
+        private static long _suppressedErrors;
 
         private sealed class Cached
         {
@@ -172,9 +184,10 @@ namespace RavenIron.Undertow.Patches
             }
             catch (Exception ex)
             {
-                // A throw here would land in the physics step of every boat in the world. Log
-                // once per occurrence at warning and let vanilla carry on unharmed.
-                Undertow.Log.LogWarning($"drift postfix: {ex.Message}");
+                // A throw here lands in the physics step of every boat in the world, so it is
+                // reported on a timer rather than per occurrence. Vanilla carries on unharmed
+                // either way: this catch exists so a fault in our code never reaches the game.
+                ReportError("drift postfix", ex);
             }
         }
 
@@ -200,5 +213,31 @@ namespace RavenIron.Undertow.Patches
             entry.NextEvalTime = now + Mathf.Max(0f, ModConfig.FieldRefreshSeconds.Value);
             return true;
         }
+
+        /// <summary>
+        /// Report a fault from the hot path without flooding the log. The FIRST one is always
+        /// written in full, because a fault nobody is told about is the same as no instrument at
+        /// all; after that it is one line per <see cref="ErrorIntervalSeconds"/>, carrying the
+        /// number suppressed in between so the reader can tell "once, oddly" from "constantly".
+        /// </summary>
+        private static void ReportError(string where, Exception ex)
+        {
+            float now = Time.realtimeSinceStartup;
+            if (now < _nextErrorLogTime)
+            {
+                _suppressedErrors++;
+                return;
+            }
+
+            string tail = _suppressedErrors > 0
+                ? " (and " + _suppressedErrors.ToString(CultureInfo.InvariantCulture) +
+                  " more like it since the last line)"
+                : "";
+            _suppressedErrors = 0;
+            _nextErrorLogTime = now + ErrorIntervalSeconds;
+
+            Undertow.Log.LogWarning(where + ": " + ex.Message + tail);
+        }
+
     }
 }

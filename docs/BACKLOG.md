@@ -1008,7 +1008,17 @@ at 0.5 m/s with `MaxCurrentSpeed 1.2` (62% acceptance x 1.45 mean cluster x 16 a
 speed; whether that is right is a tuning question for after the night reading — the storm reading is in (row 9), and its answer was "invisible", which is a different lever.
 
 
-## 8. The config migration — BUILT 2026-09-18 (0.7.1), NOT YET RUN IN-GAME
+## 8. The config migration — BUILT 2026-09-18 (0.7.1), RUN IN-GAME THE SAME DAY
+
+> **Status corrected 2026-09-19.** Steps 1–4 of "What is owed" below are MET, from the logs
+> the 2026-09-18 deployment left behind: the migration's own INFO line on a dedicated
+> server, a config file now carrying `[0 - Meta]` / `ConfigVersion = 1` with every other
+> value intact, no `.v0.bak` (correct for a stamp-only plan), and nine later boots with no
+> migration line at all. Steps 5–7 are still owed: the `wake status` reading, the hand-rolled
+> round trip, and watching a real destructive rung — which cannot happen until one exists.
+>
+> The binary that produced those lines was built at 10:30 against the 1.0.12 references.
+> 0.7.2 is the build that ships, so the boot has to be repeated on it before upload.
 
 **Why it exists before it is needed.** BepInEx merges a new key into an existing file at its
 SHIPPED default, and a shipped default is a statement about a NEW world. When it differs from what
@@ -1136,8 +1146,9 @@ run whose output does not contain the harness banner.
 Definition of done in this repo is one observed boot, and a FRESH install proves nothing here — it
 migrates nothing and logs nothing. The run has to be against an existing file.
 
-1. Deploy 0.7.1 to Storm10 and to the `testing` profile. Both already carry a real 0.7.0 config with
-   no `[0 - Meta]` section.
+1. ~~Deploy 0.7.1 to Storm10 and to the `testing` profile. Both already carry a real 0.7.0 config
+   with no `[0 - Meta]` section.~~ **DONE on 2026-09-18, historical.** Re-read as: deploy the build
+   that is about to ship (0.7.2) to both, against a config that still has no `[0 - Meta]`.
 2. Boot the server. Expect exactly one line:
    `config: version 0 -> 1: nothing to migrate (stamping the layout version)` — at INFO, not a
    warning, because nothing changed.

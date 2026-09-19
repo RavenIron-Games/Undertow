@@ -10,7 +10,7 @@ namespace RavenIron.Undertow.Core
     /// THE QUESTION THAT BLOCKS FLOTSAM, and it is the one kind of question no decompile can
     /// answer: whether a `Floating` component is attached to a prefab lives in Unity asset data,
     /// not in the assembly. The design assumed dropped items bob on the surface and that flotsam
-    /// could therefore be built from vanilla `ItemDrop`s with no new prefabs â€” which is a hard
+    /// could therefore be built from vanilla `ItemDrop`s with no new prefabs — which is a hard
     /// requirement, because an unresolvable prefab hash sends `ZNetScene.CreateObjectsSorted`
     /// into `DestroyZDO`. If nothing floats, one raft of sunken loot disproves the whole approach
     /// and task 4 needs a different design.
@@ -19,7 +19,7 @@ namespace RavenIron.Undertow.Core
     /// a property of the loaded prefabs, and a dedicated server loads them all.
     ///
     /// `ObjectDB.instance.m_items`, `ZNetScene.instance.m_prefabs` and `Floating` are all public
-    /// in the shipping assembly â€” verified against the non-publicized DLL, per house rule 5.
+    /// in the shipping assembly — verified against the non-publicized DLL, per house rule 5.
     /// </summary>
     public static class FloatScan
     {
@@ -83,7 +83,7 @@ namespace RavenIron.Undertow.Core
 
             if (r.Floats.Count == 0)
             {
-                sb.Append("\n  NOTHING FLOATS â€” flotsam cannot be built from vanilla item drops. " +
+                sb.Append("\n  NOTHING FLOATS — flotsam cannot be built from vanilla item drops. " +
                           "Task 4 needs a different design.");
                 return sb.ToString();
             }

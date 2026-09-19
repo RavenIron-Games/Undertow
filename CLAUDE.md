@@ -91,10 +91,35 @@ taken with none installed.
   through speed alone. A ThunderStorm-forced storm then held `chop 1.00` (sea state past 2.3 m)
   with 50–81 streaks active — and the owner saw none of them: present, unseen, and accepted as
   storm behaviour; `docs/BACKLOG.md` task 7 row 9 names the lever. **Not yet seen:** night, a
-  long zone-crossing sail, and `wake drift` on/off. `revprobe` binds 0.7.0 clean against 1.0.15; the game updated
-  from 1.0.12 the morning of the test and the `libs\` set is still the 1.0.12 publicized one.
+  long zone-crossing sail, and `wake drift` on/off. `revprobe` binds 0.7.0 clean against 1.0.15.
+  **CORRECTED 2026-09-19: the `libs\` set is the 1.0.15 one, not 1.0.12.** The publicized
+  assemblies were refreshed at 11:40 on 2026-09-18 — after the 05:54 game update they are taken
+  from, and a few hours after this line was written. A publicized DLL is derived from the game's
+  and can never be byte-identical to it; what WAS compared byte for byte (2026-09-19) is the rest
+  of `libs\` — every `UnityEngine.*` and `BepInEx.dll` matches the installed game's copy exactly. The sentence outlived the fact it
+  described — which is the ordinary way a status line goes wrong, and why they carry dates.
 
-- **8 — the config migration (0.7.1). BUILT 2026-09-18, NOT YET RUN IN-GAME.** BepInEx merges a new
+- **8 — the config migration (0.7.1, corrected in 0.7.2). BUILT AND RUN IN-GAME 2026-09-18,
+  ON A DEDICATED SERVER.** The owed run happened and nobody wrote it down;
+  recorded here 2026-09-19 from the logs it left. Storm10's `BepInEx\LogOutput.log` carries
+  `[Info : Undertow] config: version 0 -> 1: nothing to migrate (stamping the layout version)`
+  at INFO, on a real config file, in the same chainloader pass where the sibling mods logged
+  their own migrations. The file now opens with `[0 - Meta]` / `ConfigVersion = 1`, every
+  other value intact, and **no `.v0.bak`** beside it — which is exactly right, because a
+  stamp-only plan changes nothing and has nothing to back up. Nine later boots log no
+  migration line at all, so the short-circuit works too. **The CLIENT leg is NOT proven and an
+  earlier draft of this line claimed it was** (corrected 2026-09-19). The `testing` profile's
+  config now reads `ConfigVersion = 1` with no `.v0.bak`, which is consistent with a migration —
+  but Gale/BepInEx overwrite `LogOutput.log` on every relaunch and keep no rotation, the one
+  surviving session logs Undertow 0.7.1 with NO migration line, and a stamp on a fresh file is
+  written silently by `Finish` with nothing logged at all. A file at version 1 is therefore not
+  evidence of anything; only the line is, and the line is gone. **Still owed:** a client boot
+  with the line observed, the `wake status` reading, and the round trip of putting
+  `ConfigVersion = 0` back by hand with one value edited off its default. **And no destructive rung has ever run anywhere** — all three
+  tables are empty by measurement, so the only reachable path is the stamp.
+  The original note follows.
+
+- **8 (as first written). BUILT 2026-09-18.** BepInEx merges a new
   key at its SHIPPED default, which is a statement about a NEW world; when that differs from what an
   existing world already does, an owner who changed nothing gets different behaviour with nothing in
   the log. `Core/ConfigLedger.cs` holds the decisions (PURE, under test) and `Config/ConfigMigration.cs`
@@ -165,8 +190,10 @@ dotnet build .\Undertow\Undertow.csproj -c Debug
 `tools\package.ps1` builds `dist\RavenIron-Undertow-<version>.zip` and **refuses** on any of
 three mistakes a hand-made zip invites: the plugin const, the csproj `<Version>` and
 `manifest.json` disagreeing; a store file missing (`manifest.json`, `README.md`, `CHANGELOG.md`,
-`icon.png`); or an icon that is not exactly 256x256, which Thunderstore rejects late and
-without saying why. Every guard was tested by breaking it on purpose. Build releases with it,
+`icon.png`); or an icon that is not exactly 256x256, which the store rejects late and
+without saying why. (The store is **Hexium**, hexium.gg, team `RavenIronStudios`. The zip is
+built to Thunderstore's package FORMAT because that is what Hexium consumes — format and channel
+are different things, and nothing here is ever uploaded to Thunderstore.) Every guard was tested by breaking it on purpose. Build releases with it,
 never by hand — it also writes the zip entries itself, because PS 5.1's `Compress-Archive`
 produces archives Hexium's parser rejects.
 

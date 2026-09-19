@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.7.2
+
+**Built and tested against Valheim 1.0.15 and BepInEx pack 5.4.2350.** A release-readiness pass
+over 0.7.1, which was packaged but never uploaded. Nothing here changes how the sea behaves; it is
+the pass that makes 0.7.1 fit to ship, and it takes a new version number rather than becoming a
+second 0.7.1 — the whole reason it exists is that a version number which means two different
+binaries is exactly the trap this release was caught in.
+
+- **Log messages were mojibake.** Twenty-four runs of double-encoded UTF-8 across four source
+  files — twenty-one em dashes and three bullets — each one the correct bytes decoded as
+  Windows-1252 and re-encoded, so `—` had become `â€"`. Two of them are lines a player reads. One is `Harmony attached NO patches`, which is the
+  single message that has to be legible on the day a Valheim update moves an API, and the other
+  is the warning that nothing in the game floats. The README and this changelog were never
+  affected. Found by reading the raw bytes; every console this was viewed through had been
+  quietly showing it correctly or quietly showing it wrong, and neither could be trusted.
+
+- **A persistent fault could drown its own log.** The catch-all in the ship and swimmer postfixes
+  logged every occurrence, and those run in the physics step — about fifty times a second, per
+  hull. A fault that kept happening, which is the realistic shape after a game update, would bury
+  the only instrument this mod has under its own noise at the exact moment it was needed. The
+  first one is still reported immediately and in full; after that it is one line per thirty
+  seconds, carrying the number suppressed in between so the log distinguishes "once, oddly" from
+  "constantly". Vanilla was never at risk either way: the catch exists so our faults never reach
+  the game.
+
+- **Flotsam could leak past its own cap.** When the timed reclaim of a piece of driftwood threw,
+  the item was dropped from the tracking list anyway, while it may well have still been out
+  there. Every such failure permanently freed a slot under the cap that is the only thing between
+  a long-running server and an unbounded object table — and the log looked healthy throughout.
+  The item now stays counted and is retried on the next sweep.
+
+- **Two claims in the shipping documents were not true.** The README stated that a hull resists
+  sideways drift about twice as hard as forward drift, true of every hull. No such measurement
+  exists: the project measured the along-current ratio only, and its own notes conclude the
+  damping is a per-hull value where no single constant can be right. It now quotes the numbers
+  actually measured — 0.86 for a karve and 0.96 for a longship against the water's 1.0 — and
+  describes the sideways effect qualitatively. Separately, the project's status notes said the
+  config migration had never run in-game and that the build referenced Valheim 1.0.12 assemblies.
+  Both were stale: the migration's own line is in a dedicated server's log from 2026-09-18, and
+  the reference set was refreshed to 1.0.15 hours after the note was written.
+
+- **The release script now refuses a red harness.** "Tests green" was this project's own
+  definition of done and the one guard packaging could skip. It checks the harness's OUTPUT and
+  not merely its exit code, because a script this machine's execution policy refuses also exits
+  non-zero — a distinction that once let a mutation suite score twenty out of twenty without
+  compiling a line.
+
+- **The BepInEx dependency now names 5.4.2350**, the pack actually in use, rather than the
+  5.4.2333 carried unchanged since the first release.
+
+
 ## 0.7.1
 
 **The config file migrates itself.** BepInEx merges a new key into an existing file at its SHIPPED

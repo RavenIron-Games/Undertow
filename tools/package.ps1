@@ -9,11 +9,52 @@
 #   3. The zip writer. PS 5.1's Compress-Archive builds archives Hexium's parser rejects
 #      ("No manifest.json found"), while .NET Framework's CreateFromDirectory names nested
 #      entries with spec-invalid BACKSLASHES. Entries are written by hand.
-#   4. A missing icon. Thunderstore requires a 256x256 PNG and will reject the upload rather
+#   4. A missing icon. The store requires a 256x256 PNG and will reject the upload rather
 #      than tell you why, so it is checked here instead.
+#   5. A RED HARNESS. "Tests green" is this repo's own definition of done, and it was the one
+#      guard a release could skip. The check reads the harness's OUTPUT, not just its exit
+#      code: this machine's execution policy refuses an unblessed .ps1 and that refusal also
+#      exits non-zero, which is how a 20-mutation suite once scored 20/20 without compiling a
+#      line (docs\BACKLOG.md task 8). A run that never STARTED must fail loudly.
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
+
+# --- the harness must be green ------------------------------------------------------
+# -ExecutionPolicy Bypass is not optional: without it this machine refuses the file, and the
+# refusal exits non-zero exactly like a real failure would.
+Write-Host "Running the test harness..." -ForegroundColor Cyan
+# ErrorActionPreference is dropped to Continue for exactly this call. In PS 5.1 the 2>&1 on a
+# NATIVE command wraps every stderr line in a NativeCommandError record, and under "Stop" that
+# record is terminating - so one harmless warning on stderr would abort packaging with a
+# RemoteException while the harness was GREEN. Measured 2026-09-19.
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+$testOut = & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\tools\run-tests.ps1" 2>&1 | Out-String
+$testCode = $LASTEXITCODE
+$ErrorActionPreference = $prevEap
+Write-Host $testOut
+
+# Prove the harness actually RAN before trusting either verdict. A refusal, a missing dotnet or
+# a moved file all produce "non-zero and no tests", which must never read as "tests failed and
+# I know why" - and must never read as green either.
+if ($testOut -notmatch 'passed,') {
+    Write-Host "THE HARNESS DID NOT RUN - refusing to package." -ForegroundColor Red
+    Write-Host "  Nothing above reports a pass count, so its exit code means nothing." -ForegroundColor Red
+    exit 1
+}
+# The failure SHAPES are taken from the tooling that prints them, not guessed: a failing
+# assertion is "   FAIL  <what>" (indented, from tests\CoreTests\Program.cs) and the banner is
+# "TESTS FAILED" (from run-tests.ps1) - so an anchor at column zero matches neither, and -match
+# would be case-insensitive enough to trip on the word "failed." in a GREEN summary line. Both
+# are -cmatch, both were run red on purpose.
+if ($testCode -ne 0 -or
+    $testOut -cmatch '(?m)^\s*FAIL\b' -or
+    $testOut -cmatch 'TESTS FAILED' -or
+    $testOut -notmatch 'All harnesses passed') {
+    Write-Host "TESTS ARE RED - refusing to package." -ForegroundColor Red
+    exit 1
+}
 
 # --- the three versions must agree -------------------------------------------------
 $pluginVer   = (Select-String -Path "$root\Undertow\Plugin.cs" -Pattern 'PluginVersion\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
@@ -38,12 +79,12 @@ if ($missing.Count -gt 0) {
     exit 1
 }
 
-# Thunderstore rejects an icon that is not exactly 256x256, and does it late and unhelpfully.
+# The store rejects an icon that is not exactly 256x256, and does it late and unhelpfully.
 Add-Type -AssemblyName System.Drawing
 $icon = [System.Drawing.Image]::FromFile("$root\icon.png")
 try {
     if ($icon.Width -ne 256 -or $icon.Height -ne 256) {
-        Write-Host "icon.png is $($icon.Width)x$($icon.Height) - Thunderstore requires exactly 256x256." -ForegroundColor Red
+        Write-Host "icon.png is $($icon.Width)x$($icon.Height) - the store requires exactly 256x256." -ForegroundColor Red
         exit 1
     }
 } finally { $icon.Dispose() }
