@@ -99,8 +99,48 @@ taken with none installed.
   of `libs\` — every `UnityEngine.*` and `BepInEx.dll` matches the installed game's copy exactly. The sentence outlived the fact it
   described — which is the ordinary way a status line goes wrong, and why they carry dates.
 
-- **8 — the config migration (0.7.1, corrected in 0.7.2). BUILT AND RUN IN-GAME 2026-09-18,
-  ON A DEDICATED SERVER.** The owed run happened and nobody wrote it down;
+- **8 — the config migration. 0.7.2 RUN IN-GAME 2026-09-19, ON BOTH ROLES, AND THE ROUND TRIP
+  CLOSED.** This is the run the release owed: the binary tested is the one inside
+  `dist\RavenIron-Undertow-0.7.2.zip`, extracted from the zip and hash-matched (sha256 3CCABFF7…)
+  across the zip, the server's plugin folder and the client profile BEFORE booting either, because
+  the whole point was that no shipped binary had ever been loaded.
+
+  **Server (Storm10, dedicated).** The config was deliberately AGED first — stamp put back to
+  `ConfigVersion = 0` and `FlotsamTtlSeconds` moved off its default to 1500 — so the boot proved
+  the round trip rather than the happy path. It logged `Loading [Undertow 0.7.2]`,
+  `config: version 0 -> 1: nothing to migrate (stamping the layout version)`, `Harmony patched 3`,
+  `Undertow v0.7.2 loaded.`, `wake console registered`, and
+  `SeaTick online — authority=True, dedicated=True`. **The edited value survived**: the flotsam
+  line reported `TTL 1500s`, not the shipped 1800. Afterwards the file opens with `[0 - Meta]` /
+  `ConfigVersion = 1`, 1500 still in place, and no `.v0.bak` — correct, because a stamp-only plan
+  changes nothing. The pre-test file is kept as `com.raveniron.undertow.cfg.pre072-roundtrip`.
+
+  **Client (Gale `testing` profile).** `Loading [Undertow 0.7.2]`, `Harmony patched 3`,
+  `DriftLines: armed on this client (graphics device Direct3D11)`, `Undertow v0.7.2 loaded.`,
+  `SeaTick online — authority=False, dedicated=False`, `Ragnarok's Wrath detected — bridged`,
+  `CurrentField live — seed -295822236, water level 30, tide 23%`, and
+  `DriftLines: emitter built — 'Sprites/Default' (manual fog), pool 160`. The owner typed
+  `wake status` and read **`config layout v1`**, which is the one piece of evidence that never
+  reaches a log file at all: the console command writes through `Terminal.AddString`, not the
+  logger, so it can only ever be read on screen.
+
+  **Zero exceptions from any mod on either side**, and the mojibake repair is confirmed on the
+  artifact rather than the source: the client log holds **0 double-encoded runs and 8 proper
+  UTF-8 em dashes**, including the two lines that were broken.
+
+  **STILL OWED, and neither blocks a release.** (a) **A client has never been SEEN to run a
+  migration.** The profile's config was already stamped, so it correctly short-circuited and
+  logged nothing — the behaviour is right, the observation is missing, and a file at version 1 is
+  not evidence because `Finish` stamps a fresh file silently. Aging that config the way the
+  server's was aged is the five-minute way to close it. (b) **No destructive rung has ever run
+  anywhere** — all three tables are empty by measurement, so the only reachable path is the
+  stamp. Watch the first real rebase or retirement on a copied config before it ships.
+
+  The 2026-09-18 server-only run and its corrections follow, kept because the reasoning is the
+  lesson.
+
+- **8 — the config migration (0.7.1, corrected in 0.7.2). RUN IN-GAME 2026-09-18,
+  ON A DEDICATED SERVER ONLY.** The owed run happened and nobody wrote it down;
   recorded here 2026-09-19 from the logs it left. Storm10's `BepInEx\LogOutput.log` carries
   `[Info : Undertow] config: version 0 -> 1: nothing to migrate (stamping the layout version)`
   at INFO, on a real config file, in the same chainloader pass where the sibling mods logged

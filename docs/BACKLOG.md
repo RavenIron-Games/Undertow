@@ -1010,7 +1010,19 @@ speed; whether that is right is a tuning question for after the night reading �
 
 ## 8. The config migration — BUILT 2026-09-18 (0.7.1), RUN IN-GAME THE SAME DAY
 
-> **Status corrected 2026-09-19.** Steps 1–4 of "What is owed" below are MET, from the logs
+> **CLOSED 2026-09-19 for 0.7.2.** Steps 1–6 are MET, on the shipped binary, on both roles.
+> The zip's own DLL was hash-matched into place before booting; the server config was aged to
+> `ConfigVersion = 0` with `FlotsamTtlSeconds` moved to 1500 first, so step 6's round trip was
+> proved rather than assumed — the migration line appeared, the stamp returned to 1, and the
+> edited value survived (`TTL 1500s` in the flotsam line). The client logged every boot line
+> with the drift-line emitter built, and `wake status` read `config layout v1` on screen, which
+> is the only place that string ever appears. Zero exceptions either side.
+>
+> **Step 7 is still owed and does not block:** no destructive rung has run anywhere, because
+> none exists yet. So is one observation — a client has never been SEEN to migrate, its config
+> having already been stamped.
+>
+> The earlier note follows. **Superseded 2026-09-19.** Steps 1–4 of "What is owed" below are MET, from the logs
 > the 2026-09-18 deployment left behind: the migration's own INFO line on a dedicated
 > server, a config file now carrying `[0 - Meta]` / `ConfigVersion = 1` with every other
 > value intact, no `.v0.bak` (correct for a stamp-only plan), and nine later boots with no
