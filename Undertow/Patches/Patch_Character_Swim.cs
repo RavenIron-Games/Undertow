@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using HarmonyLib;
 using UnityEngine;
 using RavenIron.Undertow.Config;
@@ -40,6 +41,52 @@ namespace RavenIron.Undertow.Patches
         private static float _nextLogTime;
 
         /// <summary>
+        /// The field under one swimmer, refreshed on a timer rather than every physics tick.
+        ///
+        /// MEASURED 2026-09-19: a single <c>CurrentField.Evaluate</c> makes NINE
+        /// <c>WorldGenerator.GetHeight</c> calls. Uncached at 50 Hz that is 450 a second per
+        /// swimmer, against 36 for a hull, which already caches this way. The field's shortest
+        /// feature is nearly two kilometres across and a swimmer covers about a centimetre per
+        /// tick, so re-evaluating every frame bought precision the sea does not have.
+        ///
+        /// Keyed weakly on the character so a disconnecting player's entry is collected rather
+        /// than held, and sharing <c>FieldRefreshSeconds</c> with the ship patch so the two
+        /// never drift apart under one dial.
+        /// </summary>
+        private sealed class Cached
+        {
+            public float NextEvalTime;
+            public FieldSample Sample;
+            public bool Valid;
+        }
+
+        private static readonly ConditionalWeakTable<Character, Cached> _cache =
+            new ConditionalWeakTable<Character, Cached>();
+
+        private static bool TryGetSample(Character who, Vector3 position, out FieldSample sample)
+        {
+            Cached entry = _cache.GetValue(who, _ => new Cached());
+
+            float now = Time.realtimeSinceStartup;
+            if (entry.Valid && now < entry.NextEvalTime)
+            {
+                sample = entry.Sample;
+                return true;
+            }
+
+            if (!SeaContext.TryEvaluate(position.x, position.z, out sample))
+            {
+                entry.Valid = false;
+                return false;
+            }
+
+            entry.Sample = sample;
+            entry.Valid = true;
+            entry.NextEvalTime = now + Mathf.Max(0f, ModConfig.FieldRefreshSeconds.Value);
+            return true;
+        }
+
+        /// <summary>
         /// Throttle for the catch-all below - same reasoning as the ship patch. This runs in
         /// every swimming character's motion update, so a persistent throw would bury the log.
         /// </summary>
@@ -59,7 +106,7 @@ namespace RavenIron.Undertow.Patches
                 if (___m_nview == null || !___m_nview.IsValid() || !___m_nview.IsOwner()) return;
 
                 Vector3 position = __instance.transform.position;
-                if (!SeaContext.TryEvaluate(position.x, position.z, out FieldSample sample)) return;
+                if (!TryGetSample(__instance, position, out FieldSample sample)) return;
                 if (sample.Speed <= 0f) return;
 
                 float edgeFade = DriftForce.EdgeFade(

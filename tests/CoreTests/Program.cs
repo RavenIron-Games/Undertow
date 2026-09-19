@@ -48,6 +48,21 @@ namespace Undertow.Tests
         // ---- terrain fixtures ---------------------------------------------------------------
 
         /// <summary>Featureless deep ocean. Isolates the open-water stream function.</summary>
+        /// <summary>
+        /// Wraps another probe and counts the calls. The terrain probe is the mod's dominant
+        /// runtime cost — in game it is <c>WorldGenerator.GetHeight</c>, Perlin noise plus biome
+        /// work — and the arithmetic around it was measured at 0.23-0.34 us, i.e. irrelevant
+        /// beside it. So the number that matters is how many probes ONE evaluation makes, and
+        /// that number is pinned below rather than left to be rediscovered.
+        /// </summary>
+        private sealed class CountingProbe : ITerrainProbe
+        {
+            public int Calls;
+            private readonly ITerrainProbe _inner;
+            public CountingProbe(ITerrainProbe inner) { _inner = inner; }
+            public float HeightAt(float x, float z) { Calls++; return _inner.HeightAt(x, z); }
+        }
+
         private sealed class FlatSeabed : ITerrainProbe
         {
             private readonly float _height;
@@ -101,6 +116,30 @@ namespace Undertow.Tests
             FieldSample a = CurrentField.Evaluate(1500f, -800f, seed, 12345.0, 1, 1f, deep, s);
             FieldSample b = CurrentField.Evaluate(1500f, -800f, seed, 12345.0, 1, 1f, deep, s);
             Check(a.X == b.X && a.Z == b.Z, "same inputs give bit-identical output");
+
+            // ---- THE COST OF ONE EVALUATION, pinned -----------------------------------------
+            // The terrain probe is this mod's dominant runtime cost: in game it is
+            // WorldGenerator.GetHeight, and the arithmetic wrapped around it measured at
+            // 0.23-0.34 us per call (2026-09-19), which is nothing beside it. So what a busy
+            // server costs is decided almost entirely by how many probes one Evaluate makes and
+            // how often Evaluate is called.
+            //
+            // NINE, measured rather than counted off the source: one for the height here, four
+            // for the gradient, and two apiece at the two race distances. Pinned so that adding
+            // a tenth is a decision somebody makes on purpose. At the shipped cadence this is
+            // 36 GetHeight a second for a crewed hull and the same for a swimmer, both of which
+            // refresh on FieldRefreshSeconds.
+            var counter = new CountingProbe(new FlatSeabed(-60f));
+            CurrentField.Evaluate(1500f, -800f, seed, 12345.0, 1, 1f, counter, s);
+            Check(counter.Calls == 9,
+                "one Evaluate costs exactly 9 terrain probes (got " + counter.Calls + ") - the mod's dominant runtime cost, pinned");
+
+            // Shallow water short-circuits before the race probes, so it must cost LESS, never
+            // more. A change that made the cheap case expensive would not show up above.
+            var shallowCounter = new CountingProbe(new FlatSeabed(29.5f));
+            CurrentField.Evaluate(1500f, -800f, seed, 12345.0, 1, 1f, shallowCounter, s);
+            Check(shallowCounter.Calls <= 9,
+                "water too shallow to drift costs no more than deep water (got " + shallowCounter.Calls + ")");
 
             FieldSample other = CurrentField.Evaluate(1500f, -800f, seed + 1, 12345.0, 1, 1f, deep, s);
             Check(other.X != a.X || other.Z != a.Z, "a different seed gives a different field");

@@ -102,16 +102,27 @@ namespace RavenIron.Undertow.Patches
 
                 Vector3 position = __instance.transform.position;
 
-                if (!TryGetSample(__instance, position, out FieldSample sample)) return;
-                if (sample.Speed <= 0f) return;
-
+                // CREW CHECK FIRST, and that ordering is the whole point rather than tidiness.
+                // Evaluating the field costs NINE WorldGenerator.GetHeight calls (counted
+                // 2026-09-19), and UnattendedDriftFactor ships at ZERO — so with the check below
+                // the sample, every moored hull paid 36 GetHeight a second to compute a current
+                // that was then discarded one line later. A dedicated server owns exactly the
+                // boats no player is near, i.e. the moored ones, so that was the single largest
+                // thing this mod asked of a busy server and all of it was waste.
                 bool crewed = ___m_players != null && ___m_players.Count > 0;
                 float crewFactor = crewed ? 1f : ModConfig.UnattendedDriftFactor.Value;
                 if (crewFactor <= 0f) return;
 
-                float edgeFade = DriftForce.EdgeFade(
+                // Cheap and position-only, so it also belongs above the sample: a hull outside
+                // the fade gets no push whatever the water is doing.
+                float edgeFadeEarly = DriftForce.EdgeFade(
                     Mathf.Sqrt(position.x * position.x + position.z * position.z));
-                if (edgeFade <= 0f) return;
+                if (edgeFadeEarly <= 0f) return;
+
+                if (!TryGetSample(__instance, position, out FieldSample sample)) return;
+                if (sample.Speed <= 0f) return;
+
+                float edgeFade = edgeFadeEarly;
 
                 // Only the hull's speed ALONG the current is consulted, and only through a term
                 // clamped to [0,1] inside DriftForce — so this can fade the push out but can
