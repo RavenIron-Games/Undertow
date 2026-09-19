@@ -551,6 +551,18 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   **`Splatform.dll`, which is not in `libs\` and not referenced** — so string handling of the host name
   is also what avoids a new build dependency.
 
+- **`ZNet.LocalPlayerIsAdminOrHost()` LIES ON A CROSSPLAY CLIENT, so never gate anything on it.**
+  MEASURED 2026-09-19. The owner was in `adminlist.txt` in all three forms (bare numeric, `V_` and
+  `Steam_`) and it still returned false, which blocked Undertow's admin config push entirely. It
+  falls through to `PlayerIsAdmin(UserInfo.GetLocalUser().UserId)`, which is a single
+  `adminList.Contains(userId.ToString())` — and under `-crossplay` the local user's identity is a
+  PLAYFAB one (the server's handshake logged `playfab/8BF4F5368AF43770`) while the admin list holds
+  Steam ids. Vanilla gets away with it because it only drives cosmetic client-side UI hints, where a
+  false negative costs nothing. **The authoritative answer is `ZNet.IsAdmin(string hostName)`,
+  which IS public, forwards to the private `ListContainsId`, and matched the same player instantly
+  from the server** — so the decision belongs on the authority, which is where it belonged anyway.
+  A client asserting its own admin status is not worth trusting even when it works.
+
 - **`ZRoutedRpc.GetServerPeerID()` is PRIVATE.** A client therefore cannot address the server by id —
   but the two-argument `InvokeRoutedRPC(string methodName, params object[])` is public and routes there
   for you. Use that; do not try to discover the id. Also worth knowing before designing a handler:

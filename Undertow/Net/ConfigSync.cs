@@ -55,6 +55,16 @@ namespace RavenIron.Undertow.Net
         private const string RpcRequest = "com.raveniron.undertow.cfgwant";
 
         /// <summary>
+        /// The server back to ONE client: what became of the value you pushed.
+        ///
+        /// Exists because the push is now sent optimistically — see OnLocalSettingChanged — so
+        /// without an answer a non-admin would log "pushed" and watch nothing happen, which is
+        /// the silent no-op this project refuses everywhere else. Carries a plain sentence, not a
+        /// status code: it is read by a human in a log, once, when something surprised them.
+        /// </summary>
+        private const string RpcAck = "com.raveniron.undertow.cfgack";
+
+        /// <summary>
         /// The heartbeat. Slow on purpose: the payload is a few hundred bytes and the peer-change
         /// trigger below is what actually makes a joiner current, so this exists only to heal a
         /// message that went missing and to carry a server-side config edit within half a minute.
@@ -310,6 +320,7 @@ namespace RavenIron.Undertow.Net
             rpc.Register<string>(RpcPublish, OnPublished);
             rpc.Register<string>(RpcPush, OnPushed);
             rpc.Register<string>(RpcRequest, OnRequested);
+            rpc.Register<string>(RpcAck, OnAcknowledged);
             _registeredWith = rpc;
 
             Undertow.Log.LogInfo("ConfigSync: RPCs registered (" + ConfigWire.Header + ").");
@@ -613,35 +624,39 @@ namespace RavenIron.Undertow.Net
                     return;
                 }
 
-                // KNOWN LIMIT, and it is vanilla's, not ours. LocalPlayerIsAdminOrHost falls
-                // through to PlayerIsAdmin, which does `adminList.Contains(userId.ToString())` —
-                // the FULL "Steam_7656…" form only, with none of the fallbacks the server's own
-                // IsAdmin applies. So an admin listed ONLY in the bare-numeric or "V_" form is
-                // refused HERE while the server would have accepted them. The asymmetry fails
-                // closed, which is the right direction, and it is not worth a new assembly
-                // reference to fix: reading this machine's own platform id means PlatformUserID,
-                // which lives in Splatform.dll — not in libs\ and not referenced. If an admin
-                // ever reports that a push does nothing, the answer is almost always that their
-                // adminlist.txt entry is not in the full form.
-                if (!znet.LocalPlayerIsAdminOrHost())
-                {
-                    // Deliberately visible. Editing a synced value on a client and watching
-                    // nothing happen is exactly the silent no-op this project refuses to ship.
-                    Undertow.Log.LogInfo(
-                        "ConfigSync: " + ShortName(address) + " changed locally, but the server " +
-                        "sets it here and you are not an admin. Your file keeps the value; the sea " +
-                        "does not. (If you ARE an admin, check that adminlist.txt holds your id in " +
-                        "the full 'Steam_…' form — the client-side check accepts no other.)");
-                    return;
-                }
-
+                // NO CLIENT-SIDE ADMIN GATE, and removing it is a FIX rather than a loosening.
+                //
+                // This used to refuse the push unless `ZNet.LocalPlayerIsAdminOrHost()` said yes,
+                // documented as a known limit on the grounds that it only matches the full
+                // "Steam_7656…" form. MEASURED 2026-09-19 and it is worse than that: the owner is
+                // in adminlist.txt in all three forms (bare, "V_" and "Steam_"), and the gate
+                // still refused them, so the admin push could not be used at all. The likeliest
+                // cause is that the server was started with -crossplay, which gives the local user
+                // a PLAYFAB identity (the handshake logged `playfab/8BF4F5368AF43770`) while the
+                // admin list holds Steam ids. Vanilla's own server-side check copes with that;
+                // PlayerIsAdmin does not, because in vanilla it only drives cosmetic UI hints and
+                // a false negative there costs nothing.
+                //
+                // The client was never the right place to decide this anyway. The SERVER holds the
+                // admin list, and `ZNet.IsAdmin(hostName)` is vanilla's own authoritative answer,
+                // handling every id form and every socket type. So: send optimistically, let the
+                // server judge, and have it ACKNOWLEDGE either way — see RpcAck. That removes the
+                // false negative, keeps the security decision on the authority where it belongs,
+                // and needs no reference to Splatform.dll.
+                //
+                // The cost is one small RPC when a non-admin edits one of the twelve synced keys
+                // by hand, which is a human-speed event, and they get told why nothing happened
+                // instead of watching a silent no-op.
                 ZRoutedRpc rpc = ZRoutedRpc.instance;
                 if (rpc == null) return;
 
                 var one = new List<KeyValuePair<string, string>> { new KeyValuePair<string, string>(address, value) };
                 rpc.InvokeRoutedRPC(RpcPush, ConfigWire.Format(one));
 
-                Undertow.Log.LogInfo("ConfigSync: pushed " + ShortName(address) + "=" + value + " to the server.");
+                // "sent", not "set". Whether it took is the server's to say, and it will.
+                Undertow.Log.LogInfo(
+                    "ConfigSync: sent " + ShortName(address) + "=" + value +
+                    " to the server; waiting for it to say whether that was allowed.");
             }
             catch (Exception ex)
             {
@@ -665,6 +680,9 @@ namespace RavenIron.Undertow.Net
                 {
                     Undertow.Log.LogWarning(
                         "ConfigSync: refused a config push from peer " + sender + " — not an admin.");
+                    Acknowledge(sender,
+                        "the server refused it — you are not an admin on this server. Your own " +
+                        "config file keeps the value; the sea does not.");
                     return;
                 }
 
@@ -730,7 +748,17 @@ namespace RavenIron.Undertow.Net
 
                 // Re-publish so every other client sails the new sea at once. The push itself only
                 // reached the server.
-                if (any) Broadcast("an admin changed a value");
+                if (any)
+                {
+                    Broadcast("an admin changed a value");
+                    Acknowledge(sender, "the server accepted it and told every client.");
+                }
+                else
+                {
+                    Acknowledge(sender,
+                        "the server read it but nothing changed — the value was already set, or " +
+                        "it would not take. See the server log.");
+                }
             }
             catch (Exception ex)
             {
@@ -773,6 +801,51 @@ namespace RavenIron.Undertow.Net
         }
 
         // ------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Tell ONE peer what became of its push. Server side only; best effort.
+        ///
+        /// Routed to that peer alone rather than Everybody, because it is an answer to a question
+        /// nobody else asked.
+        /// </summary>
+        private static void Acknowledge(long peer, string what)
+        {
+            try
+            {
+                ZRoutedRpc.instance?.InvokeRoutedRPC(peer, RpcAck, what ?? "");
+            }
+            catch (Exception ex)
+            {
+                Undertow.Log.LogWarning("ConfigSync: could not acknowledge peer " + peer + " — " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// The server's answer to something this client pushed.
+        ///
+        /// Only from the server, for the same reason OnPublished checks: any peer may ask for a
+        /// relay, so without this one modded client could tell another that its change was
+        /// accepted when it was not. The payload is a sentence written by the server's own build
+        /// and is logged as text; it is never parsed and never drives behaviour.
+        /// </summary>
+        private static void OnAcknowledged(long sender, string what)
+        {
+            try
+            {
+                ZNet znet = ZNet.instance;
+                if (znet == null || znet.IsServer()) return;
+
+                ZNetPeer server = znet.GetServerPeer();
+                if (server == null || server.m_uid != sender) return;
+
+                LastEvent = "the server answered a pushed value";
+                Undertow.Log.LogInfo("ConfigSync: " + what);
+            }
+            catch (Exception ex)
+            {
+                Undertow.Log.LogWarning("ConfigSync: could not read the server's answer — " + ex.Message);
+            }
+        }
 
         private static string Serialise(ConfigEntryBase entry)
         {
