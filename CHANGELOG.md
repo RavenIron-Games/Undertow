@@ -1,5 +1,48 @@
 # Changelog
 
+## Unreleased
+
+- **The server's sea, on every client.** `CurrentField` is a pure function of seed, position,
+  world time and season, which is why it needs no save file and no per-tick traffic — every
+  machine computes the same water from facts they all already have. That argument holds only
+  while the TUNING is also the same. A server that raised `MaxCurrentSpeed` and a client that
+  did not were computing two different oceans from one seed, and because drift is applied by the
+  peer that OWNS each hull, those two players genuinely sailed different seas. Nothing desynced,
+  nothing errored, and nobody could tell.
+
+  The server now publishes its twelve gameplay dials — the five field terms, the Wrath bridge
+  switch, and the drift and swimmer groups — and a client **adopts them in memory for the
+  session**. Your config file is never written, never backed up and never touched; leave the
+  server and your own settings are exactly as you left them. Incoming values are clamped to the
+  range your own build allows, so a server can make the sea faster and never physically
+  impossible.
+
+  What does NOT travel is as deliberate as what does: the drift lines, the tick budget, the field
+  refresh cadence, verbose logging and every flotsam key stay yours. Those are your machine's
+  frame rate, not the server's sea.
+
+  An **admin** who changes a synced value on their own client pushes that one value up; the
+  server applies it to its own config — so it survives a restart — and re-publishes to everyone.
+  A non-admin's edits never leave their machine, and say so in the log rather than silently doing
+  nothing. Admin identity is checked on the SERVER against its own admin list, accepting both the
+  full platform id and the bare numeric form the way vanilla does.
+
+  `wake status` reports which side of this you are on and how many values are in force.
+
+  No new Harmony patch (the boot line still reads `Harmony patched 3`), nothing saved, nothing
+  sent per frame, and with the mod alone on a machine it never speaks at all.
+
+- **The field was profiled, and it was being computed twice for nothing.** One `Evaluate` makes
+  exactly nine `WorldGenerator.GetHeight` calls — counted with an instrumented probe, not read
+  off the source, and now pinned by an assertion. The arithmetic around them is 0.23–0.34 µs and
+  irrelevant. So the only thing worth optimising is how often `Evaluate` is called at all, and
+  two places were calling it and throwing the answer away: a boat nobody is aboard was evaluated
+  before the check that `UnattendedDriftFactor` is zero (its shipped default), which on a
+  dedicated server is the dominant cost and all of it waste, because a server owns exactly the
+  boats no player is near; and the swimmer postfix had no cache at all, asking for 450
+  `GetHeight` a second per swimmer against a hull's 36. The same values come out — they are just
+  no longer computed and discarded.
+
 ## 0.7.2
 
 **Built and tested against Valheim 1.0.15 and BepInEx pack 5.4.2350.** A release-readiness pass

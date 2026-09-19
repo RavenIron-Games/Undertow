@@ -107,7 +107,7 @@ file was written for; leave it be. `wake status` reports it.
 
 | Command | Answers |
 |---|---|
-| `wake status` | what this machine is, what is running on it, and which config layout your file carries |
+| `wake status` | what this machine is, what is running on it, which config layout your file carries, and whether you are sailing the server's tuning or your own |
 | `wake here` | the current under your keel — speed, bearing, depth, tide |
 | `wake field <x> <z>` | the current anywhere, loaded or not |
 | `wake drift` | whether the current is actually reaching boats |
@@ -116,6 +116,30 @@ file was written for; leave it be. `wake status` reports it.
 
 Turn on `VerboseLogging` and the log carries a boot-time transect of your seed's ocean, plus a
 running readout of drift while you sail.
+
+## On a server: the server's sea wins
+
+The current is a pure function of your world seed, so every machine works out the same water
+without a byte of traffic — as long as they agree about the *tuning*. If a server raised
+`MaxCurrentSpeed` and you did not, you and your crewmate were quietly sailing different oceans:
+nothing desyncs, nothing errors, and nobody can tell.
+
+So the server publishes its twelve gameplay dials — the five that shape the field, the Ragnarok's
+Wrath switch, and the drift and swimmer settings — and your client sails by those **for that
+session only**. Your config file is never written to. Leave the server and your own settings are
+exactly where you left them. Values arriving from a server are clamped to the range your build
+allows, so a server can make the sea faster and never impossible.
+
+**What stays yours.** The drift lines and everything about them, the tick budget, the field
+refresh rate, verbose logging, and every flotsam setting. Those are your machine's frame rate,
+not the server's sea.
+
+**Admins can change it live.** If you are an admin, editing a synced value on your client sends
+it to the server, which saves it to its own config and tells everyone. If you are not, your edit
+stays in your file and the log says so plainly rather than quietly doing nothing.
+
+Undertow does not have to be on a client at all — but a client without it computes no current for
+the hulls it owns, because drift is applied by whoever owns the boat.
 
 ## Plays well with
 

@@ -4,6 +4,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 using RavenIron.Undertow.Config;
 using RavenIron.Undertow.Core;
+using RavenIron.Undertow.Net;
 
 namespace RavenIron.Undertow
 {
@@ -64,6 +65,12 @@ namespace RavenIron.Undertow
             Log = Logger;
 
             ModConfig.Bind(base.Config);
+
+            // Map the synced keys to their entries once, here, because it is the only moment
+            // where every one of them is certain to be bound. It also checks OUR table against
+            // OUR bindings and logs an error naming any row that has no entry — a typo there
+            // would otherwise cost nothing visible: the key just never syncs, on both ends.
+            ConfigSync.Bind();
 
             _harmony = new Harmony(PluginId);
             _harmony.PatchAll();

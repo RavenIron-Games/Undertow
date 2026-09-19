@@ -5,6 +5,7 @@ using System.Text;
 using UnityEngine;
 using RavenIron.Undertow.Config;
 using RavenIron.Undertow.Core;
+using RavenIron.Undertow.Net;
 
 namespace RavenIron.Undertow.Visuals
 {
@@ -219,7 +220,7 @@ namespace RavenIron.Undertow.Visuals
                 float lift = BaseLiftMetres + ChopLiftMetres * chop;
                 float chopBoost = Mathf.Min(1.25f, 1f + 0.25f * chop);
                 float opacity = Mathf.Clamp(ModConfig.DriftLineOpacity.Value, 0f, 2f);
-                float maxSpeed = ModConfig.MaxCurrentSpeed.Value;
+                float maxSpeed = ModConfig.MaxCurrentSpeed.Live();
                 float minDepth = Mathf.Clamp(ModConfig.DriftLineMinDepth.Value, 2f, 30f);
 
                 _spawnDebt = Mathf.Min(MaxSpawnDebt, _spawnDebt + dt * _effectivePool / MeanLifeSeconds);

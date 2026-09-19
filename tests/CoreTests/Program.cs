@@ -35,6 +35,7 @@ namespace Undertow.Tests
             ModConfigTests();
             ConfigLedgerTests();
             ConfigMigrationTests();
+            ConfigWireTests();
             CurrentFieldTests();
             DriftForceTests();
             FlotsamMathTests();
@@ -1709,6 +1710,160 @@ namespace Undertow.Tests
                 ModConfig.Bind(new ConfigFile());
                 try { Directory.Delete(dir, true); } catch { }
             }
+        }
+
+        /// <summary>
+        /// The wire the server's sea travels on. PURE, so all of it is testable here — and the
+        /// two properties worth the most are both invisible in a single-machine test run: that
+        /// every key on the wire is a key this build actually binds, and that a comma-decimal
+        /// locale cannot change what a float looks like.
+        /// </summary>
+        private static void ConfigWireTests()
+        {
+            Section("ConfigWire");
+
+            // ---- the table names real keys ------------------------------------------------
+            //
+            // This is the assertion the whole feature rests on. A row naming a key ModConfig does
+            // not bind is a key that never syncs, in EITHER direction, and nothing about a running
+            // game would say so: the server would not send it, the client would not miss it, and
+            // the sea would quietly differ. Ordinal and case-sensitive matching (BepInEx's own
+            // ConfigDefinition.Equals) puts that failure one wrong letter away.
+            var file = new ConfigFile();
+            ModConfig.Bind(file);
+
+            var boundAddresses = new HashSet<string>(StringComparer.Ordinal);
+            foreach (ConfigFile.BoundEntry b in file.Bound)
+                boundAddresses.Add(ConfigWire.Address(b.Section, b.Key));
+
+            foreach (string address in ConfigWire.SyncedKeys)
+                Check(boundAddresses.Contains(address),
+                    $"'{address}' is on the wire and ModConfig binds it under exactly that name");
+
+            Check(new HashSet<string>(ConfigWire.SyncedKeys, StringComparer.Ordinal).Count
+                  == ConfigWire.SyncedKeys.Length,
+                "no key is listed twice on the wire");
+
+            // ---- and deliberately excludes the rest ----------------------------------------
+            //
+            // A server owner must not be able to reach into a player's frame rate. These are the
+            // per-machine keys, pinned by name so adding one to the wire has to be a decision.
+            Check(!ConfigWire.IsSynced("1 - Core", "TickBudgetMs"), "the tick budget stays local");
+            Check(!ConfigWire.IsSynced("1 - Core", "VerboseLogging"), "verbose logging stays local");
+            Check(!ConfigWire.IsSynced("4 - Drift", "FieldRefreshSeconds"), "the refresh cadence stays local");
+            Check(!ConfigWire.IsSynced("2 - Systems", "EnableDriftLines"), "the drift lines stay local");
+            Check(!ConfigWire.IsSynced("7 - Drift lines", "DriftLineCount"), "the drift line pool stays local");
+            Check(!ConfigWire.IsSynced("7 - Drift lines", "DriftLineBudgetMs"), "the drift line budget stays local");
+            Check(!ConfigWire.IsSynced("2 - Systems", "EnableFlotsam"), "flotsam is the authority's alone");
+            Check(!ConfigWire.IsSynced("5 - Flotsam", "FlotsamMaxAlive"), "the flotsam cap is the authority's alone");
+            Check(!ConfigWire.IsSynced("0 - Meta", "ConfigVersion"), "the layout stamp never travels");
+
+            Check(ConfigWire.IsSynced("3 - The current", "MaxCurrentSpeed"), "the sea's ceiling travels");
+            Check(!ConfigWire.IsSynced("3 - The current", "maxcurrentspeed"),
+                "IsSynced is CASE-SENSITIVE, as BepInEx's ConfigDefinition.Equals is");
+            Check(!ConfigWire.IsSynced("9 - Nowhere", "MaxCurrentSpeed"),
+                "the same key name in a different section is a different key");
+
+            // ---- a comma-decimal locale cannot change the wire -----------------------------
+            //
+            // The instrument here is the point. BepInEx parses floats with
+            // NumberFormatInfo.InvariantInfo and SetSerializedValue SWALLOWS what it cannot parse,
+            // so a culture leak would be a silent no-op on one server owner's machine only — the
+            // hardest possible bug to be told about.
+            CultureInfo saved = CultureInfo.CurrentCulture;
+            try
+            {
+                CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+
+                Check(ConfigWire.Write(1.25f) == "1.25",
+                    "a float writes with a '.' even where the machine's locale uses ','");
+                Check(ConfigWire.TryReadFloat("1.25", out float invariantRead) && Math.Abs(invariantRead - 1.25f) < 1e-6f,
+                    "a '.' float reads back under a comma-decimal locale");
+                Check(!ConfigWire.TryReadFloat("1,25", out _),
+                    "a ',' float is REFUSED rather than read as 125");
+                Check(ConfigWire.Write(true) == "true" && ConfigWire.Write(false) == "false",
+                    "a bool writes lower case, the spelling BepInEx puts in the file");
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = saved;
+            }
+
+            // ---- round trip ----------------------------------------------------------------
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("3 - The current|MaxCurrentSpeed", "1.5"),
+                new KeyValuePair<string, string>("2 - Systems|EnableDrift", "false"),
+            };
+            string payload = ConfigWire.Format(pairs);
+
+            Check(payload.StartsWith(ConfigWire.Header, StringComparison.Ordinal),
+                "a payload leads with the wire header");
+
+            List<KeyValuePair<string, string>> read = ConfigWire.Parse(payload);
+            Check(read != null && read.Count == 2, "a payload round-trips both values");
+            Check(read[0].Key == "3 - The current|MaxCurrentSpeed" && read[0].Value == "1.5",
+                "the first value survives the round trip intact");
+            Check(read[1].Value == "false", "so does the second");
+
+            Check(ConfigWire.Parse(ConfigWire.Header)?.Count == 0,
+                "a header with no values parses to an empty list, not a failure");
+
+            // ---- a wrong SHAPE is refused wholesale ----------------------------------------
+            Check(ConfigWire.Parse("undertow-cfg/2\n3 - The current|MaxCurrentSpeed=1.5") == null,
+                "a payload from a different wire version is refused entirely");
+            Check(ConfigWire.Parse("3 - The current|MaxCurrentSpeed=1.5") == null,
+                "a payload with no header at all is refused entirely");
+            Check(ConfigWire.Parse(null) == null, "a null payload is refused rather than thrown on");
+
+            // ---- but a single bad LINE only costs that line ---------------------------------
+            //
+            // The forward-compatibility rule: a key we do not know means the other end is a
+            // different build of this mod, which is ordinary. It must not cost the other values.
+            List<KeyValuePair<string, string>> mixed = ConfigWire.Parse(
+                ConfigWire.Header +
+                "\n3 - The current|MaxCurrentSpeed=1.5" +
+                "\nthis line has no equals sign" +
+                "\nNoSectionHere=7" +
+                "\n|LeadingBarNoSection=7" +
+                "\n3 - The current|TrailingEquals=" +
+                "\n=novalue" +
+                "\n" +
+                "\n8 - From the future|SomethingNew=3" +
+                "\n2 - Systems|EnableDrift=false");
+
+            Check(mixed != null && mixed.Count == 3,
+                "six malformed lines are dropped and the three usable ones survive");
+            Check(mixed[1].Key == "8 - From the future|SomethingNew",
+                "a key from a NEWER build is parsed, not dropped — filtering it is the caller's job");
+            Check(mixed[2].Value == "false", "a good line after the bad ones still arrives");
+
+            // A value is split on the FIRST '=', so a value containing one survives whole.
+            List<KeyValuePair<string, string>> eq = ConfigWire.Parse(
+                ConfigWire.Header + "\n1 - A|B=x=y");
+            Check(eq != null && eq.Count == 1 && eq[0].Value == "x=y",
+                "an address is split from its value at the FIRST '=' only");
+
+            // A payload that arrived over a wire that inserted CRs still reads.
+            List<KeyValuePair<string, string>> crlf = ConfigWire.Parse(
+                ConfigWire.Header + "\r\n3 - The current|MaxCurrentSpeed=1.5\r\n");
+            Check(crlf != null && crlf.Count == 1 && crlf[0].Value == "1.5",
+                "a payload carrying CRLF line endings still parses");
+
+            // ---- the log line ---------------------------------------------------------------
+            Check(ConfigWire.Describe(null) == "nothing" && ConfigWire.Describe(
+                      new List<KeyValuePair<string, string>>()) == "nothing",
+                "an empty payload describes itself as nothing");
+            string described = ConfigWire.Describe(pairs);
+            Check(described.Contains("2 value(s)") && described.Contains("MaxCurrentSpeed=1.5")
+                  && !described.Contains("3 - The current|"),
+                "a description counts the values and names them WITHOUT their sections");
+
+            var many = new List<KeyValuePair<string, string>>();
+            for (int i = 0; i < 12; i++)
+                many.Add(new KeyValuePair<string, string>("S|K" + i, i.ToString(CultureInfo.InvariantCulture)));
+            Check(ConfigWire.Describe(many).Contains("and 9 more"),
+                "a long payload names the first three and counts the rest");
         }
 
         // ---- harness ----------------------------------------------------------------------

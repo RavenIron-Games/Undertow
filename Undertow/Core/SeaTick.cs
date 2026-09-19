@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Text;
 using UnityEngine;
 using RavenIron.Undertow.Config;
+using RavenIron.Undertow.Net;
 
 namespace RavenIron.Undertow.Core
 {
@@ -62,7 +63,14 @@ namespace RavenIron.Undertow.Core
         {
             // Nothing is knowable until ZNet exists; this also covers the main menu.
             ZNet znet = ZNet.instance;
-            if (znet == null) return;
+            if (znet == null)
+            {
+                // Back at the main menu, so any config a server lent us is no longer ours to
+                // sail by. Idempotent, and it costs one int compare on a frame where this
+                // method does nothing else anyway.
+                ConfigSync.Reset();
+                return;
+            }
 
             // PROOF OF LIFE, printed on EVERY role and before any system exists.
             //
@@ -89,6 +97,11 @@ namespace RavenIron.Undertow.Core
                         "Current still applies to boats this machine owns.");
                 }
             }
+
+            // On EVERY role and above the authority gate, because the two directions need
+            // different machines: a server publishes here and a client listens here. House rule
+            // 2 all the same — the sync owns no timer, this cursor drives it.
+            ConfigSync.Tick(znet);
 
             MaybeReportField();
             MaybeReportStorm();
@@ -169,7 +182,7 @@ namespace RavenIron.Undertow.Core
             sb.Append(SeaContext.WaterLevel.ToString("0.#", c));
             sb.Append(", tide ");
             sb.Append((CurrentField.TidePhase01(SeaContext.WorldTimeSeconds,
-                        ModConfig.TidePeriodSeconds.Value) * 100f).ToString("0", c));
+                        ModConfig.TidePeriodSeconds.Live()) * 100f).ToString("0", c));
             // Season WITH its provenance. Index 0 is spring and is also every failure mode, so
             // the number alone is not evidence of anything — see WrathBridge.SeasonWasRead.
             int season = SeaContext.SeasonIndex;

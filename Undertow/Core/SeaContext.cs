@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using RavenIron.Undertow.Config;
 using RavenIron.Undertow.Bridge;
+using RavenIron.Undertow.Net;
 
 namespace RavenIron.Undertow.Core
 {
@@ -95,7 +96,7 @@ namespace RavenIron.Undertow.Core
         /// whatever it concluded.
         /// </summary>
         public static int SeasonIndex =>
-            ModConfig.EnableWrathBridge.Value ? WrathBridge.SeasonIndex() : 0;
+            ModConfig.EnableWrathBridge.Live() ? WrathBridge.SeasonIndex() : 0;
 
         /// <summary>
         /// Storm surge multiplier at a position. 1.0 with no storm, with RW absent, or with the
@@ -103,18 +104,18 @@ namespace RavenIron.Undertow.Core
         /// </summary>
         public static float StormSurgeAt(Vector3 position)
         {
-            if (!ModConfig.EnableWrathBridge.Value) return 1f;
-            return WrathBridge.IsStormAt(position) ? ModConfig.StormSurgeMultiplier.Value : 1f;
+            if (!ModConfig.EnableWrathBridge.Live()) return 1f;
+            return WrathBridge.IsStormAt(position) ? ModConfig.StormSurgeMultiplier.Live() : 1f;
         }
 
         public static FieldSettings BuildSettings()
         {
             FieldSettings s = FieldSettings.Defaults;
             s.WaterLevel = WaterLevel;
-            s.MaxSpeed = ModConfig.MaxCurrentSpeed.Value;
-            s.TidePeriodSeconds = ModConfig.TidePeriodSeconds.Value;
-            s.TideAmplitude = ModConfig.TideAmplitude.Value;
-            s.CoastalStrength = ModConfig.CoastalStrength.Value;
+            s.MaxSpeed = ModConfig.MaxCurrentSpeed.Live();
+            s.TidePeriodSeconds = ModConfig.TidePeriodSeconds.Live();
+            s.TideAmplitude = ModConfig.TideAmplitude.Live();
+            s.CoastalStrength = ModConfig.CoastalStrength.Live();
             return s;
         }
 

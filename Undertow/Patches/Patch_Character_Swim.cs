@@ -5,6 +5,7 @@ using HarmonyLib;
 using UnityEngine;
 using RavenIron.Undertow.Config;
 using RavenIron.Undertow.Core;
+using RavenIron.Undertow.Net;
 
 namespace RavenIron.Undertow.Patches
 {
@@ -101,7 +102,7 @@ namespace RavenIron.Undertow.Patches
         {
             try
             {
-                if (!ModConfig.EnableSwimmers.Value) return;
+                if (!ModConfig.EnableSwimmers.Live()) return;
                 if (__instance == null || !__instance.IsPlayer()) return;
                 if (___m_nview == null || !___m_nview.IsValid() || !___m_nview.IsOwner()) return;
 
@@ -115,9 +116,9 @@ namespace RavenIron.Undertow.Patches
 
                 SwimDrift.Compute(
                     sample.X * edgeFade, sample.Z * edgeFade,
-                    ModConfig.SwimmerDriftFactor.Value,
+                    ModConfig.SwimmerDriftFactor.Live(),
                     __instance.m_swimSpeed,
-                    ModConfig.SwimmerMaxShareOfSwimSpeed.Value,
+                    ModConfig.SwimmerMaxShareOfSwimSpeed.Live(),
                     __instance.m_swimAcceleration,
                     out float dvx, out float dvz);
 
@@ -139,7 +140,7 @@ namespace RavenIron.Undertow.Patches
                     float actual = Mathf.Sqrt(v.x * v.x + v.z * v.z);
                     Undertow.Log.LogInfo(
                         $"swim drift @ ({position.x:0},{position.z:0}) | water {sample.Speed:0.###} " +
-                        $"drift {LastDrift:0.###} (cap {__instance.m_swimSpeed * ModConfig.SwimmerMaxShareOfSwimSpeed.Value:0.###}) " +
+                        $"drift {LastDrift:0.###} (cap {__instance.m_swimSpeed * ModConfig.SwimmerMaxShareOfSwimSpeed.Live():0.###}) " +
                         $"| swimmer {actual:0.###} m/s, swimSpeed {__instance.m_swimSpeed:0.##}");
                 }
             }

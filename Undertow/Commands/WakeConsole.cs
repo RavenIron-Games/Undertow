@@ -10,6 +10,7 @@ using RavenIron.Undertow.Core;
 using RavenIron.Undertow.Patches;
 using RavenIron.Undertow.Bridge;
 using RavenIron.Undertow.Visuals;
+using RavenIron.Undertow.Net;
 
 namespace RavenIron.Undertow.Commands
 {
@@ -180,10 +181,10 @@ namespace RavenIron.Undertow.Commands
             sb.Append($"SeaTick {(SeaTick.Online ? "online" : "waiting for ZNet")}, ");
             sb.Append($"{SeaTick.SystemCount} ambient system(s), ");
             sb.Append($"budget {ModConfig.TickBudgetMs.Value.ToString("0.##", c)}ms/frame\n");
-            sb.Append($"drift {OnOff(ModConfig.EnableDrift.Value)}, ");
+            sb.Append($"drift {OnOff(ModConfig.EnableDrift.Live())}, ");
             sb.Append($"flotsam {OnOff(ModConfig.EnableFlotsam.Value)}, ");
-            sb.Append($"swimmers {OnOff(ModConfig.EnableSwimmers.Value)}, ");
-            sb.Append($"wrath bridge {OnOff(ModConfig.EnableWrathBridge.Value)}, ");
+            sb.Append($"swimmers {OnOff(ModConfig.EnableSwimmers.Live())}, ");
+            sb.Append($"wrath bridge {OnOff(ModConfig.EnableWrathBridge.Live())}, ");
             sb.Append($"drift lines {OnOff(ModConfig.EnableDriftLines.Value)}\n");
             sb.Append(WrathBridge.Describe()).Append("\n");
 
@@ -197,6 +198,25 @@ namespace RavenIron.Undertow.Commands
             string migration = ConfigMigration.LastSummary;
             sb.Append(string.IsNullOrEmpty(migration) ? " (nothing migrated this boot)" : $" — {migration}");
             sb.Append("\n");
+
+            // And the same argument for the values arriving over the wire. On a server this says
+            // so plainly rather than printing a count of zero, because "0 adopted" on the machine
+            // that SENDS them reads like a failure and is not one.
+            sb.Append("config sync: ");
+            if (ZNet.instance != null && ZNet.instance.IsServer())
+            {
+                sb.Append("this machine is the source — ")
+                  .Append(ConfigWire.SyncedKeys.Length.ToString(c))
+                  .Append(" value(s) published to every client\n");
+            }
+            else
+            {
+                int adopted = ConfigSync.AdoptedCount;
+                sb.Append(adopted > 0
+                    ? $"sailing the server's sea — {adopted} value(s) in force over your own"
+                    : "on your own values");
+                sb.Append($" ({ConfigSync.LastEvent})\n");
+            }
 
             sb.Append("the field is computed, readable, pushing hulls, carrying swimmers, ");
             sb.Append("gathering flotsam and showing on the water.");
@@ -287,9 +307,9 @@ namespace RavenIron.Undertow.Commands
             var c = CultureInfo.InvariantCulture;
             var sb = new StringBuilder(256);
 
-            sb.Append($"drift {(ModConfig.EnableDrift.Value ? "enabled" : "DISABLED in config")}, ");
-            sb.Append($"strength {ModConfig.DriftStrength.Value.ToString("0.##", c)} (1.0 = drift at the water's speed), ");
-            sb.Append($"unattended {ModConfig.UnattendedDriftFactor.Value.ToString("0.##", c)}, ");
+            sb.Append($"drift {(ModConfig.EnableDrift.Live() ? "enabled" : "DISABLED in config")}, ");
+            sb.Append($"strength {ModConfig.DriftStrength.Live().ToString("0.##", c)} (1.0 = drift at the water's speed), ");
+            sb.Append($"unattended {ModConfig.UnattendedDriftFactor.Live().ToString("0.##", c)}, ");
             sb.Append($"refresh {ModConfig.FieldRefreshSeconds.Value.ToString("0.##", c)}s\n");
 
             if (!Patch_Ship_Drift.EverRan)

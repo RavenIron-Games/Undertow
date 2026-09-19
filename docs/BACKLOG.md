@@ -1177,6 +1177,85 @@ migrates nothing and logs nothing. The run has to be against an existing file.
    private — but the first REAL rebase or retirement should be watched in-game on a copied config
    before it ships.
 
+## 9. The config sync — BUILT 2026-09-19, NOT YET RUN IN-GAME
+
+The owner's call, taken from four options on 2026-09-19: **"Server wins, and admins can push."**
+
+### The problem, and why it was invisible
+
+`CurrentField` is a pure function of seed, position, world time and season. That is the whole
+no-sync architecture: every machine computes the same water from facts they all already hold, and
+task 1 proved it by getting a byte-identical transect out of a server and a client independently.
+
+The argument has a premise nobody had checked: **that both ends hold the same TUNING.** A server
+that raised `MaxCurrentSpeed` and a client that did not are evaluating two different oceans from
+one seed. Drift is applied by the peer that OWNS each hull, so those two players genuinely sail
+different seas — and nothing desyncs, nothing errors, no ZDO disagrees, and no log line says so.
+It is the exact failure shape this repo's debugging discipline is written against.
+
+### What was built
+
+- `Core/ConfigWire.cs` — PURE, compiled by the harness: WHICH keys travel and WHAT the payload
+  looks like. Twelve keys — the five field terms, `EnableWrathBridge` (a field term in disguise:
+  it gates both the season and the surge), and the drift and swimmer groups.
+- `Net/ConfigSync.cs` — the engine: three routed RPCs (publish to everybody, an admin's push up,
+  a joiner's request), the admin gate, and the override layer.
+- The read path is `entry.Live()` rather than `entry.Value` at 23 call sites. A one-bool
+  short-circuit means a server, a single-player session and any client before the first payload
+  pay a `bool` test rather than a dictionary hash.
+- Driven from `SeaTick` (house rule 2), above the authority gate, because the two directions need
+  different machines. **No new Harmony patch** — the boot line still reads `Harmony patched 3`.
+
+Harness **414 passed** (369 → 414), and **16 mutations applied to the shipping `ConfigWire.cs`,
+16 caught**, file restored byte-identical. The two that matter most are the ones a single-machine
+run cannot see: a key on the wire that ModConfig does not bind under exactly that name (checked
+against a real `ModConfig.Bind`, ordinal and case-sensitive), and a float written or read in the
+machine's own culture.
+
+### What is owed: the in-game run
+
+Nothing here has been observed in a game. **Two machines are the minimum** — this feature is
+unobservable on one, because a listen host stands down on `IsServer()` by design.
+
+1. Deploy to Storm10 and to the `testing` profile. **Deliberately set them apart first**: put
+   `MaxCurrentSpeed` to something obvious on the SERVER (say 2.0) and leave the client at its
+   default. A run where both ends already agree cannot tell adoption from a no-op.
+2. Boot the server. Expect `ConfigSync: RPCs registered (undertow-cfg/1).` and, with
+   `VerboseLogging` on, a `published (…)` line once the client joins.
+3. Boot the client and join. Expect `ConfigSync: RPCs registered`, then
+   `ConfigSync: the server's sea is in force — MaxCurrentSpeed 1.2 -> 2` (the exact numbers
+   depending on step 1).
+4. `wake status` on the client: `config sync: sailing the server's sea — 12 value(s) in force
+   over your own`. On the server: `this machine is the source — 12 value(s) published`.
+5. `wake here` on the client should now report water faster than its own config allows — that is
+   the proof the override reaches `CurrentField` and not merely a dictionary.
+6. **The file is never written.** Hash the client's `com.raveniron.undertow.cfg` before joining
+   and after leaving. It must be byte-identical, and `MaxCurrentSpeed` must still read the
+   client's own value. This is the promise the whole design is built around; measure it, do not
+   assume it.
+7. Disconnect to the main menu. Expect `ConfigSync: disconnected — local config back in force.`
+   and `wake status` back to "on your own values".
+8. **The admin push, which is the half with no fallback.** With the client's user in the server's
+   `adminlist.txt`, change a synced value through a config manager on the client. Expect
+   `ConfigSync: pushed …` on the client, `ConfigSync: admin (peer N) set …` on the server, and
+   the server's own config file to carry the new value afterwards. Then take that user OUT of the
+   admin list and repeat: expect the client to log the "you are not an admin" line and the
+   server's file to be unchanged.
+9. **The bare-numeric admin id.** Write the admin list with the numeric form only and confirm a
+   push is still accepted — that is the case `PlayerIsAdmin` would have refused and the reason
+   `SenderIsAdmin` exists. (The SEND side still uses vanilla's public
+   `LocalPlayerIsAdminOrHost()`, which is the stricter one, so this may need the full form on the
+   client's side to fire at all. If it does, that asymmetry is worth writing down here — it is a
+   real limit, not a bug to chase.)
+
+### Not covered, and known
+
+- **A client with a DIFFERENT Undertow version.** The wire is forward-compatible by construction
+  (unknown keys are dropped per line, a wrong header refuses the whole payload) and both paths
+  are under test — but no two versions have ever actually met.
+- **Ordering against other ServerSync-style mods.** Undertow's sync is its own; it does not use
+  ServerSync and does not contend with one.
+
 ## 5z. Original task 5 specification (its AddPushbackForce advice was WRONG - see above)
 
 Last, deliberately: the highest-annoyance surface in the mod, and it wants the most tuning

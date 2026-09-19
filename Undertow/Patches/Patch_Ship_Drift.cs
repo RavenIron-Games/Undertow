@@ -6,6 +6,7 @@ using HarmonyLib;
 using UnityEngine;
 using RavenIron.Undertow.Config;
 using RavenIron.Undertow.Core;
+using RavenIron.Undertow.Net;
 
 namespace RavenIron.Undertow.Patches
 {
@@ -85,7 +86,7 @@ namespace RavenIron.Undertow.Patches
         {
             try
             {
-                if (!ModConfig.EnableDrift.Value) return;
+                if (!ModConfig.EnableDrift.Live()) return;
                 if (__instance == null || ___m_body == null) return;
 
                 // THE OWNER CHECK, AND IT IS THE WHOLE REASON THIS BLOCK EXISTS.
@@ -110,7 +111,7 @@ namespace RavenIron.Undertow.Patches
                 // boats no player is near, i.e. the moored ones, so that was the single largest
                 // thing this mod asked of a busy server and all of it was waste.
                 bool crewed = ___m_players != null && ___m_players.Count > 0;
-                float crewFactor = crewed ? 1f : ModConfig.UnattendedDriftFactor.Value;
+                float crewFactor = crewed ? 1f : ModConfig.UnattendedDriftFactor.Live();
                 if (crewFactor <= 0f) return;
 
                 // Cheap and position-only, so it also belongs above the sample: a hull outside
@@ -136,7 +137,7 @@ namespace RavenIron.Undertow.Patches
                 DriftForce.Compute(
                     sample.X, sample.Z,
                     hullAlongCurrent,
-                    ModConfig.DriftStrength.Value, fixedDeltaTime,
+                    ModConfig.DriftStrength.Live(), fixedDeltaTime,
                     crewFactor, edgeFade,
                     out float dvx, out float dvz);
 

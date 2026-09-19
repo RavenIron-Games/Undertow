@@ -4,6 +4,7 @@ using UnityEngine;
 using RavenIron.Undertow.Bridge;
 using RavenIron.Undertow.Config;
 using RavenIron.Undertow.Core;
+using RavenIron.Undertow.Net;
 
 namespace RavenIron.Undertow.Systems
 {
@@ -90,7 +91,7 @@ namespace RavenIron.Undertow.Systems
 
             if (_alive.Count >= ModConfig.FlotsamMaxAlive.Value) return;
 
-            float maxSpeed = ModConfig.MaxCurrentSpeed.Value;
+            float maxSpeed = ModConfig.MaxCurrentSpeed.Live();
             float minDepth = ModConfig.FlotsamMinDepth.Value;
             float perHour = ModConfig.FlotsamPerHour.Value;
 

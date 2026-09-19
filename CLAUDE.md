@@ -275,8 +275,10 @@ Undertow/                  one role-aware plugin (net472)
   Core/IWorldSystem.cs     what ambient systems implement
   Core/DriftLineMath.cs    the drift lines' rules. PURE like CurrentField — no Unity, no config
   Core/ConfigLedger.cs     which config values move on an upgrade, and why. PURE, and under test
+  Core/ConfigWire.cs       which config values the server speaks for, and the payload. PURE, under test
   Systems/                 Drift (ships), Flotsam, Swimmers
   Visuals/                 client-only cosmetics: DriftLines, WaterSurfaceCache, ParticleKit
+  Net/ConfigSync.cs        ConfigWire's engine half: the RPCs, the admin gate, the override layer
   Bridge/WrathBridge.cs    reflected, read-only reads of Ragnarok's Wrath
   Patches/                 Harmony patches — Ship, Character
   Commands/                the `wake` console
@@ -383,7 +385,8 @@ diagnostic bug report in this genre.
 | New prefabs | **None.** `ZNetScene.CreateObjectsSorted` calls `DestroyZDO` on any hash it cannot resolve — silent data loss. Flotsam uses vanilla `ItemDrop`s only. |
 | Unattended boat drift | **Default OFF.** Vanilla already damps an empty hull's horizontal velocity to a tenth per tick; that is a stated intent we honour. Losing a moored longship to a mod is a one-star review. |
 | Rivers and lakes | **Ocean only for v1.** Narrow water plus a sideways force pins players against terrain. |
-| Persistence | **None.** `CurrentField` is a pure function of seed, position, world time and season, so it needs no save file and no sync. Anything that makes the sea *remember* breaks that; RW already owns "the world remembers". |
+| Persistence | **None.** `CurrentField` is a pure function of seed, position, world time and season, so it needs no save file and no sync of its STATE. Anything that makes the sea *remember* breaks that; RW already owns "the world remembers". The config sync below is not an exception — read the row. |
+| Config sync | **The server's gameplay tuning wins, in memory, since the config sync (owner's call, 2026-09-19: "Server wins, and admins can push").** This does NOT weaken the row above: no field state is ever sent, nothing is saved, and nothing travels per tick. What travels is the twelve CONSTANTS both ends feed into the same pure function, because the "everyone computes the same water" argument silently fails when two machines hold different tuning — and fails invisibly, since nothing desyncs. A client's config FILE is never written, backed up or migrated by this; overrides live in memory for the session and are clamped to the local build's own range. Per-machine keys (drift lines, tick budget, refresh cadence, verbose logging, flotsam) never travel — a server owner must not be able to reach into a player's frame rate. An admin's client may push one value up; the server applies it to its own file and re-publishes. |
 | Ragnarok's Wrath | **Read-only, soft, one direction.** Reflected reads when present, fully dormant when absent, never a write back. |
 | Moder's wind control | **No exemption from current.** "Moder gives you the wind, not the sea" — a limit on the power without a nerf to it. |
 | Config migration | **The family's, not a local dialect.** Wu'barrk's shape by way of Valkyrie's Cargo, matching Ragnarok's Wrath and FireFront. Snapshot before any bind, `[0 - Meta] ConfigVersion` stamps the layout, a backup beside the file before anything destructive, and a failed migration never stops the mod loading. Do not fork it — a reader who knows one of these should read the others without relearning. |
@@ -512,6 +515,38 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   stamp — and the stamp means it never runs again. `ConfigMigration.ApplyBackfill` therefore reads the
   value BACK and says so by name when nothing moved. A try/catch around the call is unreachable code;
   both sibling mods have one.
+
+- **The admin check is a rule-5 minefield, and the public accessor is STRICTER than vanilla's own.**
+  Read out of the real `assembly_valheim.dll` 2026-09-19. `ZNet.m_adminList` and `ZNet.ListContainsId`
+  are both **private**, so neither may be named (rule 5). What is public: `GetAdminList()` →
+  `List<string>`, `GetPeer(long uid)`, `GetServerPeer()`, `IsServer()`, `LocalPlayerIsAdminOrHost()`,
+  `PlayerIsAdmin(PlatformUserID)`, and `ZNetPeer.m_uid` / `m_socket` / `ISocket.GetHostName()`. The trap
+  is in the two that look interchangeable: private `ListContainsId` accepts **both** `"Steam_7656…"`
+  and the bare numeric `"7656…"`, while public `PlayerIsAdmin` does `adminList.Contains(networkUserId
+  .ToString())` — the full form only. An adminlist written with bare ids, which is a common way to
+  write one, therefore reads as admin to vanilla and NOT admin through the public accessor.
+  `ConfigSync.SenderIsAdmin` reproduces the both-forms comparison from the decompiled body rather than
+  leaning on `PlayerIsAdmin`, and denies by default. `PlatformUserID`'s fields are public but live in
+  **`Splatform.dll`, which is not in `libs\` and not referenced** — so string handling of the host name
+  is also what avoids a new build dependency.
+
+- **`ZRoutedRpc.GetServerPeerID()` is PRIVATE.** A client therefore cannot address the server by id —
+  but the two-argument `InvokeRoutedRPC(string methodName, params object[])` is public and routes there
+  for you. Use that; do not try to discover the id. Also worth knowing before designing a handler:
+  `InvokeRoutedRPC` with `Everybody` (0) **invokes the sender's own handler too**, so a server's
+  broadcast comes straight back to it and the handler must stand down on `IsServer()` rather than
+  assume it only ever runs on a client. And the server is the only peer that RELAYS, but it does not
+  rewrite `m_senderPeerID` — so a handler that must only accept the server has to compare the sender
+  against `GetServerPeer().m_uid` itself.
+
+- **BepInEx's float and bool converters are culture-INVARIANT in both directions** —
+  `ToString(NumberFormatInfo.InvariantInfo)` / `float.Parse(str, NumberFormatInfo.InvariantInfo)`, and
+  `ToString().ToLowerInvariant()` / `bool.Parse` (read out of `libs\BepInEx.dll` 2026-09-19). So a
+  comma-decimal server owner's config file is already full of dots, and anything we write beside it —
+  a wire payload, a ledger row — must be invariant too or it will disagree on that owner's machine
+  alone. Combined with the `SetSerializedValue` trap above, the disagreement would be a silent no-op.
+  `int` uses the culture-sensitive `obj.ToString()` / `int.Parse(str)`; no synced key is an int today,
+  which is the only reason that does not matter.
 
 - **`ConfigFile.OrphanedEntries` is PRIVATE, and BepInEx writes every orphan back out on each `Save`.**
   So a key you simply stop binding rides along in the file forever, and an owner can keep editing it to
