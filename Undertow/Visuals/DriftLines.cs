@@ -65,8 +65,25 @@ namespace RavenIron.Undertow.Visuals
         private const float MeanLifeSeconds      = 10f;
         private const float BaseAlpha            = 0.26f;
         private const float MaxAlpha             = 0.6f;
-        private const float BaseLiftMetres       = 0.06f;
-        private const float ChopLiftMetres       = 0.05f;
+        // THE LIFT, and why it is no longer two constants.
+        //
+        // A streak is drawn at the water surface plus a small offset, because the material sits at
+        // render queue 3100 with ZWrite off — it draws after the water and depth-tests LEqual, so
+        // a perfectly coplanar quad flickers on float precision. The offset buys that clearance
+        // and nothing else.
+        //
+        // 0.7 used 0.06 + 0.05 x chop, and BOTH halves were wrong once anyone looked at the water
+        // from close up (owner, 2026-09-19: "foam floats above the water", reported as a uniform
+        // hover rather than the ends of a plank poking through a wave). Six centimetres is roughly
+        // an order of magnitude more clearance than precision needs at these distances, and
+        // scaling it UP with chop is backwards: a rough sea is exactly when the quad already
+        // stands proud, and that is when the old formula lifted it furthest. The chop term is
+        // gone rather than inverted, because nothing it was protecting against was ever observed.
+        //
+        // Configurable, because this is a number that can only be judged by eye on real water and
+        // against a particular GPU's depth precision: too high and the foam hovers, too low and it
+        // flickers or vanishes into the surface. See ModConfig.DriftLineLiftMetres.
+        private const float DefaultLiftMetres    = 0.02f;
         private const float ClusterJitterMetres  = 2f;
         private const float BearingJitterDegrees = 16f;
         private const float SeaStateTau          = 2f;
@@ -219,7 +236,7 @@ namespace RavenIron.Undertow.Visuals
                 ReadScene();
                 float chop = DriftLineMath.Chop(_seaState);
                 float chopFade = DriftLineMath.ChopFade(_seaState);
-                float lift = BaseLiftMetres + ChopLiftMetres * chop;
+                float lift = Mathf.Clamp(ModConfig.DriftLineLiftMetres.Value, 0f, 0.25f);
                 float chopBoost = Mathf.Min(1.25f, 1f + 0.25f * chop);
                 float opacity = Mathf.Clamp(ModConfig.DriftLineOpacity.Value, 0f, 2f);
                 float maxSpeed = ModConfig.MaxCurrentSpeed.Live();
@@ -831,7 +848,12 @@ namespace RavenIron.Undertow.Visuals
             if (_effectivePool < _configuredPool) sb.Append($" (auto-degraded: {_configuredPool} → {_effectivePool})");
             sb.Append($", active {active}, dormant {Math.Max(0, _effectivePool - active)}, drawn {_drawn} | ");
             sb.Append($"radius {ModConfig.DriftLineRadius.Value.ToString("0", c)}m, opacity {ModConfig.DriftLineOpacity.Value.ToString("0.00", c)}, ");
-            sb.Append($"min depth {ModConfig.DriftLineMinDepth.Value.ToString("0.#", c)}m\n");
+            sb.Append($"min depth {ModConfig.DriftLineMinDepth.Value.ToString("0.#", c)}m, ");
+            // Reported because "the foam hovers" is a bug report this readout should be able to
+            // answer on its own: the nearest-streak line below already proves the SAMPLED height
+            // matches vanilla exactly, so anything left over is this number.
+            sb.Append($"lift {(ModConfig.DriftLineLiftMetres.Value * 100f).ToString("0.#", c)}cm, ");
+            sb.Append($"slack floor {ModConfig.DriftLineSlackFloor.Value.ToString("0.##", c)}\n");
 
             float level = SeaContext.WaterLevel;
             sb.Append($"centre ({_centre.x.ToString("0", c)}, {_centre.z.ToString("0", c)})");

@@ -74,6 +74,7 @@ namespace RavenIron.Undertow.Config
         public static ConfigEntry<float> DriftLineOpacity;
         public static ConfigEntry<float> DriftLineMinDepth;
         public static ConfigEntry<float> DriftLineSlackFloor;
+        public static ConfigEntry<float> DriftLineLiftMetres;
         public static ConfigEntry<float> DriftLineBudgetMs;
 
         // ---- The stamp -------------------------------------------------------------------
@@ -360,6 +361,19 @@ namespace RavenIron.Undertow.Config
                     "absent in slack water, a cleaner contrast that costs you the ability to tell " +
                     "slack water from a broken mod at a glance.",
                     new AcceptableValueRange<float>(0f, 0.5f)));
+
+            DriftLineLiftMetres = cfg.Bind(lines, "DriftLineLiftMetres", 0.02f,
+                new ConfigDescription(
+                    "How far above the water surface a streak is drawn. Foam should look like it " +
+                    "is ON the water, and this exists only to stop the quad flickering against the " +
+                    "surface it lies on: it draws after the water and shares its depth, so at " +
+                    "exactly zero the two fight over float precision. 0.7 used 0.06 and raised it " +
+                    "further in a chop, which was backwards and made the foam visibly hover. Raise " +
+                    "this only if streaks shimmer or disappear into the surface; lower it if they " +
+                    "look like they are floating. The right value depends on your GPU's depth " +
+                    "precision and on how close to the water you usually are, so it is a dial " +
+                    "rather than a constant.",
+                    new AcceptableValueRange<float>(0f, 0.25f)));
 
             DriftLineBudgetMs = cfg.Bind(lines, "DriftLineBudgetMs", 0.5f,
                 new ConfigDescription(

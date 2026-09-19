@@ -103,10 +103,17 @@ namespace RavenIron.Undertow.Core
             // hull to the same answer — see the class summary for why calibrating against
             // damping cannot work.
             //
-            // CLAMPED TO [0,1], which is the anti-braking guarantee. The result can never be
-            // negative, so this can never oppose the current and never slows a boat under sail;
-            // at worst it stops helping. A hull moving AGAINST the current gets a value above 1
-            // before clamping and is capped at a full push rather than an amplified one.
+            // CLAMPED TO [0,1], which is the anti-braking guarantee — and the guarantee is
+            // narrower than it first reads, so state it exactly. The result can never be negative,
+            // so the force can never point AGAINST the water: there is no drag term keyed to hull
+            // speed, and at worst this stops helping. What it does NOT promise is that your speed
+            // over the ground is unaffected. Sail into a current and it costs you roughly the
+            // water's own speed, because the push points at you — which is correct, is what a
+            // current is, and was confirmed as wanted by the owner on 2026-09-19. An earlier
+            // wording here claimed this "never slows a boat under sail", and the README repeated
+            // it; both were read as a promise about ground speed and misled the owner in game.
+            // A hull moving AGAINST the current gets a value above 1 before clamping and is capped
+            // at a full push rather than an amplified one.
             float head = 1f - (hullAlongCurrent / waterSpeed);
             if (head > 1f) head = 1f;
             else if (head < 0f) head = 0f;

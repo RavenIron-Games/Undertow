@@ -45,8 +45,10 @@ passage stops being sheltered while the storm sits over it. Entirely optional: w
 Ragnarok's Wrath the bridge logs its absence once and the sea runs regardless.
 
 ### ⛵ Boats are carried, never braked
-The current adds to a hull rather than fighting it, so sailing is never slowed — you are simply
-somewhere else than you expected. A boat left drifting settles at **the water's own speed**:
+The current adds to a hull rather than fighting it: there is no drag term keyed to your speed, so
+the sea never brakes you THROUGH the water. Over the ground is a different matter, and it is
+supposed to be — sail into a tide and it costs you, sail with it and it pays. That is what a
+current is. A boat left drifting settles at **the water's own speed**:
 measured at 0.86 for a karve and 0.96 for a longship against the water's 1.0, which is the point,
 because those two hulls damp very differently. A hull also resists sideways drift more than
 forward drift, so a current on the beam moves you less than one off the bow — that falls out of
