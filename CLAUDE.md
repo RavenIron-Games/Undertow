@@ -23,6 +23,16 @@ Design document (the reasoning behind every decision here):
 
 ## Status
 
+**PUBLISHED — 0.7.2 is live on Hexium (2026-09-19).**
+<https://valheim.hexium.gg/mods/RavenIronStudios/Undertow>. Confirmed through Hexium's API rather
+than assumed: `latest 0.7.2`, and the version list reads 0.7.2, 0.6.0, 0.5.1 — **0.7.0 and 0.7.1
+never shipped**, so every existing installation jumps 0.6.0 → 0.7.2 and gets the drift lines and
+the config migration in the same step. That is the first time the migration runs on a config file
+belonging to somebody who is not the owner, and it is the stamp-only path: all three ledger tables
+are empty by measurement, so the only reachable behaviour is writing `[0 - Meta] ConfigVersion = 1`
+and touching nothing else.
+
+
 **THE ROADMAP IS BUILT.** Tasks 0–5, harness **162/162**, every assertion proven to fail without
 its fix. Verified in-game on a dedicated server and a client (2026-08-28).
 

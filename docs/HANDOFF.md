@@ -159,7 +159,16 @@ already warns about; revisit when a release changes the field's maths, copying R
    "Thunderstore and Hexium", which contradicts the owner's call of 2026-09-03 — nothing
    has ever been uploaded to Thunderstore and nothing will be. The zip is still built to
    Thunderstore's package FORMAT, because that is what Hexium consumes; format and channel
-   are different things and these docs conflated them. Live on Hexium today: **0.6.0**.
+   are different things and these docs conflated them.
+
+   ✅ **PUBLISHED 2026-09-19: Undertow 0.7.2 is LIVE on Hexium**, at
+   <https://valheim.hexium.gg/mods/RavenIronStudios/Undertow>, uploaded by the owner and
+   confirmed against Hexium's own API (`/api/v1/package/` on the Valheim subdomain) rather
+   than by assuming the upload took — it reports `latest 0.7.2`, updated 14:43 UTC, with
+   versions 0.7.2, 0.6.0, 0.5.1. **0.7.0 and 0.7.1 were never published**, so a player
+   upgrading goes 0.6.0 → 0.7.2 in one step and receives the drift lines and the config
+   migration together. The previous live version was 0.6.0; this line said so until the
+   upload, which is the kind of fact that goes stale within hours of being written.
 4. **Dive In, task 5c, on `Wonderland`.** Six steps; step 2 reads which postfix ordering the
    profile actually produced from the `swimSpeed` the log line prints.
 5. **The "without" runs** for 2c and 2d, each a both-sides park (both mods are ServerSync-pinned).
