@@ -995,17 +995,18 @@ and **1.2** (rewritten at 07:53) for the readout below. Drift lines at defaults.
 | 3 rides the water | `nearest streak 8.4m: surface 29.65 (flat 30.00, wave -0.35) | vanilla Floating.GetWaterLevel 29.65 (delta 0.000)`. |
 | 4 handedness | **MEASURED: `90 − bearing`.** With `−bearing` deployed, lines lay at 102° in 191° water (a quarter turn across); with `90 − bearing`, "long ways along the flow so a line instead of an arrow" (owner). `rot 257° for bearing 191°`. `startSize3D.x` is the length axis. A first "90° off" against `90 − bearing` was a confounded reading in the slack node by spawn — see CLAUDE.md Known traps. |
 | 5 sort order | One daylight screenshot: faint foam-white streaks on green water, not blue-tinted, no clipping seen. In the 2.3 m+ ThunderStorm sea nothing was visible at all (row 9), so sort order there is moot — no clipping artefact was seen because no streak was. |
-| 6 night | **SEEN 2026-09-21, AND IT WAS A DEFECT.** `tod 0` on Storm10: `ambient lum 0.38 -> day 1.00` — the input never reads as night. Valheim's midnight ambient is moonlit grey, the floor was 0.05 and saturation 0.35, so the foam drew at full daytime brightness all night for three releases while the harness stayed green against a 0–1 range the sky never uses. Noon under the same sky read 0.56, the same as the 18th. The fog colour, recovered by inverting the printed tint, runs **0.18 → 0.53** midnight → noon against ambient's 0.38 → 0.56 — the lever step 6 pre-planned. **Fixed the same day:** `DayFactor` is fed the fog luminance, floor 0.05 → 0.20, slope unchanged; the four readings are named constants in `DriftLineMath` and the harness's fixture (444 → 447), and the new midnight assertion was proven to fail against the old floor (`0.4333`). `wake lines` now prints `fog lum … -> day … (ambient lum …)`. **Built, not yet seen**: the owner's eye at midnight on the fixed build is owed, and it is the 1.0 ladder's item 4. |
+| 6 night | **SEEN 2026-09-21, AND IT WAS A DEFECT.** `tod 0` on Storm10: `ambient lum 0.38 -> day 1.00` — the input never reads as night. Valheim's midnight ambient is moonlit grey, the floor was 0.05 and saturation 0.35, so the foam drew at full daytime brightness all night for three releases while the harness stayed green against a 0–1 range the sky never uses. Noon under the same sky read 0.56, the same as the 18th. The fog colour, recovered by inverting the printed tint, runs **0.18 → 0.53** midnight → noon against ambient's 0.38 → 0.56 — the lever step 6 pre-planned. **Fixed the same day:** `DayFactor` is fed the fog luminance, floor 0.05 → 0.20, slope unchanged; the four readings are named constants in `DriftLineMath` and the harness's fixture (444 → 447), and the new midnight assertion was proven to fail against the old floor (`0.4333`). `wake lines` now prints `fog lum … -> day … (ambient lum …)`. **SEEN 2026-09-21 on the fixed build, and the eye overruled the numbers** (task 11 item 4): at `tod 0`, `fog lum 0.15 -> day 0.00 (ambient lum 0.37)`, tint `(0.07, 0.07, 0.08)` — "too dim to find". The night level became the per-machine dial `DriftLineNightFloor`, slid live at midnight: 0.35 too dim, 1.0 the accidental look, **0.7 ships**. Fixture 454 by then, 459 at 1.0. |
 | 7 cost | **0.37 ms EMA at 160/160 active** (0.34 last frame, 81 surface reads, 0 field evals — memo 24 cells), budget 0.50. Prior was 0.25. Auto-degrade never fired. The first cost summary after build read 2.66 ms with nothing active — a single-frame EMA seed, fixed the same day (EMA now rises from zero and no verdict is taken for 60 warm-up frames). |
-| 8 zone crossings | `retired: no-volume 0, reflected 1` over a swimming session; no latch. The 1 km sail is still owed. |
+| 8 zone crossings | `retired: no-volume 0, reflected 1` over a swimming session; no latch. ~~The 1 km sail is still owed.~~ **Struck from the 1.0 ladder 2026-09-21:** no README sentence rests on it ("never networked or saved" is by construction), and every session since 2026-09-18 has crossed zones under sail with no exception and no latch. Still worth one deliberate look; task 11 "Owed" carries it. |
 | 9 storm | **SEEN, 08:13–08:19.** RW 0.27.0 on both sides (server un-parked for it; the two ServerSync-pinned mods parked instead, at the owner's direction). `event ragnarokswrath_devastating_storm` from the client console → server `Random event set` and RW `storm began — sky is 'Rain'` at (-2286, 2091) → client `STORM at (-2286, 2091) — IsStormAt(centre)=True, surge x1.6 \| at centre: 0.273 m/s Drift \| 800m away: 0.151 m/s surge x1`. Console, before → under surge (owner's paste): `wake here` 0.173 m/s ESE Drift → **0.265 m/s, `STORM SURGE x1.6 — the sea is up here`**; `wake lines` active 34 → **82**, spawned per 10 s 38 → **73**, mean length 2.4 → **2.8 m**, mean speed 0.21 → 0.30, cost 0.08 → 0.14 ms EMA; nearest-streak delta against vanilla 0.000 both times in a 0.7 m sea. Surge reaches the visual through speed alone, as designed. Chop stayed ~0.21 (the storm's sky was 'Rain', not a big sea). Same paste closed the season check: `season summer (Wrath)` on a pure client. **Then forced to ThunderStorm** (08:21 and 08:28; `StormsForceWeather = true`, `StormForcedEnvironment = ThunderStorm` on both sides, both restarted because RW registers the event's forced sky at boot): **`chop 1.00` for the whole storm** — sea state past 2.3 m, the full chop response — mean length 3.1–3.9 m at 0.23–0.38 m/s water, 50–81 active, cost ≤ 0.21 ms, surge x1.6 again at (-2332, 2101). **And the owner saw NO streaks in it** ("they disappeared, but that's fine in a storm") while the pool held 50–81 active: they existed and were unseen — under the rendered mesh on steep crests (the predicted failure: lift is `0.06 + 0.05 × chop` = 0.11 m at chop 1 against a 2 m+ crest) or lost to the ThunderStorm's rain and fog; the log cannot tell which. Accepted by the owner as storm behaviour and NOT chased. The lever, if it is ever wanted: `ChopLiftMetres` 0.05 → 0.2 first, then a chop-scaled opacity floor. RW's own note applies to that sky: ThunderStorm is a WET environment, so a forced storm rains and its lightning is suppressed — the dry storm look is `Eikthyr`. |
-| 10 gameplay untouched | Boot line `Harmony patched 3` on both sides. `wake drift` on/off comparison still owed. |
+| 10 gameplay untouched | Boot line `Harmony patched 3` on both sides. ~~`wake drift` on/off comparison still owed.~~ **Struck from the 1.0 ladder 2026-09-21:** the README's "changes nothing about how a boat or swimmer moves" holds by construction — `Visuals/` adds no patch and writes no gameplay state — and the drift numbers taken with the lines armed (task 11 items 2 and 3, and the baseline that re-confirmed task 6) match the ones taken before the lines existed. The two-minute on/off comparison is still the honest measurement; task 11 "Owed" carries it. |
 | 11 owner's eye | "a line instead of an arrow" — the design. Opacity at default read as subtle; the owner did not ask for more. |
 
-**Acceptance so far:** steps 1–4, 7 and 9 met, 5 and 8 partial, 6 and 10 owed. The pool saturates
+**Acceptance at 1.0:** steps 1–4, 6, 7 and 9 met, 5 partial, 8 and 10 struck from the ladder (see
+the rows). The pool saturates
 at 0.5 m/s with `MaxCurrentSpeed 1.2` (62% acceptance x 1.45 mean cluster x 16 attempts/s ≈
 15 streaks/s against a 10 s mean life), so in strong water density is the cap rather than the
-speed; whether that is right is a tuning question for after the night reading — the storm reading is in (row 9), and its answer was "invisible", which is a different lever.
+speed; whether that is right is a tuning question 1.0 leaves open — the night reading is in (row 6) and the storm reading is in (row 9), and the storm's answer was "invisible", which is a different lever.
 
 
 ## 8. The config migration — BUILT 2026-09-18 (0.7.1), RUN IN-GAME THE SAME DAY
@@ -1378,7 +1379,8 @@ unobservable on one, because a listen host stands down on `IsServer()` by design
 
 - **A client with a DIFFERENT Undertow version.** The wire is forward-compatible by construction
   (unknown keys are dropped per line, a wrong header refuses the whole payload) and both paths
-  are under test — but no two versions have ever actually met.
+  are under test — and two versions have now met (2026-09-21, above): a `/1` client on a `/2`
+  server refused the payload, logged it once, and sailed its own tuning.
 - **Ordering against other ServerSync-style mods.** Undertow's sync is its own; it does not use
   ServerSync and does not contend with one.
 
@@ -1452,7 +1454,7 @@ is seen; the two originally reported coordinates were not revisited; and whether
 ON the water is the one 0.8.0 change that is built, deployed and unobserved. (c) `wake lines` cost
 at a saturated pool and (d) the inland-lake look are still owed as written above.
 
-## 11. The road to 1.0 — LADDER WRITTEN 2026-09-21
+## 11. The road to 1.0 — LADDER WRITTEN 2026-09-21, CLIMBED THE SAME DAY
 
 Tasks 0–10 are built, and every one has been run in game at least once. So 1.0 is not a feature.
 What it is here: **the point at which every sentence in `README.md` has been watched happen on the
@@ -1714,8 +1716,8 @@ change before the freeze, and the reversal test could never have seen it (the mu
 `flood x −0.0771, ebb x +0.0771`); (4) **version gating is the wire header**: a change to the
 field maths bumps `ConfigWire.Header`, and this one did, `/1 → /2`. A 0.8.0 client on a /2 server
 refuses the payload, logs it, and sails its own tuning — which for that pair is the honest
-outcome, since they would not compute the same coast on the ebb. Harness 454 → 459, both
-mutants caught by exactly the assertion written for them. The locked-decisions table carries
+outcome, since they would not compute the same coast on the ebb. Harness 454 → 459 (commit 339017f's message says 444 → 459; 444 was the count before the
+night-dimming commit), both mutants caught by exactly the assertion written for them. The locked-decisions table carries
 the rule.
 
 **7. The docs pass.** By this rung every ⚠️ in `CLAUDE.md`'s compatibility section has a date or a
@@ -1724,13 +1726,45 @@ reason it stays; the status block loses "NOT YET" lines it no longer needs; task
 watched them; `CHANGELOG.md`'s 1.0 entry says what 1.0 means in one paragraph and lists nothing
 that is not observed. And the CLAUDE.md sentence "Timeline: open-ended. Done when it's done" gets
 its date.
+**DONE 2026-09-21 — and it found two lines staler than the ones it was written to find.** The
+compatibility section: `IsStormAt` had been VERIFIED on 2026-08-28 and again on 2026-09-18 while
+its ⚠️ stood for three weeks (now ✅ with both dates); Dive In stays ⚠️ with the reason beside it.
+The status block: 0.8.0 was not "not yet published" — Hexium's API has listed it since 2026-09-19
+22:35Z, so the version-2 rebase has been on strangers' files for two days; the harness count is
+459; the "five claims" paragraph is now the 1.0 paragraph. Task 7 rows 8 and 10 struck, each with
+the reason it does not gate a README sentence. The README: Tides, Swimmers and Flotsam cite the
+session and its numbers; Boats carries the 1.0.15 karve re-take; "Plays well with" names Njord and
+Sailing as measured; the Install paragraph that told owners to keep every config identical — stale
+since the sync shipped — now says what travels and what stays; the drift-lines paragraph names the
+night dial. `CHANGELOG.md` opens with a `## 1.0.0` paragraph that says what 1.0 means and lists
+only what was watched. "Done when it's done" has its date. **An independent audit ran the same
+afternoon** — four readers over the three documents, every finding handed to a second reader to
+refute, one reviewer over the survivors: 23 raised, 12 confirmed, and two of the twelve wrong on
+inspection (the lift sighting WAS recorded at task 10 (b); the harness count at item 6 was the
+right one). What it added, all of it wording and none of it code: the README no longer promises
+storm wreckage (built, `STORM wreckage` never once in a log — no storm has stood over a spawn), a
+non-admin's refusal line (no non-admin has ever pushed), a 300 m strait measured against a gap
+(that is the harness's two-scale probe), or "not a byte of traffic" (twelve constants travel since
+0.8.0); the longship's 0.96 is marked as the pre-1.0 measurement it is; the two field-maths fixes
+carry "harness only, not yet read on the water" in their own bullets; the changelog's midnight fog
+figure is the code's 0.18, not the later 0.15; and task 7 row 6's tail, its acceptance line, the
+lift "owed" bullet and task 9's "never met" line were all stale in the direction of owing what had
+been done. Version 1.0.0 in all three places; `package.ps1` built the zip; the owner uploads.
+**Three five-minute readings would let three softened sentences go back to full strength, and
+none of them blocks the upload:** a non-admin push refused (task 9 step 8, one `adminlist.txt`
+edit); a `STORM wreckage` spawn line under a console-fired storm at `FlotsamPerHour 60`; and
+`wake field 4786 1003` at ~94% ebb against the pre-fix `0.585 m/s ESE (0.55, −0.19)` — the
+onshore fix moves that point by about 0.15 m/s. **The release number is 1.0.0, not
+0.9.0:** the ladder's 0.9 rung was the two server-side risks, and both closed in the same
+unreleased span as the sightings, so a 0.9 would have shipped nothing the 1.0 does not.
 
 ### Owed, and deliberately not on the ladder
 
 None of these would stop the number going on, and each is written up where it belongs:
 
-- The 2 cm lift, looked at (task 10 (b)). Five minutes, and it is the one 0.8.0 change nobody has
-  seen; do it first, before any session above, since every session above is in the water anyway.
+- ~~The 2 cm lift, looked at (task 10 (b))~~ — closed 2026-09-21: "lying on the water" at the
+  shipped `DriftLineLiftMetres = 0.02`. Still owed there: the two coordinates that first showed the
+  hover, revisited.
 - ~~Two Undertow versions meeting across the wire~~ (closed 2026-09-21, task 9), and the
   non-admin push REFUSED and acknowledged — only the accept leg has been observed (task 9).
 - The slider debounce — four pushes and four broadcasts per drag (task 9).

@@ -27,17 +27,24 @@ same mechanism rather than being placed by hand.
 - **Coastal set** — a stream that follows the shore, with a slight push toward it. This is why
   you don't doze at the tiller with the coast downwind.
 - **Races** — water accelerates between close landmasses. A narrow gap is fast water, in one
-  direction, and a 300m strait counts as much as a gap between rocks.
+  direction, and the constriction is read at two scales, so a wide strait registers as well as a
+  gap between rocks.
 - **Slack and eddies** — where opposing arms meet, the water goes dead. Things collect there.
 
-It is **the same on every machine** without a byte of network traffic: the field is a pure
-function of the world seed, the position, the world clock and the season. Two players a thousand
-metres apart compute the same water and never have to agree about it.
+It is **the same on every machine**, and no water ever crosses the network: the field is a pure
+function of the world seed, the position, the world clock and the season, so two players a
+thousand metres apart compute the same sea without exchanging a byte of it. What they do have to
+agree on is the tuning, and since 0.8.0 the server publishes that (see *On a server*, below).
 
 ### 🌒 Tides
 A slow flood and ebb on a configurable cycle. It swings how hard the open ocean runs and
 **reverses the coastal stream**, so the passage you know is a different passage six hours later.
 Departure time becomes a decision.
+
+Watched through a cycle on Valheim 1.0.15: one coastal point read sixteen times from `wake field`
+as the tide ran — 0.585 m/s ESE at peak ebb, 0.272 m/s S at peak flood, the along-shore stream
+reversing under an open-water drift that never turns, and the peak-flood reading predicted before
+it was taken.
 
 ### ⛈ Storm surge *(with Ragnarok's Wrath)*
 Where a Devastating Storm stands, the water rises — **there and nowhere else**. A sheltered
@@ -48,9 +55,11 @@ Ragnarok's Wrath the bridge logs its absence once and the sea runs regardless.
 The current adds to a hull rather than fighting it: there is no drag term keyed to your speed, so
 the sea never brakes you THROUGH the water. Over the ground is a different matter, and it is
 supposed to be — sail into a tide and it costs you, sail with it and it pays. That is what a
-current is. A boat left drifting settles at **the water's own speed**:
-measured at 0.86 for a karve and 0.96 for a longship against the water's 1.0, which is the point,
-because those two hulls damp very differently. A hull also resists sideways drift more than
+current is. A boat left drifting settles at **the water's own speed**: a karve
+re-measured on Valheim 1.0.15 read 0.99–1.00 against the water's 1.0, with and without Njord and
+Sailing loaded. A karve and a longship measured together before Valheim 1.0 read 0.86 and 0.96 —
+two hulls that damp very differently, both near the water's speed, which is the point; the
+longship has not sailed again since. A hull also resists sideways drift more than
 forward drift, so a current on the beam moves you less than one off the bow — that falls out of
 Valheim's own per-hull physics rather than being imposed, and it differs from hull to hull.
 
@@ -59,31 +68,39 @@ almost to a stop, and a moored longship wandering off while you are away is not 
 
 ### 🪵 Flotsam
 Currents converge, so things gather. Driftwood, cargo and what the drowned no longer need
-collect in slack water — giving you a second reason to know where the sea goes quiet. While a
-storm is overhead, what washes up is wreckage instead.
+collect in slack water — giving you a second reason to know where the sea goes quiet.
 
 Uses **only vanilla items**, never a new prefab. Capped, reclaimed on a timer, and spawned only
-near a real player — an empty ocean stays empty.
+near a real player — an empty ocean stays empty. Watched on a dedicated server on Valheim 1.0.15:
+twelve items spawned to the cap and the cap held; fourteen reclaims each landed at 1801 s against
+an 1800 s timer, including items five kilometres from the only player; the server's whole object
+table moved by exactly one per item; and ten minutes of empty server produced nothing and still
+cleaned up.
 
 ### 🏊 Swimmers
 The current carries a swimming body too, gently. It is **hard-capped below swim speed**: you can
 always out-swim the water and reach shore. That is a safety property rather than a balance dial,
-and it is enforced across every setting the config permits.
+and it is enforced across every setting the config permits. Seen engaged on Valheim 1.0.15: in a
+race running a full metre per second, with the drift factor at the top of its range, the swimmer's
+drift read `0.4 (cap 0.4)` and a swimmer heading upstream made 1.57 m/s over the water — swim
+speed minus the cap, to the second decimal.
 
 ### 🌫 The sea shows its set *(0.7.0)*
 Faint foam streaks lie along the current on the water itself, move at the water's own speed and
-ride the swell — thick in a race, sparse at a trickle, **down to a few faint flecks where the
-sea goes slack**. (Through 0.7 slack water was bare; since 0.8 it keeps a scattering, so an
-empty sea means dead water rather than a feature that is not running. `DriftLineSlackFloor = 0`
-restores the old contrast exactly.) From a drifting hull they hold station alongside; under sail they stream past at the
+ride the swell — thick in a race, sparse at a trickle, and thinning to almost nothing where the
+sea goes slack. (Through 0.7 slack water was bare; since 0.8 the code admits a scattering there — a few
+flecks at most, and easy to miss by eye — so `wake lines` in an empty-looking sea tells dead water
+from a feature that is not running. `DriftLineSlackFloor = 0` restores the old contrast exactly.) From a drifting hull they hold station alongside; under sail they stream past at the
 crab angle, and that angle is the set. Nothing states it: no arrow, no number, no screen element.
 The streaks are symmetric end to end, so a glance gives you the line of the flow and only
 watching gives you the sense — which is how a sailor reads a tide.
 
 Client-side and cosmetic. It changes nothing about how a boat or swimmer moves, is never
 networked or saved, and a dedicated server ignores it. Night, fog, distance and a big sea dim it
-on their own. `EnableDriftLines` turns it off; section `7 - Drift lines` tunes count, radius,
-opacity and a per-frame cost budget the mod enforces on itself.
+on their own; how much of the day the foam keeps at midnight is `DriftLineNightFloor` (0.7
+shipped, set by eye on black water). `EnableDriftLines` turns it off; section `7 - Drift lines`
+tunes count, radius, opacity, the night floor and a per-frame cost budget the mod enforces on
+itself.
 
 ---
 
@@ -95,11 +112,12 @@ on whichever machine owns the hull — a player's — so a server-only install p
 Config appears at `BepInEx/config/com.raveniron.undertow.cfg`. Every system has its own switch;
 every rate, cap and threshold is tunable.
 
-**Keep the config identical on the server and every client.** The field is recomputed
-independently on each machine, so a client with different settings sails a different ocean.
-The one exception is section `7 - Drift lines`, which is per machine by nature: foam is drawn by
-the client that looks at it, so two players on one deck see the same set, density and speed from
-the same field, but not the same individual streaks.
+**You do not have to keep the config identical on every machine.** The field is recomputed
+independently on each one, so two machines with different tuning would sail different oceans —
+which is why the server publishes its gameplay tuning and every client sails by it for the
+session (see *On a server*, below). Section `7 - Drift lines` and the other per-machine keys stay
+yours by nature: foam is drawn by the client that looks at it, so two players on one deck see the
+same set, density and speed from the same field, but not the same individual streaks.
 
 **Your settings survive an update.** When a release changes a default, your file is read before
 anything binds, a copy lands beside it as `.vN.bak` before any value is touched, and only values
@@ -139,8 +157,9 @@ refresh rate, verbose logging, and every flotsam setting. Those are your machine
 not the server's sea.
 
 **Admins can change it live.** If you are an admin, editing a synced value on your client sends
-it to the server, which saves it to its own config and tells everyone. If you are not, your edit
-stays in your file and the log says so plainly rather than quietly doing nothing.
+it to the server, which saves it to its own config and tells everyone. If you are not, the server
+decides — with vanilla's own admin check, not your client's word for it — and your edit stays in
+your own file.
 
 Undertow does not have to be on a client at all — but a client without it computes no current for
 the hulls it owns, because drift is applied by whoever owns the boat.
@@ -151,7 +170,12 @@ the hulls it owns, because drift is applied by whoever owns the boat.
   stand and the season shifts the drift. Optional; absence is logged once and changes nothing else.
 - **Seasonality / Seasons** — never touched. Undertow selects no environment, reads no season
   directly, and modifies no material.
-- **Boat stat mods** should compose: they change the hull, Undertow changes the water.
+- **Njord** (Wubarrk) and **Sailing** (Smoothbrain) — measured together on Valheim 1.0.15: a
+  drifting karve settles at the same speed with them as without, and Njord's per-hull speed cap
+  and the current coexist without a judder. Njord changes the hull's handling, Sailing its
+  propulsion, Undertow the water.
+- **Boat stat mods** in general should compose for the same reason: they change the hull,
+  Undertow changes the water.
 
 ## What it deliberately is not
 

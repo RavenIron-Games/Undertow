@@ -30,7 +30,10 @@ never shipped**, so every existing installation jumps 0.6.0 → 0.7.2 and gets t
 the config migration in the same step. That is the first time the migration runs on a config file
 belonging to somebody who is not the owner, and for 0.7.2 it was the stamp-only path.
 
-**0.8.0 IS BUILT AND RUN IN-GAME (2026-09-19), NOT YET PUBLISHED.** Two changes, both driven by the
+**0.8.0 PUBLISHED 2026-09-19.** Hexium's API lists it at the top of the version list from that
+evening (`date_updated` 22:35Z, re-read 2026-09-21), so the version-2 rebase below has been running
+on strangers' files since. An earlier draft of this line said "NOT YET PUBLISHED" and outlived the
+upload by two days — the same way the `libs\` line further down went wrong. Two changes, both driven by the
 owner standing in the water and reading `wake lines` rather than by reasoning about the code:
 the **config sync** (the server's twelve gameplay dials, adopted in memory by every client, never
 written to their file) and **foam in all moving water** (`DriftLineMinDepth` 10 → 2, and the slack
@@ -38,15 +41,23 @@ cliff replaced by a floor). The second of those moves a shipped default, which i
 `ConfigLedger` was built for and had never done — so **`Rebases[2]` is the first rung this mod has
 ever had, and it has now run on a real config**, taking a verified-identical `.v1.bak` with it. The
 sentence above about "all three tables empty by measurement" was true of 0.7.x and is no longer;
-see the task 8 entry below. Harness **369 → 444**.
+see the task 8 entry below. Harness **369 → 444**, and 459 by 1.0.
 
-**WHAT STANDS BETWEEN 0.8 AND 1.0 IS `docs/BACKLOG.md` TASK 11 (written 2026-09-21).** It is not a
-feature. Tasks 0–10 are built and every one has run in game; what 1.0 means here is that every
-README sentence has been watched happen on the shipping game, and that the config layout becomes a
-promise — after it, every default that moves is a ledger rung on a stranger's file. Five claims
-still rest on the harness or on a measurement two game versions old (flotsam and its ZDO cap, the
-two boat mods on Ravenrest, the drowning guard's clamp, the drift lines at night, the tide's
-coastal reversal), and one tuning decision is cheaper before that line than after.
+**1.0.0 — `docs/BACKLOG.md` TASK 11 WRITTEN AND CLIMBED 2026-09-21, ON STORM10 (Valheim 1.0.15
+both sides).** 1.0 is not a feature. Tasks 0–10 are built and every one has run in game; what 1.0
+means here is that every README sentence has been watched happen on the shipping game, and that the
+config layout is now a promise — from here, every default that moves is a ledger rung on a
+stranger's file. The five claims that had rested on the harness or on a pre-1.0 measurement were
+each watched that day, and task 11 has the numbers: flotsam to its cap with fourteen reclaims on
+the clock and the ZDO table moving by exactly one per item; Njord 2.0.5 and Sailing 1.1.9
+composing (drift 0.99–1.00 with them and without); the drowning guard's clamp engaged in a
+metre-per-second race with headway upstream; the drift lines at night (a defect, fixed, and a
+dial); the tide swinging one coastal point from ESE on the ebb to S on the flood, predicted before
+it was read. The tuning decision was taken ("defaults stay"), two field-maths fixes landed behind a
+wire-header bump, and two Undertow versions were watched meeting across the wire. **Still
+unmeasured, and deliberately off the ladder:** Dive In, the 1 km zone-crossing sail, `wake drift`
+with the lines on and off, and a two-hull re-take on the shipping game. Harness **459**. Built and
+packaged the same day; the owner uploads.
 
 
 **THE ROADMAP IS BUILT.** Tasks 0–5, harness **162/162**, every assertion proven to fail without
@@ -125,7 +136,9 @@ coexisting). Dive In is still analysed rather than measured.
   `RenderSettings.ambientLight` below; fixed the same day, and the fix's first cut was then
   overruled by the eye ("too dim to find") — the night level is now the dial
   `DriftLineNightFloor`, set to 0.7 by the owner at `tod 0` and shipped at that.
-  **Not yet seen:** a long zone-crossing sail, and `wake drift` on/off. `revprobe` binds 0.7.0 clean against 1.0.15.
+  **Still unseen at 1.0, and deliberately off the ladder** (`docs/BACKLOG.md` task 11, "Owed"):
+  a long zone-crossing sail, and `wake drift` on/off — the second holds by construction (no
+  patch, no gameplay write) rather than by measurement. `revprobe` binds 0.7.0 clean against 1.0.15.
   **CORRECTED 2026-09-19: the `libs\` set is the 1.0.15 one, not 1.0.12.** The publicized
   assemblies were refreshed at 11:40 on 2026-09-18 — after the 05:54 game update they are taken
   from, and a few hours after this line was written. A publicized DLL is derived from the game's
@@ -433,7 +446,7 @@ diagnostic bug report in this genre.
 | Console prefix | `wake` (e.g. `wake here`) |
 | GUID / namespace | `com.raveniron.undertow` / `RavenIron.Undertow` |
 | Name | **Undertow.** Norse sea names are crowded — check the existing sailing mods before renaming. |
-| Timeline | Open-ended. Done when it's done. |
+| Timeline | Open-ended. Done when it's done — and it was done **2026-09-21**, the day the last README claim was watched on the shipping game and 1.0.0 was cut. What follows 1.0 is maintenance and ledger rungs, not a roadmap. |
 
 ---
 
@@ -451,8 +464,11 @@ between boots: absent logs the dormant line and sails on; present resolves both 
 reads a real season. `Season` is `Spring = 0 .. Winter = 3` in RW's source, numerically
 identical to `CurrentField`'s ordering, so the cast is a mapping rather than a guess.
 
-⚠️ **One link remains unverified: that `IsStormAt` returns true with a storm overhead.** It
-cannot be checked headless — **RW storms cannot fire on an empty server**, confirmed in RW's
+✅ **`IsStormAt` returns true with a storm overhead — VERIFIED 2026-08-28 on a client
+(`IsStormAt(centre)=True, surge x1.6` against RW's own `storm started at (8101, 368)`, task 3) and
+again 2026-09-18 on Storm10 with RW 0.27.0 (task 7 row 9).** An earlier draft kept a ⚠️ here for
+three weeks after the status block above had recorded the measurement. What stays true is WHY it
+needs a client: it cannot be checked headless — **RW storms cannot fire on an empty server**, confirmed in RW's
 source: the event carries `m_pauseIfNoPlayerInArea = true` and its position is chosen from
 "somewhere a player actually is". See `docs/BACKLOG.md` task 3 for the five-minute protocol.
 
@@ -477,7 +493,11 @@ fight, the answer is a default-off compatibility toggle, never a priority war (h
 hull, Undertow changes the water.
 
 **Dive In (sighsorry)** — the diving mod; 1.2.0 sits in the owner's `Wonderland` Gale profile,
-not on Ravenrest. ⚠️ **EXPECTED TO COMPOSE, NOT YET MEASURED.** Read from its published
+not on Ravenrest. ⚠️ **EXPECTED TO COMPOSE, NOT MEASURED AT 1.0 (2026-09-21) — and it stays a
+⚠️ on purpose:** it is on no server this mod is tested against, the analysis below is from its
+source rather than its DLL, and the one tight case it leaves (an encumbered diver in a storm, 0.3
+m/s of margin) is named so a report can be matched to it. The README does not claim it composes.
+Read from its published
 GPL-3.0 source (<https://github.com/sighsorry1029/DiveIn>, last push 2026-08-08), never from
 its DLL — see `docs/BACKLOG.md` task 5c for the protocol. Its whole contact with us is inside
 `Character.UpdateSwimming`, the method our swimmer postfix decorates: a prefix that steers the
@@ -545,8 +565,9 @@ full but points against the hull's motion, which no magnitude clamp fights. If N
 vanilla's `CustomFixedUpdate` outright (unknown), our postfix still runs, still re-checks
 `IsOwner()`, and still adds force — and the saturation model was built precisely so the
 equilibrium is set by our term rather than by a race with the hull's damping. Njord's damping
-is the first non-vanilla damping that claim has ever met, which makes task 2's `ALONG-RATIO`
-under Njord the single most informative number left to measure. Its forces are propulsion, ours
+is the first non-vanilla damping that claim has ever met, which made task 2's `ALONG-RATIO`
+under Njord the single most informative number this mod had left to measure — taken 2026-09-21,
+above. Its forces are propulsion, ours
 is water; we push at the centre of mass with no torque, so `SteeringMultiplier` is untouched;
 `Wind_AlwaysFull` is a SAIL change, not an `EnvMan` one, and we drive no hull by wind. One
 cosmetic contact: BarrkBOT's export samples helmed hulls above 1 m/s, so a helmed hull drifting

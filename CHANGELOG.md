@@ -1,13 +1,37 @@
 # Changelog
 
-## Unreleased
+## 1.0.0
+
+**What 1.0 means here.** Not a feature. It is the point at which every sentence in the README about
+what the sea does has been watched happen on the shipping game — Valheim 1.0.15, a dedicated server
+and a client — and the point after which the config layout is a promise: from here, any default
+that moves is a migration with a backup beside your file, never a silent change. The last of those
+sightings were taken on 2026-09-21: flotsam spawning to its cap of twelve and then reclaiming
+fourteen times at 1801 s against an 1800 s timer, including items five kilometres from the only
+player, while the server's whole object table moved by exactly one per item; the swimmer's drowning
+guard pinned at its cap in a race running a full metre per second, with 1.58 m/s of headway
+straight upstream; one coastal point read sixteen times through a tide, swinging from 0.585 m/s ESE
+on the ebb to 0.272 m/s S on the flood, the flood reading predicted before it was taken; a karve
+drifting under Njord 2.0.5 and Sailing 1.1.9 at 0.99–1.00 of the water's own speed, against 0.99 in
+the same water with neither; and two Undertow builds meeting across the config wire, the older one
+refusing the server's tuning, saying so once, and sailing its own. The drift lines at night were
+looked at for the first time and turned out to be a defect; it is fixed below. What has **not**
+been watched is said where it stands rather than hidden here: Dive In is read from its source and
+never run; the longship half of the two-hull convergence rests on its pre-1.0 measurement; the
+storm palette for flotsam — wreckage instead of driftwood under a Devastating Storm — is built and
+has never had a storm over a spawn, so the README no longer promises it; a non-admin's config push
+has never been sent, so its refusal has been seen only in the code; and the two field-maths fixes
+below that only the harness has seen say so in their own bullets. 0.7.0 and 0.7.1 never reached the
+store; 0.7.2 did, and 0.8.0 has been on Hexium since 22:35Z on 2026-09-19 — so an install coming
+from 0.8.0 has nothing to migrate, and one coming from 0.7.2 gets 0.8.0's single rebase
+(`DriftLineMinDepth`) with a `.v1.bak` beside its config. Changes since 0.8.0:
 
 - **The drift lines' night dimming works now, and it is a dial.** It was designed in from 0.7.0
   and never engaged: it read Unity's ambient light, and Valheim's midnight ambient is a moonlit
   grey (luminance 0.38, against 0.56 at noon) that never reached the "night" band, so the foam
   drew at full daytime brightness all night through three releases. Found by standing on the
   water with the clock forced to midnight and reading `wake lines`. The dimming now follows the
-  **fog colour**, which runs 0.15 at midnight to 0.53 at noon and also darkens under a storm sky.
+  **fog colour**, which runs 0.18 at midnight to 0.53 at noon and also darkens under a storm sky.
   The first working build went all the way to nothing at midnight, and that was too far — real
   foam is the most visible thing on black water — so how much of the day the foam keeps at full
   night is a new client-side setting, **`DriftLineNightFloor`**, set by eye at midnight and
@@ -21,7 +45,8 @@
   raising it makes the fast places faster and ordinary water no faster at all, but it raised the
   slack line with it, and ordinary water quietly stopped drawing foam (measured: a 2.4 ceiling
   emptied 0.21 m/s water). Slack is 0.144 m/s outright, which is exactly what it was at the
-  shipped ceiling, so nothing changes unless you turn the dial — and now you can. The same speed
+  shipped ceiling, so nothing changes unless you turn the dial — and now you can. The old behaviour was measured on the water; the new definition is pinned
+  both ways in the harness, and nobody has sailed a raised ceiling since. The same speed
   is what `wake here` calls Slack and what the foam thins at; they were one definition before and
   still are.
 
@@ -29,7 +54,10 @@
   the flood. On the ebb it pointed off the shore, because the onshore share was scaled by the
   signed stream rather than its size — fifteen percent of the coastal term, the wrong way, for
   half of every tide, since 0.1.0. Found by reading the line while the tide reversal was being
-  measured on the water; the reversal itself was and is correct. **This changes the water**, so
+  measured on the water; the reversal itself was and is correct. The fix is proven against a
+  mutant (flood x −0.0771, ebb x +0.0771) and not yet read on the water — the reversal run
+  predates it, and at fifteen percent of the coastal term it could not have seen it. **This
+  changes the water**, so
   the config wire is at `undertow-cfg/2`: a client on 0.8.0 or earlier joining a server on this
   version will refuse the server's tuning, sail on its own, and say so in its log — once per
   session, not on every heartbeat, and `wake status` keeps reporting it. Update both ends.
