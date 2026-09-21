@@ -153,6 +153,25 @@ namespace RavenIron.Undertow.Systems
             return false;
         }
 
+        /// <summary>
+        /// The server's whole ZDO table, for the verbose lines. `ZDOMan.NrOfObjects()` is public in
+        /// the shipping assembly and returns `m_objectsByID.Count` — read out of the real
+        /// `assembly_valheim.dll` on 2026-09-21, not inferred from the publicized one. That table is
+        /// the thing the cap and the TTL exist to protect, and until this line nothing in the log
+        /// ever printed it: the 1.0 ladder's acceptance for flotsam is that it stays flat across a
+        /// long run, and an acceptance with no instrument is the failure mode this repo is written
+        /// against. -1 when there is no ZDOMan to ask, so a reading is never silently zero.
+        /// </summary>
+        private static int ZdoTotal()
+        {
+            try
+            {
+                ZDOMan man = ZDOMan.instance;
+                return man != null ? man.NrOfObjects() : -1;
+            }
+            catch { return -1; }
+        }
+
         private static Vector3 RingPoint(Vector3 origin, float min, float max)
         {
             if (max < min) max = min;
@@ -227,7 +246,7 @@ namespace RavenIron.Undertow.Systems
                         $"[{Name}] {prefabName} at ({point.x:0}, {point.z:0}) — " +
                         $"depth {sample.Depth:0.#}m, water {sample.Speed:0.###} m/s {sample.Dominant}" +
                         (stormy ? ", STORM wreckage" : "") +
-                        $" [{_alive.Count}/{ModConfig.FlotsamMaxAlive.Value} alive]");
+                        $" [{_alive.Count}/{ModConfig.FlotsamMaxAlive.Value} alive, {ZdoTotal()} ZDOs]");
             }
             catch (Exception ex)
             {
@@ -261,10 +280,16 @@ namespace RavenIron.Undertow.Systems
                 try { zdo = man.GetZDO(t.Id); }
                 catch { zdo = null; }
 
-                // Gone: somebody picked it up, or the world removed it. Stop counting it.
+                // Gone: somebody picked it up, or the world removed it. Stop counting it — and say
+                // so, because a count that drops with no line beside it reads as a reclaim that
+                // never logged, which is a diagnostic round-trip nobody needs to spend.
                 if (zdo == null || !zdo.IsValid())
                 {
                     _alive.RemoveAt(i);
+                    if (ModConfig.VerboseLogging.Value)
+                        Undertow.Log.LogInfo(
+                            $"[{Name}] {t.Id} gone (picked up, or removed by the world) " +
+                            $"[{_alive.Count}/{ModConfig.FlotsamMaxAlive.Value} alive, {ZdoTotal()} ZDOs]");
                     continue;
                 }
 
@@ -293,6 +318,13 @@ namespace RavenIron.Undertow.Systems
                     }
 
                     _alive.RemoveAt(i);
+
+                    // The reclaim is the half of the safety valve that bounds a long-running
+                    // server, and it used to happen in silence. One line per reclaim, verbose only.
+                    if (ModConfig.VerboseLogging.Value)
+                        Undertow.Log.LogInfo(
+                            $"[{Name}] reclaimed {t.Id} after {now - t.SpawnedAt:0}s " +
+                            $"[{_alive.Count}/{ModConfig.FlotsamMaxAlive.Value} alive, {ZdoTotal()} ZDOs]");
                 }
             }
         }
