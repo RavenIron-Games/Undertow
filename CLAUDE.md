@@ -23,6 +23,13 @@ Design document (the reasoning behind every decision here):
 
 ## Status
 
+**1.0.1 — BUILT, RUN IN GAME AND PACKAGED THE SAME AFTERNOON (2026-09-21), NOT YET UPLOADED.**
+1.0.0's first bug report arrived within hours and was real: a paddled karve stalled in 0.2 m/s
+of water, because the drift push was an acceleration compared against the hull's thrust. A hull
+under way now pays the current as drag relative to the water (costs exactly the water's speed,
+never more), a hull adrift keeps the push, and `UnderWayDragFactor` is a thirteenth synced dial.
+`docs/BACKLOG.md` task 12 and the Known trap below have the numbers; harness **480**.
+
 **PUBLISHED — 1.0.0 IS LIVE ON HEXIUM (2026-09-21, 19:32Z).**
 <https://valheim.hexium.gg/mods/RavenIronStudios/Undertow>. Confirmed through Hexium's API rather
 than assumed: `latest 1.0.0`, and the version list reads 1.0.0, 0.8.0, 0.7.2, 0.6.0, 0.5.1 —
@@ -442,7 +449,7 @@ diagnostic bug report in this genre.
 | Unattended boat drift | **Default OFF.** Vanilla already damps an empty hull's horizontal velocity to a tenth per tick; that is a stated intent we honour. Losing a moored longship to a mod is a one-star review. |
 | Rivers and lakes | **Ocean only for v1.** Narrow water plus a sideways force pins players against terrain. |
 | Persistence | **None.** `CurrentField` is a pure function of seed, position, world time and season, so it needs no save file and no sync of its STATE. Anything that makes the sea *remember* breaks that; RW already owns "the world remembers". The config sync below is not an exception — read the row. |
-| Config sync | **The server's gameplay tuning wins, in memory, since the config sync (owner's call, 2026-09-19: "Server wins, and admins can push").** This does NOT weaken the row above: no field state is ever sent, nothing is saved, and nothing travels per tick. What travels is the twelve CONSTANTS both ends feed into the same pure function, because the "everyone computes the same water" argument silently fails when two machines hold different tuning — and fails invisibly, since nothing desyncs. A client's config FILE is never written, backed up or migrated by this; overrides live in memory for the session and are clamped to the local build's own range. Per-machine keys (drift lines, tick budget, refresh cadence, verbose logging, flotsam) never travel — a server owner must not be able to reach into a player's frame rate. An admin's client may push one value up; the server applies it to its own file and re-publishes. |
+| Config sync | **The server's gameplay tuning wins, in memory, since the config sync (owner's call, 2026-09-19: "Server wins, and admins can push").** This does NOT weaken the row above: no field state is ever sent, nothing is saved, and nothing travels per tick. What travels is the thirteen CONSTANTS (twelve at 0.8.0; `UnderWayDragFactor` joined in 1.0.1, a key joining being a per-line matter and not a header one) both ends feed into the same pure function, because the "everyone computes the same water" argument silently fails when two machines hold different tuning — and fails invisibly, since nothing desyncs. A client's config FILE is never written, backed up or migrated by this; overrides live in memory for the session and are clamped to the local build's own range. Per-machine keys (drift lines, tick budget, refresh cadence, verbose logging, flotsam) never travel — a server owner must not be able to reach into a player's frame rate. An admin's client may push one value up; the server applies it to its own file and re-publishes. |
 | Field maths after 1.0 | **A change to the water's maths bumps the wire header (owner's call, 2026-09-21: "defaults stay, do the two fixes").** `ConfigWire.Header` is the one thing both ends compare before trusting each other's sea; the sync's argument is "same constants into the same pure function", and a build whose function differs must refuse the other's constants rather than adopt them and believe it agrees. Per-line key tolerance handles keys joining or leaving; the header handles the function itself. First use: `/1 → /2` for the onshore fix. The tuning DEFAULTS stay at the design target (strongest water ≈ 15–25% of half-sail speed); "real" tidal races are a server owner's dial through the synced ceiling and multiplier, and slack being absolute is what makes that dial safe to turn. |
 | Ragnarok's Wrath | **Read-only, soft, one direction.** Reflected reads when present, fully dormant when absent, never a write back. |
 | Moder's wind control | **No exemption from current.** "Moder gives you the wind, not the sea" — a limit on the power without a nerf to it. |
@@ -774,6 +781,29 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   is the only place `m_localPlayer` is null. **Instrument note:** Unity logs exceptions under the
   `Unity Log` source, so a monitor that filters `Unity Log` out to quiet the chatter hides every
   exception with it — that is why nobody saw these until the owner pasted the log.
+
+- **THE DRIFT PUSH WAS AN ACCELERATION COMPARED AGAINST THE HULL'S THRUST, AND 1.0.0 SHIPPED
+  WITH IT: a paddled karve stalled in 0.2 m/s of water.** Reported the afternoon 1.0.0 went live
+  (2026-09-21, Grishak: below `MaxCurrentSpeed 0.25` he could paddle through anything, at 0.3 the
+  water held him or pushed him back). Vanilla's thrust, read out of the PREFABS with the new
+  `Hulls` boot line — the class defaults in a decompile are overridden by every hull: karve and
+  longship `m_backwardForce 0.2` = 0.004 m/s per tick, raft 0.5, and the Rigidbody's linear drag
+  is ZERO on every hull, so the only resistance is `m_dampingForward × v|v| × submergence`
+  (0.001 for a karve; submergence read `0.38–0.46` on a live sea, twice the 0.196 that gravity
+  against `m_force` predicts at rest). The push against a hull driving upstream was
+  `water × DriftStrength × dt` = 0.004 per tick at 0.2 m/s of water — break-even to the decimal
+  he found. **Fixed in 1.0.1 with two regimes decided by the ship's own speed setting**
+  (`___m_speed`, private, injected): adrift keeps the saturating push every drift measurement was
+  taken on; under way gets drag relative to the water, `−d·sub·[(v−w)|v−w| − v|v|]` per hull
+  axis, which is the exact correction to vanilla's absolute-velocity damping and costs exactly
+  the water's speed over the ground. Submergence is rebuilt from vanilla's own five water samples
+  (`m_floatCollider`, `m_waterLevelOffset`, `m_disableLevel`, `m_forceDistance`,
+  `Floating.GetWaterLevel(Vector3, ref WaterVolume)` — all public). The lesson is a blind spot,
+  not a bug in the arithmetic: every hull measurement before 1.0 was DRIFTING, which the push
+  models well, or under Njord and Sailing, whose thrust is many times vanilla's — so the one
+  regime a vanilla paddler lives in was never watched, and the README's "sail into a tide and it
+  costs you" was read as a promise about speed when the model delivered a force. The harness now
+  paddles a karve tick by tick and pins the 1.0.0 number as the defect.
 
 - **`Ship.CustomFixedUpdate`'s owner check is INSIDE the method.**
   `if ((bool)m_nview && !m_nview.IsOwner()) return;` guards only the lines below it. **A

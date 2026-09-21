@@ -106,6 +106,7 @@ namespace RavenIron.Undertow.Core
             MaybeReportField();
             MaybeReportStorm();
             MaybeReportFloats();
+            HullReport.MaybeLog();
 
             if (!Undertow.IsSimulationAuthority()) return;
             if (_systems.Count == 0) return;

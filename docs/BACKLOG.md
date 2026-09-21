@@ -1801,6 +1801,82 @@ None of these would stop the number going on, and each is written up where it be
   under that source, so the monitor said "no exceptions" for the whole day. Grep for `Exception`
   before filtering sources, never after.
 
+## 12. The paddle report — 1.0.0's first bug, FOUND, FIXED AND WATCHED THE SAME AFTERNOON (2026-09-21)
+
+**The report**, within hours of 1.0.0 going up, from Grishak on Discord: "it shouldn't require me
+to increase paddle force by a factor of 5 to fight that", then, with a karve: "as long as I set
+the current speed maximum to 0.25 I can paddle through anything. At 0.3 it will hold me in place
+or start pushing me backward. Heading directly into the drift lines." He had worked around it
+since 0.5.1 with a ShipConfig mod. The owner's own `wake here` at the spot read 0.182 m/s toward
+ENE in shallows — a leaf's worth of water — which is what said "model, not tuning" before any
+number was read.
+
+**The instrument that was missing, and is now permanent.** A hull's thrust and damping are
+serialized PREFAB fields; the class defaults a decompile shows apply to no boat (task 2 learned
+this about `m_dampingForward` and the lesson had not been generalised). `Core/HullReport.cs` logs
+one INFO line at boot on every role: for each `Ship` prefab in `ZNetScene`, `m_backwardForce`,
+`m_sailForceFactor`, the three dampings, `m_force`, `m_forceDistance`, `m_stearForce`, mass, and
+the Rigidbody's linear and angular damping. Read on Storm10 the same hour:
+
+| hull | backwardForce | sailForceFactor | dampingForward | dampingSideway | force | mass | Rigidbody drag |
+|---|---|---|---|---|---|---|---|
+| Karve | 0.2 | 0.03 | 0.001 | 0.15 | 1 | 1000 | **0** |
+| Raft | 0.5 | 0.05 | 0.005 | 0.10 | 0.5 | 1000 | **0** |
+| VikingShip | 0.2 | 0.05 | 0.001 | 0.15 | 1 | 2000 | **0** |
+| Trailership | 0.5 | 0 | 0.005 | 0.05 | 0.5 | 1000 | **0** |
+
+**The arithmetic.** Vanilla's paddle adds `m_backwardForce × dt` of speed per tick: 0.004 for a
+karve. 1.0.0's push against a hull driving upstream was `water × DriftStrength × dt`: 0.004 at
+0.2 m/s of water. Break-even at 0.2 m/s, to the decimal he found; a fivefold paddle beats a
+0.2 m/s push five to one. The push was an ACCELERATION compared against the hull's THRUST, so
+whether a current stopped a boat depended on the boat's engine and not on the water. Every hull
+measurement before 1.0 was a drifting hull (the push handles that well) or a hull under Njord and
+Sailing (whose thrust is many times vanilla's): the one regime a vanilla paddler lives in was
+never watched, and the README's "sail into a tide and it costs you" was read as a promise about
+speed when the model delivered a force.
+
+**What a current costs is a speed.** Drag acts on velocity relative to the water: a hull that
+makes v0 through still water makes v0 − w over the ground going into it and v0 + w with it,
+whatever its thrust. Vanilla's damping is `−d × v|v| × submergence` per hull axis on the ABSOLUTE
+velocity, and the Rigidbody has no linear drag, so that quadratic term is the hull's whole
+resistance and the exact correction is `−d × sub × [(v − w)|v − w| − v|v|]` per axis. That is
+`DriftForce.ComputeUnderWay` (pure). The regime is decided by the ship's own speed setting
+(`___m_speed`, private, injected): Stop → adrift → the saturating push, unchanged; anything else
+→ under way → the correction. Submergence is rebuilt from vanilla's five water samples
+(`m_floatCollider`, `m_waterLevelOffset`, `m_disableLevel`, `m_forceDistance`,
+`Floating.GetWaterLevel(Vector3, ref WaterVolume)`, all public).
+
+**Watched, same afternoon, Storm10 with Njord and Sailing parked at the owner's direction.**
+Verbose drift lines from a paddled karve, zero exceptions: `sub 0.38–0.46` (twice the 0.196 that
+gravity against `m_force` predicts at rest — the sea is never flat; the harness now uses 0.4);
+running WITH a 0.44 m/s current `along 3.3–3.5, mode underway` (3.16 through the water + the
+current, as the model says); then bow into it: `water 0.312 along −0.349 … 0.282 along −0.973 …
+0.25 along −1.518 … 0.179 along −1.707 … 0.212 along −1.447` — **1.5–1.9 m/s of headway straight
+into 0.25–0.31 m/s of water, where 1.0.0 stalled** (the rudder was on for some of it, and the
+paddle is `× (1 − |rudder|)`). Paddle stopped: `mode adrift`, `ALONG-RATIO 0 → 0.6 → 0.75 → 0.97`
+over six seconds, the water taking the hull. The owner: "im making headway now".
+
+**Harness 459 → 480.** `DriftUnderWayTests` checks the pure function (still water, exact
+cancellation at the water's velocity, the upstream cost, the downstream gain, the beam axis, the
+strength scaling, the ±1 clamp, submergence 0) and then paddles a karve and a raft tick by tick
+under vanilla's damping model: still-water speed as the prefab numbers predict (3.16 m/s at
+sub 0.4), headway into 0.182 and into 1.2 m/s of water exactly the water's speed slower, and
+exactly faster with it; and the shipped 1.0.0 push in the same simulation leaves the karve at
+0.95 m/s in Grishak's water and going backward in a race — the proof-of-failure lives in the
+harness permanently rather than in a revert.
+
+**The dial (owner's ask: "can we make this value adjustable?").** `UnderWayDragFactor`, synced,
+default 1 = the water's own drag, 0 = a hull under way ignores the current, range 0–3.
+`DriftStrength` governs adrift hulls only now. Thirteen keys on the wire; a key joining is
+per-line tolerance, not a header bump, so `undertow-cfg/2` stands.
+
+**Owed.** A raft and a longship paddled into the same water (the karve is the only hull read);
+sailing into and with a race at speed under vanilla sail, where the sideways term is largest
+(one line read `dv 0.015` while the karve was skidding through a turn across the current — the
+water resisting sideways slip, which is right, but nobody has felt it under sail yet); the dial at
+0 and at 2, watched; and Grishak's own confirmation on his server with his ShipConfig workaround
+removed.
+
 ## 5z. Original task 5 specification (its AddPushbackForce advice was WRONG - see above)
 
 Last, deliberately: the highest-annoyance surface in the mod, and it wants the most tuning

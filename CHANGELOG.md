@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.0.1
+
+- **A hull under way now pays the current as a speed, not a force — 1.0.0 stopped a paddled karve
+  in 0.2 m/s of water.** Reported within hours of 1.0.0 going up (Grishak: below a
+  `MaxCurrentSpeed` of 0.25 he could paddle through anything; at 0.3 the water held him or pushed
+  him back). Read out of the game's own hull prefabs the same hour: a karve's paddle is 0.004 m/s
+  of speed per physics tick, and the push this mod applied against a hull driving upstream was the
+  water's speed × 0.02 per tick — the same 0.004 at 0.2 m/s of water. The push was an
+  acceleration measured against the hull's engine, and vanilla's engines are tiny, so whether a
+  current stopped a boat depended on the boat and not on the water. Every measurement before 1.0
+  had been a drifting hull, which the push models well, or a hull under Njord and Sailing, whose
+  thrust is many times vanilla's.
+
+  Now the ship's own speed setting decides. A hull with paddle or sail set feels the current as
+  drag relative to the water — the exact correction to vanilla's own damping, which acts on
+  absolute speed — so going into a current costs exactly the water's speed over the ground, going
+  with it pays exactly that, and speed through the water is untouched. A hull adrift keeps the
+  carrying push every drift measurement was taken on, so nothing about drifting changed. Watched
+  the same afternoon on a paddled karve, verbose: 1.5–1.9 m/s of headway straight into
+  0.25–0.31 m/s of water, where 1.0.0 stalled; 3.0–3.5 m/s along a 0.44 m/s current running with
+  it; `mode adrift` and the water taking the hull the moment the paddle stopped; zero exceptions.
+  The harness paddles a karve and a raft tick by tick and pins both the fix and the 1.0.0 number
+  as the defect it was.
+
+- **`UnderWayDragFactor`, a new synced dial.** How much of the water's own drag a hull under way
+  pays: 1 is the physics above, 0 lets a boat under way ignore the current entirely (it is still
+  carried when adrift), 2 grips twice as hard. `DriftStrength` now governs only how quickly a
+  drifting hull is carried. Thirteen dials travel from the server instead of twelve; an older
+  client drops the line it does not know, so the wire header did not move.
+
+- **A boot line names every hull's real constants.** `Hulls (vanilla prefab constants; …)`:
+  paddle force, sail factor, the three dampings, buoyancy, mass, and the Rigidbody's own drag
+  (zero, on every hull) — because the class defaults a decompile shows are overridden by every
+  prefab, and the diagnosis above needed numbers nobody had. INFO, once per boot, both roles.
+
 ## 1.0.0
 
 **What 1.0 means here.** Not a feature. It is the point at which every sentence in the README about

@@ -81,6 +81,9 @@ namespace RavenIron.Undertow.Core
             // without this one crew's longship answers the sea differently from another's.
             "2 - Systems" + SectionSeparator + "EnableDrift",
             "4 - Drift" + SectionSeparator + "DriftStrength",
+            // Joined 1.0.1 (the under-way regime). A key joining is a per-line matter — an older
+            // client drops the line it does not know — so the header did not move for it.
+            "4 - Drift" + SectionSeparator + "UnderWayDragFactor",
             "4 - Drift" + SectionSeparator + "UnattendedDriftFactor",
 
             // The same argument for a body in the water.

@@ -52,10 +52,11 @@ passage stops being sheltered while the storm sits over it. Entirely optional: w
 Ragnarok's Wrath the bridge logs its absence once and the sea runs regardless.
 
 ### ⛵ Boats are carried, never braked
-The current adds to a hull rather than fighting it: there is no drag term keyed to your speed, so
-the sea never brakes you THROUGH the water. Over the ground is a different matter, and it is
-supposed to be — sail into a tide and it costs you, sail with it and it pays. That is what a
-current is. A boat left drifting settles at **the water's own speed**: a karve
+A hull under way — paddle or sail set — feels the current as drag relative to the water, which is
+what a current is: going into it costs you exactly the water's speed over the ground, going with
+it pays exactly that, whatever your hull, and your speed THROUGH the water is never touched.
+(Through 1.0.0 the current was a constant push against any hull driving upstream, which stopped a
+paddled karve in 0.2 m/s of water; 1.0.1 fixed it.) A boat left drifting settles at **the water's own speed**: a karve
 re-measured on Valheim 1.0.15 read 0.99–1.00 against the water's 1.0, with and without Njord and
 Sailing loaded. A karve and a longship measured together before Valheim 1.0 read 0.86 and 0.96 —
 two hulls that damp very differently, both near the water's speed, which is the point; the
@@ -146,7 +147,7 @@ without a byte of traffic — as long as they agree about the *tuning*. If a ser
 `MaxCurrentSpeed` and you did not, you and your crewmate were quietly sailing different oceans:
 nothing desyncs, nothing errors, and nobody can tell.
 
-So the server publishes its twelve gameplay dials — the five that shape the field, the Ragnarok's
+So the server publishes its thirteen gameplay dials — the five that shape the field, the Ragnarok's
 Wrath switch, and the drift and swimmer settings — and your client sails by those **for that
 session only**. Your config file is never written to. Leave the server and your own settings are
 exactly where you left them. Values arriving from a server are clamped to the range your build

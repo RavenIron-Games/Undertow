@@ -133,5 +133,77 @@ namespace RavenIron.Undertow.Core
             dvx = waterX * k;
             dvz = waterZ * k;
         }
+
+        /// <summary>
+        /// What the current does to a hull UNDER WAY — paddle or sail set. Pure, in the hull's
+        /// own axes (forward, right), the axes vanilla damps along.
+        ///
+        /// THE PUSH ABOVE IS WRONG FOR A HULL UNDER PROPULSION, AND 1.0.0 SHIPPED WITH IT.
+        /// Reported the day 1.0.0 went up (2026-09-21, Grishak, a paddled karve): below a
+        /// `MaxCurrentSpeed` of 0.25 he could paddle through anything; at 0.3 the water held him
+        /// or pushed him backward. Read out of the prefabs with <c>HullReport</c> the same hour:
+        /// a karve's paddle is `m_backwardForce 0.2`, i.e. 0.004 m/s of speed per tick, and the
+        /// push above against a hull driving upstream is `water × strength × dt` = 0.004 per
+        /// tick at 0.2 m/s of water. Break-even at 0.2 m/s, to the decimal he found. The push is
+        /// an ACCELERATION compared against the hull's THRUST, so whether a current stops a boat
+        /// depended on the boat's engine and not on the water — a leaf's worth of current
+        /// stopped a karve, and a fivefold paddle beat a race. Nobody had seen it because every
+        /// hull measurement was either drifting, which the push handles well, or under Njord and
+        /// Sailing, whose thrust is many times vanilla's.
+        ///
+        /// WHAT A CURRENT ACTUALLY COSTS is a SPEED: drag acts on velocity relative to the water,
+        /// so a hull that makes v0 through still water makes v0 − w over the ground upstream and
+        /// v0 + w downstream, whatever its thrust. Vanilla's damping is quadratic in the hull's
+        /// ABSOLUTE velocity, per axis, scaled by how deep the hull sits:
+        /// `dv = −d × v|v| × submergence` with `d = m_dampingForward` / `m_dampingSideway`. The
+        /// exact correction that turns it into drag relative to the water is the difference
+        /// `−d × sub × [(v − w)|v − w| − v|v|]` per axis — which is what this returns. Every
+        /// hull's Rigidbody has ZERO linear drag (read the same day), so this quadratic term IS
+        /// the hull's whole resistance and the correction is complete, not approximate.
+        ///
+        /// Worked for a karve (d 0.001, submergence ≈ 0.2 at rest, paddle 0.004/tick): still
+        /// water 4.47 m/s; into 0.182 m/s of water 4.29; into a 1.2 m/s race 3.27, and 5.67
+        /// with it. Under the push above the same karve made 1.34 m/s into 0.182 and went
+        /// backward in the race. The harness simulates exactly this and pins both numbers.
+        ///
+        /// WHY THE PUSH STAYS FOR A HULL ADRIFT. Vanilla's drag is so small that the true
+        /// relative-drag coupling would take a free hull minutes to carry; the saturating push
+        /// carries it in seconds, was measured at 0.99 of the water's speed on three hulls, and
+        /// is the behaviour the owner watched and kept. So: adrift → the push; under way → this.
+        /// The caller decides from the ship's speed setting, which is exactly "is anything
+        /// propelling it".
+        ///
+        /// `strength` scales this the way it scales the push — 1 is the water's own drag; a
+        /// server can make the sea grip harder, never differently. Each axis is clamped to
+        /// ±1 m/s per tick, as vanilla clamps its own damping.
+        /// </summary>
+        public static void ComputeUnderWay(
+            float waterForward, float waterRight,
+            float hullForward, float hullRight,
+            float dampingForward, float dampingSideway,
+            float submergence,
+            float strength, float crewFactor, float edgeFade,
+            out float dvForward, out float dvRight)
+        {
+            dvForward = 0f;
+            dvRight = 0f;
+            if (submergence <= 0f) return;
+            if (waterForward == 0f && waterRight == 0f) return;
+
+            float dF = dampingForward * submergence;
+            float dS = dampingSideway * submergence;
+
+            dvForward = -dF * (Signed2(hullForward - waterForward) - Signed2(hullForward));
+            dvRight   = -dS * (Signed2(hullRight - waterRight)     - Signed2(hullRight));
+
+            float scale = strength * crewFactor * edgeFade;
+            dvForward = Clamp1(dvForward * scale);
+            dvRight   = Clamp1(dvRight * scale);
+        }
+
+        /// <summary>x·|x| — the signed square vanilla's damping is built on.</summary>
+        private static float Signed2(float x) => x < 0f ? -(x * x) : x * x;
+
+        private static float Clamp1(float x) => x > 1f ? 1f : (x < -1f ? -1f : x);
     }
 }

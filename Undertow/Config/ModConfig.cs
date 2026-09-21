@@ -49,6 +49,7 @@ namespace RavenIron.Undertow.Config
         // ---- Drift (task 2) --------------------------------------------------------------
         public static ConfigEntry<float> DriftStrength;
         public static ConfigEntry<float> UnattendedDriftFactor;
+        public static ConfigEntry<float> UnderWayDragFactor;
         public static ConfigEntry<float> FieldRefreshSeconds;
 
         // ---- Flotsam (task 4) ------------------------------------------------------------
@@ -193,8 +194,20 @@ namespace RavenIron.Undertow.Config
                     "fades out as the boat catches up. So the number `wake here` prints is the " +
                     "speed you will actually drift, on any hull — a raft, a karve and a longship " +
                     "all agree. Raise it for a sea that grabs a boat the moment it stops rowing; " +
-                    "lower it for a hull that takes its time.",
+                    "lower it for a hull that takes its time. Since 1.0.1 this governs a hull " +
+                    "ADRIFT only; what the current costs a hull under way is UnderWayDragFactor.",
                     new AcceptableValueRange<float>(0.05f, 4f)));
+
+            UnderWayDragFactor = cfg.Bind(drift, "UnderWayDragFactor", 1.0f,
+                new ConfigDescription(
+                    "How much of the current a hull UNDER WAY - paddle or sail set - pays, as a " +
+                    "share of the water's own drag. At 1 the current costs you exactly the " +
+                    "water's speed over the ground going into it and pays exactly that going " +
+                    "with it, whatever the hull, and never touches your speed through the water. " +
+                    "0 makes a boat under way ignore the current entirely (it is still carried " +
+                    "when adrift - that is DriftStrength); 2 makes the sea grip twice as hard. " +
+                    "Synced from the server, like the rest of the sea's tuning.",
+                    new AcceptableValueRange<float>(0f, 3f)));
 
             UnattendedDriftFactor = cfg.Bind(drift, "UnattendedDriftFactor", 0f,
                 new ConfigDescription(

@@ -175,6 +175,7 @@ namespace RavenIron.Undertow.Net
             Add(ModConfig.EnableWrathBridge);
             Add(ModConfig.EnableDrift);
             Add(ModConfig.DriftStrength);
+            Add(ModConfig.UnderWayDragFactor);
             Add(ModConfig.UnattendedDriftFactor);
             Add(ModConfig.EnableSwimmers);
             Add(ModConfig.SwimmerDriftFactor);

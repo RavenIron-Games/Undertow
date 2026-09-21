@@ -38,6 +38,7 @@ namespace Undertow.Tests
             ConfigWireTests();
             CurrentFieldTests();
             DriftForceTests();
+            DriftUnderWayTests();
             FlotsamMathTests();
             SwimDriftTests();
             DriftLineMathTests();
@@ -357,6 +358,130 @@ namespace Undertow.Tests
                 if (float.IsNaN(p.Speed)) { Check(false, $"season index {season} produced NaN"); break; }
             }
             Check(true, "out-of-range season indices wrap instead of throwing");
+        }
+
+        /// <summary>
+        /// One tick of vanilla's hull physics along one axis, as read out of the real
+        /// Ship.CustomFixedUpdate on 2026-09-21: thrust in, quadratic damping scaled by
+        /// submergence out (clamped to ±1 m/s per tick), then whatever the mod adds.
+        /// </summary>
+        private static float TickHull(float v, float thrustPerTick, float damping, float submergence, float modDv)
+        {
+            v += thrustPerTick;
+            float d = v * Math.Abs(v) * damping * submergence;
+            if (d > 1f) d = 1f; else if (d < -1f) d = -1f;
+            v -= d;
+            v += modDv;
+            return v;
+        }
+
+        /// <summary>Settled ground speed of a propelled hull under the UNDER-WAY correction.</summary>
+        private static float SettleUnderWay(float thrust, float damping, float sub, float waterForward)
+        {
+            float v = 0f;
+            for (int i = 0; i < 6000; i++)
+            {
+                DriftForce.ComputeUnderWay(waterForward, 0f, v, 0f, damping, 0.15f, sub, 1f, 1f, 1f,
+                    out float dvF, out _);
+                v = TickHull(v, thrust, damping, sub, dvF);
+            }
+            return v;
+        }
+
+        /// <summary>The same hull under the shipped 1.0.0 push — the model that stopped Grishak's karve.</summary>
+        private static float SettleUnderPush(float thrust, float damping, float sub, float waterForward)
+        {
+            float v = 0f;
+            for (int i = 0; i < 6000; i++)
+            {
+                // Water along +x is waterForward; the hull's along-current component is v when the
+                // water runs with it and −v when it runs against it.
+                float waterSpeed = Math.Abs(waterForward);
+                float along = waterForward >= 0f ? v : -v;
+                DriftForce.Compute(waterSpeed, 0f, along, 1f, 0.02f, 1f, 1f, out float dvx, out _);
+                float modDv = waterForward >= 0f ? dvx : -dvx;
+                v = TickHull(v, thrust, damping, sub, modDv);
+            }
+            return v;
+        }
+
+        private static void DriftUnderWayTests()
+        {
+            Section("DriftForce — under way");
+
+            // Prefab constants read out of the game with HullReport, 2026-09-21. Submergence at
+            // rest would be gravity against buoyancy, g·dt / m_force = 0.196 for a karve; on a
+            // live sea the verbose drift line read `sub 0.38–0.46` for a paddled karve the same
+            // afternoon, so the karve uses the MEASURED 0.4 and the raft its rest estimate.
+            const float karveThrust = 0.2f * 0.02f, karveDampF = 0.001f, karveSub = 0.4f;
+            const float raftThrust  = 0.5f * 0.02f, raftDampF  = 0.005f, raftSub  = 0.392f;
+
+            // ---- the pure function -------------------------------------------------------------
+            DriftForce.ComputeUnderWay(0f, 0f, 3f, 0f, karveDampF, 0.15f, karveSub, 1f, 1f, 1f, out float f, out float r);
+            Check(f == 0f && r == 0f, "under way, still water changes nothing");
+
+            // At the water's own velocity the TOTAL drag must vanish: vanilla still charges
+            // −d·sub·w|w| against the absolute velocity, so the correction is exactly +d·sub·w|w|.
+            DriftForce.ComputeUnderWay(1.2f, 0.3f, 1.2f, 0.3f, karveDampF, 0.15f, karveSub, 1f, 1f, 1f, out f, out r);
+            Check(Math.Abs(f - karveDampF * karveSub * 1.44f) < 1e-6f && Math.Abs(r - 0.15f * karveSub * 0.09f) < 1e-6f,
+                "a hull moving exactly with the water pays no net drag: the correction cancels vanilla's, per axis");
+
+            DriftForce.ComputeUnderWay(1f, 0f, 0f, 0f, karveDampF, 0.15f, karveSub, 1f, 1f, 1f, out f, out r);
+            Check(Math.Abs(f - karveDampF * karveSub) < 1e-7f && r == 0f,
+                $"a propelled hull at rest is nudged along the water by d·sub·w² ({Fmt(f)})");
+
+            DriftForce.ComputeUnderWay(-1.2f, 0f, 4f, 0f, karveDampF, 0.15f, karveSub, 1f, 1f, 1f, out f, out r);
+            float expectUp = -karveDampF * karveSub * (5.2f * 5.2f - 16f);
+            Check(Math.Abs(f - expectUp) < 1e-6f && f < 0f,
+                $"driving upstream costs exactly the extra drag of moving through the water ({Fmt(f)})");
+
+            DriftForce.ComputeUnderWay(1.2f, 0f, 8f, 0f, karveDampF, 0.15f, karveSub, 1f, 1f, 1f, out f, out r);
+            Check(f > 0f && Math.Abs(f - karveDampF * karveSub * (64f - 6.8f * 6.8f)) < 1e-6f,
+                "sailing with the water is helped by exactly the drag it no longer pays");
+
+            DriftForce.ComputeUnderWay(0f, 1f, 0f, 0f, karveDampF, 0.15f, karveSub, 1f, 1f, 1f, out f, out r);
+            Check(f == 0f && Math.Abs(r - 0.15f * karveSub) < 1e-7f, "the beam axis uses the sideways damping");
+
+            DriftForce.ComputeUnderWay(-1.2f, 0f, 4f, 0f, karveDampF, 0.15f, karveSub, 2f, 1f, 1f, out float twice, out _);
+            Check(Math.Abs(twice - 2f * expectUp) < 1e-6f, "DriftStrength scales the under-way cost linearly");
+
+            DriftForce.ComputeUnderWay(-1.2f, 0f, 4f, 0f, karveDampF, 0.15f, 0f, 1f, 1f, 1f, out f, out r);
+            Check(f == 0f && r == 0f, "a hull out of the water (submergence 0) feels nothing");
+
+            DriftForce.ComputeUnderWay(-100f, 100f, 100f, -100f, 1f, 1f, 1f, 1f, 1f, 1f, out f, out r);
+            Check(Math.Abs(f) <= 1f && Math.Abs(r) <= 1f, "each axis is clamped to ±1 m/s per tick, as vanilla clamps its own damping");
+
+            // ---- THE GRISHAK TEST: a paddled karve, tick by tick ----------------------------------
+            float v0 = SettleUnderWay(karveThrust, karveDampF, karveSub, 0f);
+            // sqrt(thrust / (d·sub)) = sqrt(0.004 / 0.0004). In game the same karve read
+            // 3.0–3.5 m/s along a 0.44 m/s current it was running with — 3.16 + 0.44.
+            Check(Math.Abs(v0 - 3.162f) < 0.05f,
+                $"the simulated karve paddles at the speed the prefab numbers predict in still water ({Fmt(v0)} m/s)");
+
+            float vUp = SettleUnderWay(karveThrust, karveDampF, karveSub, -0.182f);
+            Check(Math.Abs((v0 - vUp) - 0.182f) < 0.02f,
+                $"into 0.182 m/s of water a paddled karve loses 0.182 m/s over the ground and no more ({Fmt(vUp)})");
+
+            float vRace = SettleUnderWay(karveThrust, karveDampF, karveSub, -1.2f);
+            Check(vRace > 0f && Math.Abs((v0 - vRace) - 1.2f) < 0.05f,
+                $"into a full race it still makes headway, exactly the water's speed slower ({Fmt(vRace)})");
+
+            float vWith = SettleUnderWay(karveThrust, karveDampF, karveSub, 1.2f);
+            Check(Math.Abs((vWith - v0) - 1.2f) < 0.05f,
+                $"with the race it gains exactly the water's speed ({Fmt(vWith)})");
+
+            float raft0 = SettleUnderWay(raftThrust, raftDampF, raftSub, 0f);
+            float raftUp = SettleUnderWay(raftThrust, raftDampF, raftSub, -1.2f);
+            Check(Math.Abs(raft0 - 2.26f) < 0.05f && raftUp > 0f && Math.Abs((raft0 - raftUp) - 1.2f) < 0.05f,
+                $"a raft, the slowest hull, still makes headway into a race ({Fmt(raft0)} → {Fmt(raftUp)})");
+
+            // ---- and the shipped 1.0.0 model, pinned as the defect it was -------------------------
+            float oldUp = SettleUnderPush(karveThrust, karveDampF, karveSub, -0.182f);
+            Check(oldUp < 0.5f * v0,
+                $"UNDER THE 1.0.0 PUSH the same karve made less than half its speed in 0.182 m/s of water ({Fmt(oldUp)}) — the report");
+            float oldRace = SettleUnderPush(karveThrust, karveDampF, karveSub, -1.2f);
+            Check(oldRace <= 0f,
+                $"UNDER THE 1.0.0 PUSH a paddled karve went backward in a race ({Fmt(oldRace)})");
         }
 
         private static void DriftForceTests()
@@ -1989,6 +2114,8 @@ namespace Undertow.Tests
             Check(!ConfigWire.IsSynced("0 - Meta", "ConfigVersion"), "the layout stamp never travels");
 
             Check(ConfigWire.IsSynced("3 - The current", "MaxCurrentSpeed"), "the sea's ceiling travels");
+            Check(ConfigWire.IsSynced("4 - Drift", "UnderWayDragFactor"),
+                "what the current costs a hull under way travels — it is the sea's tuning, not the machine's");
             Check(!ConfigWire.IsSynced("3 - The current", "maxcurrentspeed"),
                 "IsSynced is CASE-SENSITIVE, as BepInEx's ConfigDefinition.Equals is");
             Check(!ConfigWire.IsSynced("9 - Nowhere", "MaxCurrentSpeed"),

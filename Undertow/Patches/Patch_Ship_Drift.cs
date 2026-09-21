@@ -61,7 +61,15 @@ namespace RavenIron.Undertow.Patches
             public float NextEvalTime;
             public FieldSample Sample;
             public bool Valid;
+
+            // Vanilla's water-level lookups take a per-point cache of the last WaterVolume hit;
+            // one per sample point, per hull, the way Ship keeps m_previousCenter and friends.
+            public WaterVolume WvCentre, WvLeft, WvRight, WvFore, WvAft;
         }
+
+        /// <summary>Which regime the last push used — read by `wake drift`.</summary>
+        public static string LastMode = "(none)";
+        public static float LastSubmergence;
 
         /// <summary>
         /// Per-hull cache of the field, refreshed on a timer rather than every physics tick.
@@ -82,7 +90,8 @@ namespace RavenIron.Undertow.Patches
             float fixedDeltaTime,
             ZNetView ___m_nview,
             Rigidbody ___m_body,
-            List<Player> ___m_players)
+            List<Player> ___m_players,
+            Ship.Speed ___m_speed)
         {
             try
             {
@@ -134,12 +143,36 @@ namespace RavenIron.Undertow.Patches
                     ? (hullVelocity.x * sample.X + hullVelocity.z * sample.Z) / waterSpeed
                     : 0f;
 
-                DriftForce.Compute(
-                    sample.X, sample.Z,
-                    hullAlongCurrent,
-                    ModConfig.DriftStrength.Live(), fixedDeltaTime,
-                    crewFactor, edgeFade,
-                    out float dvx, out float dvz);
+                // TWO REGIMES, decided by the one thing that says whether anything is propelling
+                // the hull: vanilla's own speed setting. Stop → adrift → the saturating push that
+                // carries a free hull to the water's speed (measured, kept). Anything else →
+                // under way → drag relative to the water, which costs the water's own speed over
+                // the ground and never more. The reason for the split, with the numbers, is on
+                // DriftForce.ComputeUnderWay; the short form is that 1.0.0's push stopped a paddled
+                // karve dead in 0.2 m/s of water.
+                //
+                // `___m_speed` is Harmony's accessor for the private field — vanilla forces it to
+                // Stop for an empty hull before this runs, so an unattended hull is always adrift.
+                bool underWay = crewed && ___m_speed != Ship.Speed.Stop;
+                float dvx, dvz;
+                if (underWay)
+                {
+                    if (!TryUnderWay(__instance, ___m_body, sample,
+                                     ModConfig.UnderWayDragFactor.Live(), crewFactor, edgeFade,
+                                     out dvx, out dvz))
+                        return;
+                    LastMode = "underway";
+                }
+                else
+                {
+                    DriftForce.Compute(
+                        sample.X, sample.Z,
+                        hullAlongCurrent,
+                        ModConfig.DriftStrength.Live(), fixedDeltaTime,
+                        crewFactor, edgeFade,
+                        out dvx, out dvz);
+                    LastMode = "adrift";
+                }
 
                 if (dvx == 0f && dvz == 0f) return;
 
@@ -191,7 +224,8 @@ namespace RavenIron.Undertow.Patches
                         $"depth {sample.Depth:0.#}m {sample.Dominant} | " +
                         $"water {waterSpeed:0.###} along {hullAlongCurrent:0.###} " +
                         $"ALONG-RATIO {alongRatio:0.##} (total {totalRatio:0.##}) | " +
-                        $"dv {LastAppliedDv:0.#####} crew {crewFactor:0.##}");
+                        $"dv {LastAppliedDv:0.#####} crew {crewFactor:0.##} " +
+                        $"mode {LastMode} sub {LastSubmergence:0.##}");
                 }
             }
             catch (Exception ex)
@@ -201,6 +235,72 @@ namespace RavenIron.Undertow.Patches
                 // either way: this catch exists so a fault in our code never reaches the game.
                 ReportError("drift postfix", ex);
             }
+        }
+
+        /// <summary>
+        /// The under-way regime: rebuild vanilla's own submergence factor from the same five
+        /// water samples it takes, then hand the hull's and the water's velocities in the hull's
+        /// axes to the pure correction.
+        ///
+        /// Every member named here is PUBLIC in the shipping assembly — `m_floatCollider`,
+        /// `m_waterLevelOffset`, `m_disableLevel`, `m_forceDistance`, `m_dampingForward`,
+        /// `m_dampingSideway`, and `Floating.GetWaterLevel(Vector3, ref WaterVolume)` — read out
+        /// of the real `assembly_valheim.dll` on 2026-09-21 (rule 5). The body comes injected.
+        /// The five points are vanilla's: centre of mass, and the float collider's four edges.
+        /// </summary>
+        private static bool TryUnderWay(
+            Ship ship, Rigidbody body, FieldSample sample,
+            float strength, float crewFactor, float edgeFade,
+            out float dvx, out float dvz)
+        {
+            dvx = 0f;
+            dvz = 0f;
+
+            BoxCollider fc = ship.m_floatCollider;
+            if (fc == null) return false;
+
+            Cached entry = _cache.GetValue(ship, _ => new Cached());
+
+            Transform ft = fc.transform;
+            Vector3 size = fc.size;
+            Vector3 fp = ft.position;
+            Vector3 ff = ft.forward;
+            Vector3 fr = ft.right;
+            Vector3 centre = body.worldCenterOfMass;
+
+            float level =
+                Floating.GetWaterLevel(centre, ref entry.WvCentre) +
+                Floating.GetWaterLevel(fp - fr * (size.x * 0.5f), ref entry.WvLeft) +
+                Floating.GetWaterLevel(fp + fr * (size.x * 0.5f), ref entry.WvRight) +
+                Floating.GetWaterLevel(fp + ff * (size.z * 0.5f), ref entry.WvFore) +
+                Floating.GetWaterLevel(fp - ff * (size.z * 0.5f), ref entry.WvAft);
+            level *= 0.2f;
+
+            float floatError = centre.y - level - ship.m_waterLevelOffset;
+            // Out of the water: vanilla applies no hull physics on this tick, so neither do we.
+            if (floatError > ship.m_disableLevel) return false;
+
+            float forceDistance = ship.m_forceDistance > 0.01f ? ship.m_forceDistance : 0.01f;
+            float submergence = Mathf.Clamp01(Mathf.Abs(floatError) / forceDistance);
+            LastSubmergence = submergence;
+
+            Vector3 fwd = ship.transform.forward;
+            Vector3 right = ship.transform.right;
+            Vector3 v = body.linearVelocity;
+            Vector3 w = new Vector3(sample.X, 0f, sample.Z);
+
+            DriftForce.ComputeUnderWay(
+                Vector3.Dot(w, fwd), Vector3.Dot(w, right),
+                Vector3.Dot(v, fwd), Vector3.Dot(v, right),
+                ship.m_dampingForward, ship.m_dampingSideway,
+                submergence,
+                strength, crewFactor, edgeFade,
+                out float dvForward, out float dvRight);
+
+            Vector3 dv = fwd * dvForward + right * dvRight;
+            dvx = dv.x;
+            dvz = dv.z;
+            return true;
         }
 
         private static bool TryGetSample(Ship ship, Vector3 position, out FieldSample sample)
