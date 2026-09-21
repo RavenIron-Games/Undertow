@@ -164,3 +164,16 @@ and no new ship types. Undertow changes the sea and nothing else.
 
 *Raven Iron. See also **Ragnarok's Wrath** (the world reacts and remembers) and **FireFront**
 (fire that spreads).*
+
+---
+
+## Support Raven Iron
+
+Every Raven Iron mod is free, and stays free — all of it, always. Nothing is held
+back for patrons, and nothing ever will be.
+
+If you'd like to help cover server hosting and test hardware:
+
+- **Patreon** — <https://www.patreon.com/cw/RavenIronGames>
+- **Discord** — <https://discord.gg/AGKDEurAVa> — a channel per mod, and where the
+  testing happens
