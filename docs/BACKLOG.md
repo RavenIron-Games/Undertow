@@ -211,7 +211,7 @@ Left alone deliberately.
 **Still open, needs a human:** compatibility testing against other boat mods. Everything
 measured so far is a clean baseline, taken with none installed.
 
-## 2c. Compatibility: Sailing (Smoothbrain) — ANALYSED 2026-09-02, NOT MEASURED
+## 2c. Compatibility: Sailing (Smoothbrain) — ANALYSED 2026-09-02, MEASURED 2026-09-21 (task 11 item 2)
 
 The second named compatibility, and the one that matters most today: **Sailing is already on
 Ravenrest** (1.1.8, every hull at speed factor 1.5, nudge on at force 10), so every boat
@@ -288,7 +288,7 @@ removal will not join.
 Then the `CLAUDE.md` entry loses its ⚠️, gains a date, and Ravenrest's every boat number so far
 is retroactively a "with Sailing" number — which they already were.
 
-## 2d. Compatibility: Njord (Wubarrk) — ANALYSED 2026-09-02 FROM DOCS ONLY, NOT MEASURED
+## 2d. Compatibility: Njord (Wubarrk) — ANALYSED 2026-09-02 FROM DOCS ONLY, MEASURED 2026-09-21 (task 11 item 2)
 
 The third named compatibility, and the one that actually matches the shape `CLAUDE.md`'s
 boat-mod warning describes: configurable sail and acceleration forces, per-hull speed caps, an
@@ -1543,6 +1543,56 @@ and with it parked (2d step 1–2). Vanilla gave 0.86; near that and the saturat
 Njord's damping; well below and the first answer is `DriftStrength` on that server, never a toggle.
 Then Sailing's cleanest prediction — the drifting ratio identical to the second decimal with it on
 or off (2c steps 1–2). Each closes a ⚠️ in `CLAUDE.md` and puts a date and a ratio in its place.
+**BASELINE TAKEN 2026-09-21 — neither mod, Storm10 at shipped defaults, Valheim 1.0.15.** Karve,
+sail down, uniform `Drift` water at (-1200, 2555), depth 30 m, flat sea:
+`water 0.238 along 0.236 ALONG-RATIO 0.99 (total 0.99) | dv 0.00005` and, sixteen seconds later,
+`water 0.237 along 0.235 ALONG-RATIO 0.99 (total 1.02) | dv 0.00004`. The push had faded to
+nothing and the hull sat at the water's speed; total equals along because there was no swell to
+throw a light hull across the flow. **0.99 at 0.24 m/s is the number runs 2 and 3 are judged
+against, on this water and this hull.** It also re-confirms task 6's slow-water result on the
+shipping game, on a different seed.
+**RUN 2+3 (DRIFTING), 2026-09-21 — NJORD 2.0.5 AND SAILING 1.1.9 TOGETHER, SAME SPOT, SAME
+HULL: `ALONG-RATIO 0.99`, then `1.00 (total 1.00) | dv 0.00001`.** Indistinguishable from the
+baseline. Njord's damping — the first non-vanilla damping the saturation claim has ever met — does
+not move the equilibrium; and with the sail down Sailing multiplies zero, so one run answers both
+drifting predictions (2c prediction 1, 2d point 3). The setup: Storm10's parked `Njord.dll.off`
+was byte-identical to the `Ravenrest` profile's copy (`ff0dbde8…`, **2.0.5 — `CLAUDE.md`'s
+"1.3.5" was stale**, caps unchanged at 7 / 16.8 / 26 / 30 and every physics key in Storm10's
+`wubarrk.njord.cfg` equal to Ravenrest's; only `Debug_*`/`Vendor_*` differ), so it was unparked;
+Sailing came from the owner's Gale install of 1.1.9 (`7ea58b72…`), the same bytes on both sides.
+Both loaded clean on server and client, zero errors from any mod. The sail-up runs follow.
+
+**SAIL-UP RUNS, SAME SESSION — CLOSED, with one sample honestly not re-taken.**
+
+- **Up-current at Njord's cap (2d step 4): a dozen samples.** Karve at 16.0–16.7 m/s by the log
+  (`total × water`), Njord's own readout pinned at **16.8** the whole time by the owner's eye, and
+  `dv` reading `water × 0.02` to the fifth decimal on every line — `0.569 → 0.01137`,
+  `0.472 → 0.00944`, `0.288 → 0.00576`, `0.326 → 0.00653`, `0.339 → 0.00678` — the full push,
+  unclamped, with the hull making 16 m/s of headway against it. **"No judder"** (owner). A
+  magnitude cap and an opposing push coexist exactly as 2d point 2 argued from Unity's
+  integration order. Njord's readout never sat above its cap while we pushed, so 2d step 5's
+  one-tick bound was not contradicted.
+- **The saturation formula across the range, incidentally and better than planned.** Every
+  crossing sample read `dv = water × 0.02 × (1 − ALONG-RATIO)` exactly: ratio 0.93 → 0.00058 at
+  0.4 m/s, 0.8 → 0.00198 at 0.484, 0.5 → 0.00369 at 0.367, 0.2 → 0.00110 at 0.23. Four points on
+  the line, under Njord's physics.
+- **Down-current at the cap (2d step 3): NOT re-observed under Njord.** The water on that stretch
+  runs WNW straight onto a coast, and every attempt at a with-the-current run at 16 m/s ended in
+  slack water or on the beach. What stands in for it: the formula above is the same line clamped
+  at ratio ≥ 1, the harness pins the clamp, `dv` read *exactly 0* with the hull at the water's
+  speed on 2026-09-12 (task 6) and again in every settled drift sample today (`0.00001`), and
+  nothing in the clamp reads anything of Njord's — it is a function of the water and the hull's
+  velocity, both of which we read ourselves. The risk Njord posed was to the EQUILIBRIUM, and
+  the drifting number answers that. Worth taking if a with-the-current stretch of open water
+  turns up; not worth another hour of sailing into land.
+- **Sailing's nudge (2c step 5): not run.** Optional, and an ordinary impulse on the same
+  rigidbody; the drifting prediction (2c prediction 1) was the one that mattered and it held.
+
+*Protocol lesson, written for the next boat:* the water's bearing changes with position, so a
+heading taken at one spot is wrong a few hundred metres on, and "toward SE" in `wake here` means
+the water is GOING south-east — put the bow on it to run with it. Twenty minutes of this run
+were spent sailing round an eddy the wrong way; read `wake here` at the spot, steer that, and
+expect it to change.
 
 ### 1.0 — the sightings, one decision, and the docs
 

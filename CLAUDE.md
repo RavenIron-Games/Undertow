@@ -93,8 +93,9 @@ mods were even loaded.
   held 1.9–2.0 m/s against a 0.17 m/s current, so the drowning guard has a tenfold margin.
 
 **Everything on the original roadmap (0–5) is verified in-game.** The remaining open item there
-is compatibility testing against other boat mods: every measurement so far is a clean baseline
-taken with none installed.
+was compatibility testing against other boat mods — **closed 2026-09-21 for Njord and Sailing**
+(see the compatibility section: drifting identical to a same-water baseline, the cap and the push
+coexisting). Dive In is still analysed rather than measured.
 
 - **7 — drift lines (0.7.0). BUILT AND RUN IN-GAME 2026-09-18, on Storm10 — Valheim 1.0.15 on
   BOTH sides.** The current made visible:
@@ -494,8 +495,12 @@ member, its `WaterVolume` prefix is visual and we read no water-surface state, a
 diving is `MonsterAI`/`BaseAI` work our players-only gate never sees. It declares no
 `BepInIncompatibility` against anything of ours.
 
-**Sailing (Smoothbrain)** — the sailing-skill mod, and it is ON RAVENREST (1.1.8, speed factor
-1.5 for every hull). ⚠️ **EXPECTED TO COMPOSE WITHOUT CONTACT, NOT YET MEASURED.** Read from its
+**Sailing (Smoothbrain)** — the sailing-skill mod, and it is ON RAVENREST (1.1.8 when this was
+written; 1.1.9 is what was measured, speed factor 1.5 for every hull). ✅ **MEASURED 2026-09-21
+ON STORM10, COMPOSES — `docs/BACKLOG.md` task 11 item 2.** With the sail down, a karve drifting
+under Sailing 1.1.9 + Njord 2.0.5 read `ALONG-RATIO 0.99` then `1.00`, against a baseline of
+0.99–1.00 taken minutes earlier in the same water with neither: prediction 1 below, held. The
+nudge was not run. The analysis that predicted it follows. Read from its
 published source (<https://github.com/blaxxun-boop/Sailing>, which stops at 1.1.7 — see
 `docs/BACKLOG.md` task 2c for the gap), never from its DLL. **It is NOT the "adds force to the
 hull and caps its speed" mod the paragraph above warns about.** It never patches
@@ -513,9 +518,18 @@ fades the push out sooner, which is the model working, not a conflict; the anti-
 means we can never slow the boost. The nudge is an ordinary impulse on the same rigidbody and
 sums with ours. It declares incompatibility only with Valheim Plus.
 
-**Njord (Wubarrk)** — the ship-handling overhaul, and it is ON RAVENREST (1.3.5, `Wind_AlwaysFull`
-on, caps Raft 7 / Karve 16.8 / Longship 26 / Drakkar 30 m/s). ⚠️ **EXPECTED TO COMPOSE, NOT YET
-MEASURED — AND THIS IS THE ONE THE BOAT-MOD WARNING ABOVE WAS WRITTEN FOR.** Configurable sail
+**Njord (Wubarrk)** — the ship-handling overhaul, and it is ON RAVENREST (**2.0.5** — this entry
+said 1.3.5 and was stale; the caps are unchanged: `Wind_AlwaysFull` on, Raft 7 / Karve 16.8 /
+Longship 26 / Drakkar 30 m/s). ✅ **MEASURED 2026-09-21 ON STORM10, COMPOSES — `docs/BACKLOG.md`
+task 11 item 2. THIS WAS THE ONE THE BOAT-MOD WARNING ABOVE WAS WRITTEN FOR.** Same bytes as
+Ravenrest's copy, same physics config. A drifting karve settled at `ALONG-RATIO 0.99–1.00`
+against a 0.99–1.00 baseline in the same water without it — Njord's damping, the first
+non-vanilla damping the saturation claim ever met, does not move the equilibrium. Up-current at
+the karve cap, a dozen samples: hull at 16–16.7 m/s, Njord's readout pinned at 16.8, `dv` equal
+to `water × 0.02` to the fifth decimal, no judder — a magnitude cap and an opposing push
+coexisting as point 2 below argued. The with-the-current run at the cap was not re-taken (the
+water there runs onto a coast); the formula it would confirm read exactly on four crossing
+samples and the clamp reads nothing of Njord's. The analysis that predicted it follows. Configurable sail
 and acceleration forces, per-hull speed caps, an overhauled physics curve. **No public source:
 its website is a Discord invite and its licence reserves modification to the author, so nothing
 here comes from its DLL, by rule.** Everything below is from its published README, changelog and
