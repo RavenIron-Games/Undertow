@@ -36,12 +36,19 @@ namespace RavenIron.Undertow.Core
         /// <summary>
         /// Stamped at the head of every payload, and a mismatch is refused WHOLESALE.
         ///
-        /// Bump this only when the payload's SHAPE changes, never when a key joins or leaves —
-        /// those are handled per line by <see cref="Parse"/>, which is what lets a 0.7 client and
-        /// a 0.9 server agree about the keys they both know. A shape change has no such fallback,
-        /// so refusing the whole message and sailing on local values is the safe failure.
+        /// Bump this when the payload's SHAPE changes — never when a key joins or leaves, those
+        /// are handled per line by <see cref="Parse"/>, which is what lets two builds agree about
+        /// the keys they both know — AND when the FIELD MATHS changes (owner's rule, 2026-09-21).
+        /// The header is the one thing both ends compare before trusting each other's sea, and
+        /// the sync's whole argument is "same constants into the same pure function"; a build
+        /// whose function differs must not adopt the other's constants and believe it agrees. A
+        /// mismatch is refused wholesale and logged, and the client sails its own tuning.
+        ///
+        /// /1 → /2: the coastal term's onshore push now points toward land on the ebb as well as
+        /// the flood (it used to reverse with the stream), so a /1 build computes different
+        /// coastal water for half of every tide.
         /// </summary>
-        public const string Header = "undertow-cfg/1";
+        public const string Header = "undertow-cfg/2";
 
         /// <summary>Separates a key's section from its name on the wire: "section|key=value".</summary>
         public const char SectionSeparator = '|';

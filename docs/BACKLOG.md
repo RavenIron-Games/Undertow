@@ -1313,8 +1313,19 @@ DISK    DriftStrength = 4
 The last line is the one that matters: an admin's change reaches the server's own config file and
 survives a restart, rather than living only in memory.
 
-**STILL OWED:** two Undertow versions meeting across the wire (the wire is forward-compatible by
-construction and both paths are under test, but no two versions have ever actually met).
+~~**STILL OWED:** two Undertow versions meeting across the wire~~ — **CLOSED 2026-09-21.** The
+onshore fix bumped the header to `undertow-cfg/2`, and the server was restarted on it while the
+client still ran the `/1` build. Client log: `ConfigSync: RPCs registered (undertow-cfg/1)`,
+`asked the server for its config`, then `ConfigSync: the server's config payload is not
+'undertow-cfg/1'. Sailing on local values — check that both ends run the same Undertow.` Console:
+`config sync: on your own values (refused a payload this build cannot read)`. Then the client was
+updated to `/2` and rejoined: `RPCs registered (undertow-cfg/2)` and `wake status` read `sailing
+the server's sea — 12 value(s) in force over your own`. Both halves, both instruments. **One
+defect found by watching it:** the refusal was logged on every publish — twice at join and then
+on every 30 s heartbeat, five times inside two minutes — which for a mismatched pair is 120
+warnings an hour about a condition that cannot change until somebody updates. Now latched once
+per session (`_refusalLogged`, cleared in `Reset()`); `LastEvent` is still set every time so
+`wake status` stays honest.
 
 **KNOWN, NOT YET FIXED — the slider storm.** ConfigurationManager raises `SettingChanged` on every
 increment of a drag, so one gesture sent FOUR pushes (1.56 → 2.06 → 2.52 → 3.17 → 4) and the server
@@ -1692,6 +1703,20 @@ a release changes the field's maths". The config sync has since closed the TUNIN
 risk entirely; the maths half is now the only way two versions can disagree about one sea, and
 1.0 is the natural place to decide whether to copy RW's `VersionSync` (warn once, never kick) or
 to keep relying on the wire header. Either answer is fine; not deciding is the one that costs.
+**DECIDED 2026-09-21 — "defaults stay, do the two fixes."** The sync had made the question
+smaller than it looked: the ceiling and the race multiplier are synced keys, so "real" races are a
+server owner's dial already, and the only thing making that dial unsafe was slack being a SHARE of
+the ceiling. So: (1) the shipped tuning stays at the design target, and every number measured
+today keeps describing the sea that ships; (2) `CurrentField.SlackSpeed` is an absolute 0.144
+m/s — identical at defaults to the float, harness-pinned both ways, no rung; (3) the onshore
+share scales by `|coastalSpeed|`, so the lee-shore push holds on the ebb — the last field-maths
+change before the freeze, and the reversal test could never have seen it (the mutant reads
+`flood x −0.0771, ebb x +0.0771`); (4) **version gating is the wire header**: a change to the
+field maths bumps `ConfigWire.Header`, and this one did, `/1 → /2`. A 0.8.0 client on a /2 server
+refuses the payload, logs it, and sails its own tuning — which for that pair is the honest
+outcome, since they would not compute the same coast on the ebb. Harness 454 → 459, both
+mutants caught by exactly the assertion written for them. The locked-decisions table carries
+the rule.
 
 **7. The docs pass.** By this rung every ⚠️ in `CLAUDE.md`'s compatibility section has a date or a
 reason it stays; the status block loses "NOT YET" lines it no longer needs; task 7's rows 6, 8 and
@@ -1706,8 +1731,8 @@ None of these would stop the number going on, and each is written up where it be
 
 - The 2 cm lift, looked at (task 10 (b)). Five minutes, and it is the one 0.8.0 change nobody has
   seen; do it first, before any session above, since every session above is in the water anyway.
-- Two Undertow versions meeting across the wire, and the non-admin push REFUSED and acknowledged —
-  only the accept leg has been observed (task 9).
+- ~~Two Undertow versions meeting across the wire~~ (closed 2026-09-21, task 9), and the
+  non-admin push REFUSED and acknowledged — only the accept leg has been observed (task 9).
 - The slider debounce — four pushes and four broadcasts per drag (task 9).
 - Two-hull convergence re-taken on the shipping game: only the karve has sailed since August, and
   the "every hull regardless of damping" claim rests on 0.2.1 (task 6). The race-convergence
@@ -1721,6 +1746,25 @@ None of these would stop the number going on, and each is written up where it be
   for it in the meantime.
 - The headless float re-scan (`123 of 1090` vs a client-side `162 of 1523`) — nothing depends on
   either number.
+
+### Seen on the way, and not ours
+
+- **A vanilla `NullReferenceException` in `Ship.UpdateSailSize` at login, 2026-09-21.** Fifty
+  identical throws on the `testing` client, every one between the loading screen and `Spawned
+  after 8.0`, none after, none on the server. The stack names `Ship.DMD<Ship::CustomFixedUpdate>`,
+  which is Harmony's rewrite of the method we postfix — so anyone reading that trace will read it
+  as Undertow's. It is not: the throw is in vanilla's sail-swap effect branch, which dereferences
+  `Player.m_localPlayer` with no null check when a sail starts moving, and a postfix never runs
+  on a tick where the original throws. Read out of the real assembly the same day; the full
+  mechanism, the exact-fifty arithmetic and what the throw does to the rest of the fixed step are
+  the CLAUDE.md Known trap. What started the sail moving on a client with no player yet was NOT
+  established — vanilla's writers are the ZDO's `s_forward` on a non-owner and three RPCs, and a
+  mod that sets a ship's speed on load reaches the same path. Cheap to settle if anyone cares:
+  log out with the sail down and back in, then log out under sail and back in; whichever recurs
+  says whether the ZDO or a mod set it. Not owed for 1.0. **The instrument lesson is:** the
+  client-log monitor filtered `Unity Log` lines out for quiet and Unity logs every exception
+  under that source, so the monitor said "no exceptions" for the whole day. Grep for `Exception`
+  before filtering sources, never after.
 
 ## 5z. Original task 5 specification (its AddPushbackForce advice was WRONG - see above)
 

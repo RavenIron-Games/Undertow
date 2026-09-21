@@ -372,7 +372,7 @@ namespace RavenIron.Undertow.Visuals
             float weight = DriftLineMath.SpawnWeight(sample.Speed, sample.Depth, maxSpeed, minDepth, slackFloor);
             if (weight <= 0f || Roll() >= weight)
             {
-                if (sample.Speed <= CurrentField.SlackShare * maxSpeed) _wRejSlack++;
+                if (sample.Speed <= CurrentField.SlackSpeed) _wRejSlack++;
                 else if (sample.Depth <= minDepth) _wRejShallow++;
                 else _wRejWeak++;
                 _retry[slot] = 0.5f + Roll();

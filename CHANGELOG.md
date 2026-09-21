@@ -16,6 +16,24 @@
   decided the input are named constants in the code and the test fixture, and `wake lines` prints
   both luminances and the floor.
 
+- **Slack water is an absolute speed now, so a server can raise the ceiling without losing its
+  foam.** "Slack" was defined as 12% of `MaxCurrentSpeed`, and `MaxCurrentSpeed` is a ceiling —
+  raising it makes the fast places faster and ordinary water no faster at all, but it raised the
+  slack line with it, and ordinary water quietly stopped drawing foam (measured: a 2.4 ceiling
+  emptied 0.21 m/s water). Slack is 0.144 m/s outright, which is exactly what it was at the
+  shipped ceiling, so nothing changes unless you turn the dial — and now you can. The same speed
+  is what `wake here` calls Slack and what the foam thins at; they were one definition before and
+  still are.
+
+- **The coastal set's push toward land now points toward land on the ebb too.** It always did on
+  the flood. On the ebb it pointed off the shore, because the onshore share was scaled by the
+  signed stream rather than its size — fifteen percent of the coastal term, the wrong way, for
+  half of every tide, since 0.1.0. Found by reading the line while the tide reversal was being
+  measured on the water; the reversal itself was and is correct. **This changes the water**, so
+  the config wire is at `undertow-cfg/2`: a client on 0.8.0 or earlier joining a server on this
+  version will refuse the server's tuning, sail on its own, and say so in its log — once per
+  session, not on every heartbeat, and `wake status` keeps reporting it. Update both ends.
+
 - **Flotsam now says what it reclaims.** Every verbose flotsam line ends with the size of the
   server's whole ZDO table (`[n/12 alive, N ZDOs]`), and a reclaim on the TTL — the half of the cap
   that bounds a long-running server, which used to happen in silence — logs by id, as does an item

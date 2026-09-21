@@ -113,11 +113,19 @@ namespace RavenIron.Undertow.Core
     public static class CurrentField
     {
         /// <summary>
-        /// Share of MaxSpeed below which water is called Slack. Named because it is shared:
-        /// <see cref="DriftLineMath.SpawnWeight"/> draws no foam at or below the same share, so
-        /// the water `wake here` calls slack and the water that looks glassy are one definition.
+        /// Speed in m/s below which water is called Slack. Shared: <see cref="DriftLineMath.SpawnWeight"/>
+        /// thins the foam to its floor at the same speed, so the water `wake here` calls slack and
+        /// the water that looks glassy are one definition.
+        ///
+        /// ABSOLUTE, NOT A SHARE OF MaxSpeed, since 2026-09-21. It was 0.12 × MaxSpeed, which at the
+        /// shipped ceiling of 1.2 is this same 0.144 — so nothing changes at defaults and no ledger
+        /// rung is needed. What changes is what a server owner can do: MaxCurrentSpeed is a CEILING,
+        /// and raising it does not make ordinary water faster, but as a share the slack line rose
+        /// with it and ordinary water silently stopped qualifying for foam (measured 2026-09-19,
+        /// `active 0/160` at a 2.4 ceiling in 0.21 m/s water). The sync makes the ceiling a dial any
+        /// server can turn; this is what makes turning it safe.
         /// </summary>
-        public const float SlackShare = 0.12f;
+        public const float SlackSpeed = 0.144f;
 
         // Wavelengths in metres. The longest is the Great Drift — basin-scale, the thing a crew
         // plans a voyage around. The shortest is still 1.8km, because a current you cannot hold
@@ -238,12 +246,19 @@ namespace RavenIron.Undertow.Core
                 float shelf = 1f - Clamp01(depth / s.ShelfDepth);
                 float coastalSpeed = s.CoastalStrength * shelf * tideSin;
 
-                // A slight push toward land, always. This is the lee shore: it is why you do not
-                // doze at the tiller with the coast downwind of you.
+                // A slight push toward land, ALWAYS — on the ebb as well as the flood, which is
+                // why it scales with the stream's MAGNITUDE and not its sign. The first version
+                // multiplied by coastalSpeed itself, so for half of every cycle it pushed OFF the
+                // shore: the opposite of the lee-shore argument it was written for, and the
+                // reversal test could not see it because the along-shore part dominates. Found by
+                // reading this line while the tide reversal was being measured, 2026-09-21. This
+                // is the lee shore: it is why you do not doze at the tiller with the coast
+                // downwind of you.
                 const float onshoreShare = 0.15f;
+                float onshore = Math.Abs(coastalSpeed) * onshoreShare;
 
-                u += tangentX * coastalSpeed + gx * coastalSpeed * onshoreShare;
-                v += tangentZ * coastalSpeed + gz * coastalSpeed * onshoreShare;
+                u += tangentX * coastalSpeed + gx * onshore;
+                v += tangentZ * coastalSpeed + gz * onshore;
 
                 coastal = shelf > 0.35f;
             }
@@ -331,7 +346,7 @@ namespace RavenIron.Undertow.Core
             float speed, float depth, FieldSettings s, float shallowFade, bool coastal, bool race)
         {
             if (shallowFade < 0.5f) return CurrentTerm.Shallows;
-            if (speed < s.MaxSpeed * SlackShare) return CurrentTerm.Slack;
+            if (speed < SlackSpeed) return CurrentTerm.Slack;
             if (race) return CurrentTerm.Race;
             if (coastal) return CurrentTerm.Coastal;
             return CurrentTerm.Drift;

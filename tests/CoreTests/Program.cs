@@ -237,6 +237,16 @@ namespace Undertow.Tests
             Check(coastalMag > 0.01f, $"there is a coastal stream to reverse at all ({Fmt(coastalMag)} m/s)");
             Check(dot < 0f, $"the coastal stream reverses between flood and ebb (dot {Fmt(dot)})");
 
+            // The onshore share points toward land on BOTH halves of the cycle. Off a cone island
+            // centred on the origin, "toward land" at (320, 0) is -x, and the along-shore tangent
+            // there is pure z, so the x component of each delta IS the onshore push. The first
+            // version scaled that push by the SIGNED stream, so on the ebb it pointed offshore —
+            // and the reversal check above could not see it, because the along-shore part
+            // dominates the dot. Found 2026-09-21 by reading the line; this is the assertion that
+            // was missing for two releases.
+            Check(fx < 0f && ex < 0f,
+                $"the onshore push points toward land at flood AND ebb (flood x {Fmt(fx)}, ebb x {Fmt(ex)})");
+
             Check(Math.Abs(CurrentField.TidePhase01(0.0, 3600f) - 0f) < 1e-5f, "tide phase starts at 0");
             Check(Math.Abs(CurrentField.TidePhase01(900.0, 3600f) - 0.25f) < 1e-5f, "tide phase is 0.25 a quarter through");
             Check(Math.Abs(CurrentField.TidePhase01(3600.0, 3600f) - 0f) < 1e-5f, "tide phase wraps at a full period");
@@ -763,8 +773,31 @@ namespace Undertow.Tests
             float prev;
 
             // ---- SpawnWeight: slack water is glassy, beaches are bare -----------------------
-            float slack = CurrentField.SlackShare * max;
-            Check(CurrentField.SlackShare == 0.12f, "SlackShare is the 0.12 Classify has always used");
+            float slack = CurrentField.SlackSpeed;
+            Check(Math.Abs(CurrentField.SlackSpeed - 0.12f * 1.2f) < 1e-6f,
+                "SlackSpeed is the old 0.12 share of the shipped 1.2 ceiling, so defaults are untouched");
+
+            // THE TRAP THIS CHANGE EXISTS FOR. Measured 2026-09-19: a server raised MaxCurrentSpeed to
+            // 2.4 and the foam vanished from 0.21 m/s water, because slack was a share of the
+            // ceiling and the threshold had doubled to 0.288. Slack is absolute now, so the same
+            // water in the same ceiling gets more than floor-grade foam. Reverting to the share
+            // makes this fail (0.21 <= 0.288 -> floor * 0.73).
+            Check(DriftLineMath.SpawnWeight(0.21f, 30f, 2.4f, 2f, DriftLineMath.DefaultSlackFloor)
+                      > DriftLineMath.DefaultSlackFloor,
+                "raising the ceiling to 2.4 no longer turns 0.21 m/s water slack (the 2026-09-19 trap)");
+            // ...and at the shipped ceiling the new form IS the old form, speed for speed.
+            bool sameAtDefaults = true;
+            for (int i = 0; i <= 120; i++)
+            {
+                float v = i / 100f;
+                float oldSlack = 0.12f * max, oldSpan = (DriftLineMath.FullSpeedShare - 0.12f) * max;
+                float oldBySpeed = v <= oldSlack
+                    ? DriftLineMath.DefaultSlackFloor * Math.Min(1f, v / oldSlack)
+                    : DriftLineMath.DefaultSlackFloor + (1f - DriftLineMath.DefaultSlackFloor) * Math.Min(1f, (v - oldSlack) / oldSpan);
+                float now = DriftLineMath.SpawnWeight(v, 30f, max, 2f, DriftLineMath.DefaultSlackFloor);
+                if (Math.Abs(now - oldBySpeed) > 1e-5f) sameAtDefaults = false;
+            }
+            Check(sameAtDefaults, "at the shipped ceiling, absolute slack reproduces the share-based weight at every speed");
 
             // A GREEN ASSERTION WAS DELETED HERE, and it is named rather than quietly dropped
             // because deleting a passing test is the thing this project distrusts most. It read
@@ -913,7 +946,7 @@ namespace Undertow.Tests
             {
                 FieldSample f = CurrentField.Evaluate(ix * 40f, iz * 40f, 1337, 500.0, 0, 1f, flat, s);
                 if (f.Speed < slowest) slowest = f.Speed;
-                if (Math.Abs(f.Speed - CurrentField.SlackShare * s.MaxSpeed) < 1e-6f) continue;
+                if (Math.Abs(f.Speed - CurrentField.SlackSpeed) < 1e-6f) continue;
                 points++;
                 bool isSlack = f.Dominant == CurrentTerm.Slack;
 
@@ -933,7 +966,7 @@ namespace Undertow.Tests
             Check(points > 90000 && mismatches == 0,
                 $"over {points} deep flat-seabed points, Slack <=> at most floor-grade foam ({mismatches} disagree)");
             Check(slackCount > 0 && slackCount < points,
-                $"the cross-test saw both slack and running water ({slackCount} slack of {points}, slowest {Fmt(slowest)} m/s against a {Fmt(CurrentField.SlackShare * s.MaxSpeed)} threshold)");
+                $"the cross-test saw both slack and running water ({slackCount} slack of {points}, slowest {Fmt(slowest)} m/s against a {Fmt(CurrentField.SlackSpeed)} threshold)");
 
             // ---- LifeEnvelope: nothing pops --------------------------------------------------
             Check(DriftLineMath.LifeEnvelope(0f) == 0f && DriftLineMath.LifeEnvelope(1f) == 0f
@@ -2007,8 +2040,12 @@ namespace Undertow.Tests
                 "a header with no values parses to an empty list, not a failure");
 
             // ---- a wrong SHAPE is refused wholesale ----------------------------------------
-            Check(ConfigWire.Parse("undertow-cfg/2\n3 - The current|MaxCurrentSpeed=1.5") == null,
-                "a payload from a different wire version is refused entirely");
+            Check(ConfigWire.Parse("undertow-cfg/1\n3 - The current|MaxCurrentSpeed=1.5") == null,
+                "a payload from the PREVIOUS wire version (0.8.0's /1) is refused entirely");
+            Check(ConfigWire.Parse("undertow-cfg/3\n3 - The current|MaxCurrentSpeed=1.5") == null,
+                "a payload from a future wire version is refused entirely");
+            Check(ConfigWire.Header == "undertow-cfg/2",
+                "the wire is at /2: bumped for the onshore fix, per the rule that a field-maths change bumps it");
             Check(ConfigWire.Parse("3 - The current|MaxCurrentSpeed=1.5") == null,
                 "a payload with no header at all is refused entirely");
             Check(ConfigWire.Parse(null) == null, "a null payload is refused rather than thrown on");

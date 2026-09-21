@@ -288,6 +288,15 @@ namespace RavenIron.Undertow.Net
         /// Leaving a server hands the player their own sea back. Idempotent, so SeaTick can call
         /// it on every frame ZNet is absent without thinking about it.
         /// </summary>
+        /// <summary>
+        /// The wire-version refusal is said ONCE per session. Measured 2026-09-21, the first time
+        /// two Undertow versions met: a /1 client on a /2 server logged the refusal for each of the
+        /// two join-time publishes and would have logged it again on every 30 s heartbeat — 120
+        /// warnings an hour for a condition that does not change until somebody updates. Warn
+        /// once, never kick, and keep `wake status` honest through LastEvent, which is set every time.
+        /// </summary>
+        private static bool _refusalLogged;
+
         public static void Reset()
         {
             _registeredWith = null;
@@ -295,6 +304,7 @@ namespace RavenIron.Undertow.Net
             _nextBroadcast = 0f;
             _lastRequestAnswered = float.NegativeInfinity;
             _asked = false;
+            _refusalLogged = false;
 
             if (_overrides.Count == 0)
             {
@@ -476,9 +486,15 @@ namespace RavenIron.Undertow.Net
                 if (pairs == null)
                 {
                     LastEvent = "refused a payload this build cannot read";
-                    Undertow.Log.LogWarning(
-                        "ConfigSync: the server's config payload is not '" + ConfigWire.Header +
-                        "'. Sailing on local values — check that both ends run the same Undertow.");
+                    if (!_refusalLogged)
+                    {
+                        _refusalLogged = true;
+                        Undertow.Log.LogWarning(
+                            "ConfigSync: the server's config payload is not '" + ConfigWire.Header +
+                            "' — the server runs a different Undertow, and its sea may differ from " +
+                            "this build's. Sailing on local values. Said once per session; " +
+                            "`wake status` keeps reporting it. Update both ends to the same version.");
+                    }
                     return;
                 }
 

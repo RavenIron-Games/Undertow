@@ -76,12 +76,17 @@ namespace RavenIron.Undertow.Core
             if (maxSpeed <= 0f) return 0f;
 
             float floor = Clamp01(slackFloor);
-            float slack = CurrentField.SlackShare * maxSpeed;
-            float span  = (FullSpeedShare - CurrentField.SlackShare) * maxSpeed;
+            // Slack is an absolute speed (see CurrentField.SlackSpeed); the ramp above it still
+            // runs to FullSpeedShare of the ceiling. At the shipped 1.2 that is the same 0.144 and
+            // the same 0.576 m/s span as the old share-based form, to the float.
+            float slack = CurrentField.SlackSpeed;
+            float span  = FullSpeedShare * maxSpeed - slack;
 
             float bySpeed = speed <= slack
                 ? floor * Clamp01(speed / slack)
-                : floor + (1f - floor) * Clamp01((speed - slack) / span);
+                : span > 1e-6f
+                    ? floor + (1f - floor) * Clamp01((speed - slack) / span)
+                    : 1f;   // a ceiling at or below the slack speed: anything moving is full foam
 
             float byDepth = Clamp01((depth - minDepth) / DepthRampMetres);
             return bySpeed * byDepth;

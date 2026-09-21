@@ -426,6 +426,7 @@ diagnostic bug report in this genre.
 | Rivers and lakes | **Ocean only for v1.** Narrow water plus a sideways force pins players against terrain. |
 | Persistence | **None.** `CurrentField` is a pure function of seed, position, world time and season, so it needs no save file and no sync of its STATE. Anything that makes the sea *remember* breaks that; RW already owns "the world remembers". The config sync below is not an exception — read the row. |
 | Config sync | **The server's gameplay tuning wins, in memory, since the config sync (owner's call, 2026-09-19: "Server wins, and admins can push").** This does NOT weaken the row above: no field state is ever sent, nothing is saved, and nothing travels per tick. What travels is the twelve CONSTANTS both ends feed into the same pure function, because the "everyone computes the same water" argument silently fails when two machines hold different tuning — and fails invisibly, since nothing desyncs. A client's config FILE is never written, backed up or migrated by this; overrides live in memory for the session and are clamped to the local build's own range. Per-machine keys (drift lines, tick budget, refresh cadence, verbose logging, flotsam) never travel — a server owner must not be able to reach into a player's frame rate. An admin's client may push one value up; the server applies it to its own file and re-publishes. |
+| Field maths after 1.0 | **A change to the water's maths bumps the wire header (owner's call, 2026-09-21: "defaults stay, do the two fixes").** `ConfigWire.Header` is the one thing both ends compare before trusting each other's sea; the sync's argument is "same constants into the same pure function", and a build whose function differs must refuse the other's constants rather than adopt them and believe it agrees. Per-line key tolerance handles keys joining or leaving; the header handles the function itself. First use: `/1 → /2` for the onshore fix. The tuning DEFAULTS stay at the design target (strongest water ≈ 15–25% of half-sail speed); "real" tidal races are a server owner's dial through the synced ceiling and multiplier, and slack being absolute is what makes that dial safe to turn. |
 | Ragnarok's Wrath | **Read-only, soft, one direction.** Reflected reads when present, fully dormant when absent, never a write back. |
 | Moder's wind control | **No exemption from current.** "Moder gives you the wind, not the sea" — a limit on the power without a nerf to it. |
 | Config migration | **The family's, not a local dialect.** Wu'barrk's shape by way of Valkyrie's Cargo, matching Ragnarok's Wrath and FireFront. Snapshot before any bind, `[0 - Meta] ConfigVersion` stamps the layout, a backup beside the file before anything destructive, and a failed migration never stops the mod loading. Do not fork it — a reader who knows one of these should read the others without relearning. |
@@ -669,7 +670,11 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   this file keeps relearning: a threshold on an engine value is a guess until that value has been
   read at both ends of its range in the game, and a test that pins the guess is worse than none.
 
-- **RAISING `MaxCurrentSpeed` MAKES THE DRIFT LINES DISAPPEAR, and nothing says so.** Measured
+- **RAISING `MaxCurrentSpeed` MADE THE DRIFT LINES DISAPPEAR — FIXED 2026-09-21: slack is an
+  absolute 0.144 m/s (`CurrentField.SlackSpeed`), not a share of the ceiling.** Identical at the
+  shipped ceiling to the float, so no rung; the harness pins both the equivalence at defaults and
+  the 2.4-ceiling case that used to fail. The trap as it was found follows, kept because the
+  reasoning is what made the fix a one-liner. Measured
   2026-09-19 on Storm10, after the owner reported seeing no foam. `MaxCurrentSpeed` is a CEILING —
   raising it does not make ordinary water any faster — but "slack" is defined as a SHARE of that
   ceiling (`DriftLineMath.SpawnWeight`: `slack = CurrentField.SlackShare * maxSpeed`, SlackShare
@@ -718,6 +723,32 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   confounded reading. Before judging orientation, get `wake lines` to show a mean streak bearing
   within a few degrees of the field's, with dozens active; only then does the eye measure the
   engine rather than the water.
+
+- **A `NullReferenceException` in `Ship.UpdateSailSize` during LOGIN is vanilla's, and the stack
+  will name our patched method anyway.** Seen 2026-09-21 on the `testing` client: 50 identical
+  throws, `Ship.UpdateSailSize ← Ship.UpdateSail ← Ship.DMD<Ship::CustomFixedUpdate> ←
+  MonoUpdatersExtra.CustomFixedUpdate`, all between the loading screen and the `Spawned after 8.0`
+  line, none after, none on the server. Read out of the real `assembly_valheim.dll` the same day:
+  the sail-swap effect branch does `Player.m_localPlayer.GetPlayerID()` with no null check, and it
+  fires whenever a sail STARTS moving from a resting position (`!flag && m_sailWasInPosition`). A
+  ship in the loading zone ticks before the local player exists, so if its speed changes in that
+  window the throw is unavoidable and self-terminating: it stops when the sail finishes unfurling
+  (fifty ticks at 0.02 per tick — exactly the count seen) or the player spawns, whichever is
+  first. Vanilla's own writers of `m_speed` are the three RPCs and the ZDO's `s_forward` on a
+  non-owner, so a mod that sets a ship's speed on load reaches this path; which one did here was
+  not established and cannot be from the log. **Why it is not ours:** `Patch_Ship_Drift` is a
+  postfix, a postfix never runs on a tick where the original throws, our patch names `m_nview`,
+  `m_body` and `m_players` and nothing sail-related, and `UpdateSail` runs before the owner check
+  in a method whose body we never enter. The `DMD<...>` frame is only Harmony's rewritten method,
+  present whenever ANY mod patches it. **What the throw does to the frame:** `MonoUpdaters.
+  FixedUpdate` runs every category through one shared scratch list with no try/catch, so an
+  exception aborts the rest of that fixed step (Floating, Character, AI, all of it) and skips the
+  list's `Clear()`; the ships stay in the list and are ticked first on every later step from the
+  ZSyncTransform pass, throwing again, until the fault clears — after which one step runs each
+  ship twice and each `ZSyncTransform` once per skipped step. Harmless in a loading window, which
+  is the only place `m_localPlayer` is null. **Instrument note:** Unity logs exceptions under the
+  `Unity Log` source, so a monitor that filters `Unity Log` out to quiet the chatter hides every
+  exception with it — that is why nobody saw these until the owner pasted the log.
 
 - **`Ship.CustomFixedUpdate`'s owner check is INSIDE the method.**
   `if ((bool)m_nview && !m_nview.IsOwner()) return;` guards only the lines below it. **A
