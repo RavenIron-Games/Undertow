@@ -38,7 +38,15 @@ cliff replaced by a floor). The second of those moves a shipped default, which i
 `ConfigLedger` was built for and had never done — so **`Rebases[2]` is the first rung this mod has
 ever had, and it has now run on a real config**, taking a verified-identical `.v1.bak` with it. The
 sentence above about "all three tables empty by measurement" was true of 0.7.x and is no longer;
-see the task 8 entry below. Harness **369 → 441**.
+see the task 8 entry below. Harness **369 → 444**.
+
+**WHAT STANDS BETWEEN 0.8 AND 1.0 IS `docs/BACKLOG.md` TASK 11 (written 2026-09-21).** It is not a
+feature. Tasks 0–10 are built and every one has run in game; what 1.0 means here is that every
+README sentence has been watched happen on the shipping game, and that the config layout becomes a
+promise — after it, every default that moves is a ledger rung on a stranger's file. Five claims
+still rest on the harness or on a measurement two game versions old (flotsam and its ZDO cap, the
+two boat mods on Ravenrest, the drowning guard's clamp, the drift lines at night, the tide's
+coastal reversal), and one tuning decision is cheaper before that line than after.
 
 
 **THE ROADMAP IS BUILT.** Tasks 0–5, harness **162/162**, every assertion proven to fail without
@@ -76,7 +84,10 @@ mods were even loaded.
   headless. Nothing depends on either number: the pool is rebuilt from `ObjectDB.m_items` every
   session. Driftwood spawns in slack water and **was seen floating on the surface by the owner** —
   the last step no log could settle. The cap climbs `1→2→3→4→5` and holds; an empty ocean stays
-  empty. **None of that spawn behaviour was re-tested on 1.0.12.**
+  empty. **RE-MEASURED ON 1.0.15, 2026-09-21, WITH A ZDO-TABLE INSTRUMENT** (`docs/BACKLOG.md`
+  task 11 item 1): twelve spawned to the cap, the cap bound, fourteen reclaims each at 1801 s
+  against an 1800 s TTL, the server's whole ZDO table moving by exactly ±1 per item while the
+  player stood still, and ten minutes of empty server with zero spawns and four reclaims.
 - **5 — swimmers.** Measured live: computed drift **0.172**, the swimmer's own measured speed
   while drifting **0.164** — a 95% match, and no sign of the 20x amplification trap. Swimming
   held 1.9–2.0 m/s against a 0.17 m/s current, so the drowning guard has a tenfold margin.
@@ -108,8 +119,12 @@ taken with none installed.
   drift lines went from 18–41 active at 2.3 m to 71–77 at 2.8–2.9 m — surge reaches the visual
   through speed alone. A ThunderStorm-forced storm then held `chop 1.00` (sea state past 2.3 m)
   with 50–81 streaks active — and the owner saw none of them: present, unseen, and accepted as
-  storm behaviour; `docs/BACKLOG.md` task 7 row 9 names the lever. **Not yet seen:** night, a
-  long zone-crossing sail, and `wake drift` on/off. `revprobe` binds 0.7.0 clean against 1.0.15.
+  storm behaviour; `docs/BACKLOG.md` task 7 row 9 names the lever. **Night was seen 2026-09-21
+  and was a DEFECT** — the foam drew at full brightness at midnight, see the Known trap on
+  `RenderSettings.ambientLight` below; fixed the same day, and the fix's first cut was then
+  overruled by the eye ("too dim to find") — the night level is now the dial
+  `DriftLineNightFloor`, set to 0.7 by the owner at `tod 0` and shipped at that.
+  **Not yet seen:** a long zone-crossing sail, and `wake drift` on/off. `revprobe` binds 0.7.0 clean against 1.0.15.
   **CORRECTED 2026-09-19: the `libs\` set is the 1.0.15 one, not 1.0.12.** The publicized
   assemblies were refreshed at 11:40 on 2026-09-18 — after the 05:54 game update they are taken
   from, and a few hours after this line was written. A publicized DLL is derived from the game's
@@ -146,20 +161,22 @@ taken with none installed.
   artifact rather than the source: the client log holds **0 double-encoded runs and 8 proper
   UTF-8 em dashes**, including the two lines that were broken.
 
-  **STILL OWED, and neither blocks a release.** (a) **A client has never been SEEN to run a
-  migration.** The profile's config was already stamped, so it correctly short-circuited and
-  logged nothing — the behaviour is right, the observation is missing, and a file at version 1 is
-  not evidence because `Finish` stamps a fresh file silently. Aging that config the way the
-  server's was aged is the five-minute way to close it. (b) ~~**No destructive rung has ever run
-  anywhere**~~ — **CLOSED 2026-09-19.** 0.8.0's version-2 rebase ran on Storm10 against a real
-  config holding the old shipped `DriftLineMinDepth = 10`, and did every part of what the family
-  promises: `config: version 1 -> 2: 1 value(s) moved to their new defaults:
+  **BOTH WERE OWED HERE; BOTH CLOSED 2026-09-19, ONE PER ROLE.** (a) ~~**A client has never been
+  SEEN to run a migration.**~~ The `testing` profile's 0.8.0 boot was the first, and it closed the
+  protective branch with it: that file held a hand-set `DriftLineMinDepth = 2` — not the old
+  shipped 10 — so the rebase's guard branch is exactly what ran, and it logged
+  `config: version 1 -> 2: 1 kept as yours: 7 - Drift lines.DriftLineMinDepth=2 (your previous
+  config is backed up beside it, .v1.bak)`. Kept, named, not reset. Note the `.v1.bak` written
+  for a step that moved nothing: the backup gate is a property of the PLAN (the rung is
+  destructive) and not of the outcome, which is conservative by design — and means a `.bak`
+  beside a file is not evidence that anything in it changed. (b) ~~**No destructive rung has ever
+  run anywhere**~~ — 0.8.0's version-2 rebase ran on Storm10 against a real config holding the
+  old shipped `DriftLineMinDepth = 10`, and did every part of what the family promises:
+  `config: version 1 -> 2: 1 value(s) moved to their new defaults:
   7 - Drift lines.DriftLineMinDepth (your previous config is backed up beside it, .v1.bak)`, at
   WARNING because a value moved, naming the key, and leaving a `.v1.bak` beside the file that was
-  verified **byte-identical** to the pre-migration original with `cmp` rather than by eye. The
-  protective branch is what remains half-observed: a client whose stored value is NOT an old
-  shipped default should be Kept and named rather than reset, which is the branch that guards an
-  admin's deliberate setting.
+  verified **byte-identical** to the pre-migration original with `cmp` rather than by eye. Both
+  branches of the family's one destructive step have now been watched on real files.
 
   The 2026-09-18 server-only run and its corrections follow, kept because the reasoning is the
   lesson.
@@ -625,6 +642,18 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   particle glows at night unless the code dims it from the scene's own light. Inherited from
   Ragnarok's Wrath (its 0.7.0 shipped a fog nobody could see); `Visuals/ParticleKit.cs` carries
   the candidate chain verbatim and must never fork from RW's.
+
+- **`RenderSettings.ambientLight` NEVER READS AS NIGHT IN VALHEIM.** Measured 2026-09-21 on
+  Storm10 with `tod 0` / `tod 0.5` under one sky: its luminance is **0.38 at midnight and 0.56 at
+  noon** — a moonlit grey, not black. Anything that dims by "ambient goes dark" therefore never
+  dims: the drift lines' `DayFactor` had a floor of 0.05 and saturated at 0.35, so the foam drew
+  at full daytime brightness all night through 0.7.0, 0.7.2 and 0.8.0, with a green harness the
+  whole time, because the assertion pinned an imagined 0–1 range rather than a measured sky.
+  **`RenderSettings.fogColor` does carry the night: 0.18 → 0.53** over the same two readings,
+  nearly three times the contrast, and it darkens under a storm sky too. The fix is fed the fog;
+  both numbers stay in `wake lines` (`fog lum … (ambient lum …)`). The general lesson is the one
+  this file keeps relearning: a threshold on an engine value is a guess until that value has been
+  read at both ends of its range in the game, and a test that pins the guess is worse than none.
 
 - **RAISING `MaxCurrentSpeed` MAKES THE DRIFT LINES DISAPPEAR, and nothing says so.** Measured
   2026-09-19 on Storm10, after the owner reported seeing no foam. `MaxCurrentSpeed` is a CEILING —

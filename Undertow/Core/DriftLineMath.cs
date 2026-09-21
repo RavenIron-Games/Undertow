@@ -229,14 +229,35 @@ namespace RavenIron.Undertow.Core
             return Math.Max(0f, 0.2126f * r + 0.7152f * g + 0.0722f * b);
         }
 
-        public const float DayFloorLuminance = 0.05f;
+        /// <summary>
+        /// MEASURED 2026-09-21 on Storm10 — `tod 0` and `tod 0.5` under one sky, read off
+        /// `wake lines`. The input used to be `RenderSettings.ambientLight`, whose luminance runs
+        /// 0.38 at midnight to 0.56 at noon: Valheim's night is moonlit grey, not black. Against
+        /// the old floor of 0.05 that saturated at 0.35, so the foam drew at full daytime
+        /// brightness all night — a dimming that was designed, harness-tested against a 0–1 range
+        /// the sky never uses, and inert. `RenderSettings.fogColor` runs 0.18 → 0.53 over the same
+        /// two readings (recovered by inverting <see cref="Tint"/> from the printed tint), nearly
+        /// three times the contrast, and it also darkens under a storm sky where ambient barely
+        /// moves — which is the "a big sea dims it" promise. The floor sits just above the
+        /// measured midnight; the slope is unchanged. These four numbers are the harness's fixture,
+        /// so the assertion pins the sky that was measured rather than a range somebody imagined.
+        /// </summary>
+        public const float MeasuredMidnightFogLuminance = 0.18f;
+        public const float MeasuredNoonFogLuminance = 0.53f;
+        public const float MeasuredMidnightAmbientLuminance = 0.38f;
+        public const float MeasuredNoonAmbientLuminance = 0.56f;
+
+        public const float DayFloorLuminance = 0.20f;
         public const float DaySlopeLuminance = 0.30f;
 
-        /// <summary>1 by day, ~0 at night, in between at dusk and under a storm sky.</summary>
-        public static float DayFactor(float ambientLuminance)
+        /// <summary>
+        /// 1 by day, ~0 at night, in between at dusk and under a storm sky. Feed it the FOG
+        /// colour's luminance, never the ambient's — the constants above say why.
+        /// </summary>
+        public static float DayFactor(float fogLuminance)
         {
-            if (float.IsNaN(ambientLuminance)) return 0f;
-            return Clamp01((ambientLuminance - DayFloorLuminance) / DaySlopeLuminance);
+            if (float.IsNaN(fogLuminance)) return 0f;
+            return Clamp01((fogLuminance - DayFloorLuminance) / DaySlopeLuminance);
         }
 
         /// <summary>
@@ -245,10 +266,24 @@ namespace RavenIron.Undertow.Core
         /// a glow — the shaders that ship are unlit, and an unlit white quad at night is a UI
         /// element. The alpha scale dims the night further.
         /// </summary>
-        public static void Tint(float fogR, float fogG, float fogB, float day,
+        /// <summary>
+        /// The share of daytime brightness and opacity the foam keeps at full night. The first
+        /// build with a working night (2026-09-21) had no floor: at day 0 the streak was 12%
+        /// bright at 35% alpha in a near-black tint, and the owner's verdict at `tod 0` was "too
+        /// dim to find". Real foam is the brightest thing on dark water, so night should mean a
+        /// faint grey smear, not absence. A dial rather than a constant so it can be set by eye at
+        /// midnight without a relaunch per guess — and it was, the same day: 0.35 "too dim to
+        /// find", 1.0 (no dimming, which is what 0.7.0–0.8.0 had shipped by accident) fine, 0.7
+        /// "works too". 0.7 ships: it reads as foam, keeps some of the night, and keeps all of the
+        /// storm-sky dimming that 1.0 would switch off with it.
+        /// </summary>
+        public const float DefaultNightFloor = 0.7f;
+
+        public static void Tint(float fogR, float fogG, float fogB, float day, float nightFloor,
                                 out float r, out float g, out float b, out float alphaScale)
         {
-            day = Clamp01(day);
+            // The day factor never drops below the floor: 0 is the old cliff, 1 is no dimming.
+            day = Math.Max(Clamp01(day), Clamp01(nightFloor));
             float bright = 0.12f + 0.88f * day;
             r = Clamp01(Lerp(Clamp01(fogR), 1f, 0.55f) * bright);
             g = Clamp01(Lerp(Clamp01(fogG), 1f, 0.55f) * bright);

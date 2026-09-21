@@ -995,7 +995,7 @@ and **1.2** (rewritten at 07:53) for the readout below. Drift lines at defaults.
 | 3 rides the water | `nearest streak 8.4m: surface 29.65 (flat 30.00, wave -0.35) | vanilla Floating.GetWaterLevel 29.65 (delta 0.000)`. |
 | 4 handedness | **MEASURED: `90 − bearing`.** With `−bearing` deployed, lines lay at 102° in 191° water (a quarter turn across); with `90 − bearing`, "long ways along the flow so a line instead of an arrow" (owner). `rot 257° for bearing 191°`. `startSize3D.x` is the length axis. A first "90° off" against `90 − bearing` was a confounded reading in the slack node by spawn — see CLAUDE.md Known traps. |
 | 5 sort order | One daylight screenshot: faint foam-white streaks on green water, not blue-tinted, no clipping seen. In the 2.3 m+ ThunderStorm sea nothing was visible at all (row 9), so sort order there is moot — no clipping artefact was seen because no streak was. |
-| 6 night | **Not seen.** `ambient lum 0.56 → day 1.00` by day; the midnight reading is still owed. |
+| 6 night | **SEEN 2026-09-21, AND IT WAS A DEFECT.** `tod 0` on Storm10: `ambient lum 0.38 -> day 1.00` — the input never reads as night. Valheim's midnight ambient is moonlit grey, the floor was 0.05 and saturation 0.35, so the foam drew at full daytime brightness all night for three releases while the harness stayed green against a 0–1 range the sky never uses. Noon under the same sky read 0.56, the same as the 18th. The fog colour, recovered by inverting the printed tint, runs **0.18 → 0.53** midnight → noon against ambient's 0.38 → 0.56 — the lever step 6 pre-planned. **Fixed the same day:** `DayFactor` is fed the fog luminance, floor 0.05 → 0.20, slope unchanged; the four readings are named constants in `DriftLineMath` and the harness's fixture (444 → 447), and the new midnight assertion was proven to fail against the old floor (`0.4333`). `wake lines` now prints `fog lum … -> day … (ambient lum …)`. **Built, not yet seen**: the owner's eye at midnight on the fixed build is owed, and it is the 1.0 ladder's item 4. |
 | 7 cost | **0.37 ms EMA at 160/160 active** (0.34 last frame, 81 surface reads, 0 field evals — memo 24 cells), budget 0.50. Prior was 0.25. Auto-degrade never fired. The first cost summary after build read 2.66 ms with nothing active — a single-frame EMA seed, fixed the same day (EMA now rises from zero and no verdict is taken for 60 warm-up frames). |
 | 8 zone crossings | `retired: no-volume 0, reflected 1` over a swimming session; no latch. The 1 km sail is still owed. |
 | 9 storm | **SEEN, 08:13–08:19.** RW 0.27.0 on both sides (server un-parked for it; the two ServerSync-pinned mods parked instead, at the owner's direction). `event ragnarokswrath_devastating_storm` from the client console → server `Random event set` and RW `storm began — sky is 'Rain'` at (-2286, 2091) → client `STORM at (-2286, 2091) — IsStormAt(centre)=True, surge x1.6 \| at centre: 0.273 m/s Drift \| 800m away: 0.151 m/s surge x1`. Console, before → under surge (owner's paste): `wake here` 0.173 m/s ESE Drift → **0.265 m/s, `STORM SURGE x1.6 — the sea is up here`**; `wake lines` active 34 → **82**, spawned per 10 s 38 → **73**, mean length 2.4 → **2.8 m**, mean speed 0.21 → 0.30, cost 0.08 → 0.14 ms EMA; nearest-streak delta against vanilla 0.000 both times in a 0.7 m sea. Surge reaches the visual through speed alone, as designed. Chop stayed ~0.21 (the storm's sky was 'Rain', not a big sea). Same paste closed the season check: `season summer (Wrath)` on a pure client. **Then forced to ThunderStorm** (08:21 and 08:28; `StormsForceWeather = true`, `StormForcedEnvironment = ThunderStorm` on both sides, both restarted because RW registers the event's forced sky at boot): **`chop 1.00` for the whole storm** — sea state past 2.3 m, the full chop response — mean length 3.1–3.9 m at 0.23–0.38 m/s water, 50–81 active, cost ≤ 0.21 ms, surge x1.6 again at (-2332, 2101). **And the owner saw NO streaks in it** ("they disappeared, but that's fine in a storm") while the pool held 50–81 active: they existed and were unseen — under the rendered mesh on steep crests (the predicted failure: lift is `0.06 + 0.05 × chop` = 0.11 m at chop 1 against a 2 m+ crest) or lost to the ThunderStorm's rain and fog; the log cannot tell which. Accepted by the owner as storm behaviour and NOT chased. The lever, if it is ever wanted: `ChopLiftMetres` 0.05 → 0.2 first, then a chop-scaled opacity floor. RW's own note applies to that sky: ThunderStorm is a WET environment, so a forced storm rains and its lightning is suppressed — the dry storm look is `Eikthyr`. |
@@ -1177,7 +1177,7 @@ migrates nothing and logs nothing. The run has to be against an existing file.
    private — but the first REAL rebase or retirement should be watched in-game on a copied config
    before it ships.
 
-## 9. The config sync — BUILT 2026-09-19, NOT YET RUN IN-GAME
+## 9. The config sync — BUILT 2026-09-19, RUN IN-GAME THE SAME DAY, ADMIN PUSH CLOSED
 
 The owner's call, taken from four options on 2026-09-19: **"Server wins, and admins can push."**
 
@@ -1420,15 +1420,257 @@ contorting one to try would be theatre.
 `.v1.bak` verified **byte-identical** to the pre-migration file with `cmp`. Afterwards the file
 reads `ConfigVersion = 2`, `DriftLineMinDepth = 2`, `DriftLineSlackFloor = 0.08`.
 
-⬜ **STILL OWED.** (a) The **protective** rebase branch: a client whose stored value is NOT an old
-shipped default must be Kept and named rather than reset. The `testing` profile holds a hand-set
-`DriftLineMinDepth = 2`, so booting it exercises exactly that branch. (b) **Foam actually seen**,
-at both reported coordinates — the whole point, and no log can settle it. (c) `wake lines` cost at
-a saturated pool, to confirm 0.37 ms still holds now that saturation is common rather than rare.
-(d) One look at an inland lake deeper than 2 m: the old 10 m floor was the de facto lake guard, and
-its description said so. The locked "Rivers and lakes — ocean only" row is about FORCE ("a sideways
-force pins players against terrain") and is untouched by a visual, but if foam on a pond looks
-wrong, `DriftLineMinDepth` is the dial.
+✅ **(a) CLOSED 2026-09-19 — the protective branch, on the client.** The `testing` profile held a
+hand-set `DriftLineMinDepth = 2`, not the old shipped 10, so its 0.8.0 boot ran exactly the guard
+branch and logged `config: version 1 -> 2: 1 kept as yours: 7 - Drift lines.DriftLineMinDepth=2
+(your previous config is backed up beside it, .v1.bak)`. Kept, named, not reset — and a `.v1.bak`
+written anyway, because the backup gate keys on the PLAN being destructive rather than on the
+outcome. That is the conservative side to err on, and it also means a `.bak` beside a file is
+not evidence that anything in it moved. This was also the first time a client was ever SEEN to
+migrate at all (task 8's other open observation), so both close together.
+
+✅ **(b) CLOSED 2026-09-21 — "lying on the water", the owner's words, in Drift water near
+(-700, -1050) at the shipped `DriftLineLiftMetres = 0.02` and default opacity.** The paragraph
+below is how it stood the day before. Foam was seen the same day at (-3044, 3728) — `wake lines` reading
+`active 23`, `min depth 2m`, in 2.3 m water where 0.7 drew nothing — and the owner's next report
+was that it **floated above the surface**. The hover was uniform, so the lift was rebuilt as one
+`DriftLineLiftMetres` key (default 0.02 m, replacing `BaseLiftMetres` 0.06 + `ChopLiftMetres` 0.05
+× chop) and deployed. **Nobody has looked at the water since.** The owner's "much better" came from
+`DriftLineOpacity` 1 → 2, before the lift change was on the client. So: foam in formerly-bare water
+is seen; the two originally reported coordinates were not revisited; and whether 2 cm sits the foam
+ON the water is the one 0.8.0 change that is built, deployed and unobserved. (c) `wake lines` cost
+at a saturated pool and (d) the inland-lake look are still owed as written above.
+
+## 11. The road to 1.0 — LADDER WRITTEN 2026-09-21
+
+Tasks 0–10 are built, and every one has been run in game at least once. So 1.0 is not a feature.
+What it is here: **the point at which every sentence in `README.md` has been watched happen on the
+shipping game, and the config layout becomes a promise.** The second half is the one with a
+cost attached — after 1.0, every default that moves is a `ConfigLedger` rung on a stranger's file
+with a `.vN.bak` beside it, and 0.8.0 has just shown what that looks like. Before 1.0 a retune is
+a number in `ModConfig.cs`; after it, a migration.
+
+What follows is the README's claims that rest on the harness alone, or on a measurement taken
+before Valheim 1.0, sorted by what happens to a server owner if the claim turns out wrong. Two
+rungs: **0.9 carries the two server-side risks, 1.0 the sightings, one decision and the docs.**
+Nothing on the ladder is new code. Each item is a session in the water with `VerboseLogging` on
+and a protocol that already exists in this file, named rather than repeated. The one thing every
+item shares: a claim the harness already proves, which is precisely why it has been easy to leave
+unobserved.
+
+### 0.9 — the server-side risks
+
+**1. Flotsam on the shipping game, and the ZDO count over hours.** Last seen floating on
+2026-08-28, on 0.5.1, before Valheim 1.0. Since then only the boot-time prefab scan has re-run
+(task 6), and that on a client, which is not the role that spawns. The README promises "capped,
+reclaimed on a timer, and spawned only near a real player" — and that exact safety valve was once
+silently dead while every spawn logged `[1/12 alive]` and the log looked healthy (task 4). Task 4's
+acceptance — "on a long-running world the per-zone cap holds and the ZDO count is stable across
+several hours — measure it, do not assume it" — has never been taken by anyone.
+*Where:* Storm10, at shipped defaults — reverted 2026-09-21 (`FlotsamTtlSeconds` 1500 → 1800 from
+the 0.7.2 round trip, `DriftStrength` 4 → 1 and `VerboseLogging` off from the sync test; the
+pre-revert file is beside it as `.pre-1.0-revert-20260921`), because a run at test values is a
+run at nobody's settings. **With ONE exception, and the arithmetic says why:** `FlotsamPerHour`
+6 → 60 for the run only. At 6/hour against an 1800 s TTL the steady state is `6 × 0.5 = 3` alive
+per player and the cap of 12 is never reached inside an hour — task 4's "climbs 1→2→3→4→5 and
+holds" was that steady state, not the cap binding. At 60 the cap binds in about twelve minutes and
+the first reclaim lands at thirty, so both halves of the safety valve run inside one sitting. It
+is per-machine and never synced, so the client is untouched. `VerboseLogging` goes back on for the
+run, because it gates the instrument.
+*Instrument:* **built 2026-09-21, the one code change this rung is allowed.** Every verbose flotsam
+line now ends `[n/cap alive, N ZDOs]`, where N is `ZDOMan.NrOfObjects()` — public in the shipping
+assembly and `m_objectsByID.Count` by its body, read out of the real `assembly_valheim.dll` rather
+than the publicized one (rule 5). And two events that used to happen in silence now log, verbose
+only: a TTL reclaim (`reclaimed <uid> after Ns`) and an item that went away on its own
+(`<uid> gone (picked up, or removed by the world)`), because a count that drops with no line beside
+it is a diagnostic round-trip. Before this, the acceptance below had no instrument at all: the
+reclaim — the half of the valve that bounds a long-running server — never printed anything, so
+"reclaimed on a timer" was a claim the log could neither confirm nor deny. Deployed to Storm10 and
+the `testing` profile as a dev build that still carries the 0.8.0 const; its hash is NOT the
+shipped 0.8.0 zip's and is recorded in the session, not the boot line.
+*Protocol:* a player parked in slack water for one and a half TTLs (45 min at 1800 s), reading
+the summary every ten minutes. Then leave the area for ten more.
+*Acceptance:* the cap is reached and held; at least one reclaim is observed by uid, on schedule;
+the ZDO total is flat across the second half of the run; production stops when the area empties.
+If the alive count only climbs, the dedicated-server ownership bug is back in some new shape and
+0.9 waits until it is found. One accepted cost, already in the code's own comment: flotsam alive at
+a restart is forgotten and never reclaimed, so at most `FlotsamMaxAlive` items per session outlive
+the mod. That is a ceiling, not a leak — confirm it stays one by counting after a restart.
+
+**RUN 2026-09-21 — CLOSED, on the shipping game, with the instrument built the same morning.**
+Storm10 at defaults except `FlotsamPerHour 60` and verbose. What the log shows, in order:
+
+- **Spawning works on 1.0.15.** Twelve items in about thirteen minutes, one a minute as 60/hour
+  says, from `FirCone at (-600, -220) … [1/12 alive, 162318 ZDOs]` to
+  `FirCone at (-622, -1093) … [12/12 alive, 170229 ZDOs]`. The palette drew common, rare
+  (`Demister`) and forest debris; no missing prefab, no warning.
+- **The cap binds.** Not one spawn line between `12/12` and the first reclaim; the next spawn
+  landed at `11/12` immediately after a reclaim freed the slot, and the count then oscillated
+  between reclaims and spawns exactly as a rolling cap should. Positive evidence both ways.
+- **Reclaims land on the clock.** Fourteen `reclaimed <uid> after 1801s` lines by the end of the
+  session — every one at 1801 s against an 1800 s TTL — including items five kilometres from the
+  only player, in unloaded zones. `DestroyZDO` needs no instance, only the uid, which is the
+  2026-08-28 fix doing its job.
+- **The ZDO table moves by exactly the item.** While the owner was still, a spawn read +1
+  (`193176 → 193177`) and consecutive reclaims read −1, −1, −1, −1 (`193498 → 193495 → 193494 →
+  193493`). While the owner sailed, the total jumped by hundreds to tens of thousands — that is
+  the world generating zones and has nothing to do with us, which is why the acceptance says
+  "flat while parked". Note the reading is ONE BEHIND on a reclaim line: vanilla's `DestroyZDO`
+  only queues the uid (`m_destroySendList`), and the removal from `m_objectsByID` happens when
+  the routed `DestroyZDO` RPC comes back round to the server itself — read out of the real
+  assembly the same hour. Two equal readings in a row are therefore not a leak; a trend is the
+  evidence, and the trend is −1 per reclaim.
+- **An empty server produces nothing and still cleans up.** Ten minutes with no peer: **0 spawn
+  lines, 4 reclaims**, the table 193,498 → 193,493 and never up. Driftwood does not sit forever
+  after everyone leaves, and an idle server does not fill its own world.
+
+Not measured: hours. The run was fifty minutes at ten times the shipped spawn rate, which is
+worth about eight hours at defaults in cap and reclaim events, but a real long-running world
+also restarts, and a restart forgets whatever was alive (at most `FlotsamMaxAlive` items, by the
+code's own comment). Counting after a restart is the one line of this rung still open, and it
+is a ceiling of twelve per session, not a growth term.
+
+**2. Njord and Sailing, measured.** Both are on Ravenrest, so every boat number ever taken there
+was taken "with" them, and Njord is the one mod that matches the shape `CLAUDE.md`'s boat-mod
+warning was written for: a physics overhaul with per-hull caps and no public source. The README
+says "boat stat mods should compose", on reasoning only. Tasks 2c and 2d hold the protocols and
+the predictions; this rung is running them.
+*Where:* the owner's call. Ravenrest is production, and "without" means parking a ServerSync-pinned
+mod on both sides for a session — or Storm10 with both mods added for the afternoon, which is the
+owner's infrastructure and not to be touched without asking.
+*Acceptance, and it is one number per mod:* a karve's settled `ALONG-RATIO` drifting with Njord
+and with it parked (2d step 1–2). Vanilla gave 0.86; near that and the saturation claim holds under
+Njord's damping; well below and the first answer is `DriftStrength` on that server, never a toggle.
+Then Sailing's cleanest prediction — the drifting ratio identical to the second decimal with it on
+or off (2c steps 1–2). Each closes a ⚠️ in `CLAUDE.md` and puts a date and a ratio in its place.
+
+### 1.0 — the sightings, one decision, and the docs
+
+**3. The drowning guard's clamp branch, seen.** "You can always out-swim the water" is the mod's
+single safety property, and its clamp has never executed in game: on 2026-08-28 and 2026-09-12 the
+requested drift never came within a factor of seven of the cap, so `SwimDrift.Compute`'s clamp
+branch has only ever run in the harness. The 2026-09-19 report "swimming against a current makes
+you go backward" was taken under a test-contaminated `SwimmerDriftFactor = 0.9`, not defaults —
+but it is exactly the symptom shape, and the owner noticed it inside a minute.
+*Protocol:* task 5's, with the factor at the top of its range on the SERVER (it is synced, so one
+edit reaches the swimmer), in the fastest water on the map — a race, or a storm over deep sea if RW
+obliges. The 3-second `swim drift` line must show `drift` pinned at `cap` (0.7 at swimSpeed 2).
+Then swim straight upstream.
+*Acceptance:* headway, on the line and on the screen, with the clamp visibly engaged. Then the
+factor back to 0.5. If a swimmer at full stamina cannot make headway with the clamp engaged, the
+feature is wrong and not the tuning — task 5's own words.
+**RUN 2026-09-21, CLOSED.** Storm10, `SwimmerDriftFactor 1.0` and `SwimmerMaxShareOfSwimSpeed 0.2`
+pushed from the server (the client adopted them over the wire — the sync's first use as a test
+rig). The owner found a race at (3540, 792) running **0.965–1.002 m/s**, so the request was a
+full metre per second of drift, and the line read `drift 0.4 (cap 0.4)` — pinned, the clamp
+branch of `SwimDrift.Compute` executing on real water for the first time. Floating: `swimmer
+0.38 m/s`, 95% of the drift, the same match as 2026-08-28 and 2026-09-12. Swimming: `swimmer
+1.577 m/s`, which is `2.0 − 0.4` to the second decimal — upstream, gaining 1.6 m/s on the water
+with the clamp engaged. The safety property holds where it was never before exercised.
+
+**4. The drift lines at night.** `Sprites/Default` is unlit. Ragnarok's Wrath 0.7.0 shipped a fog
+nobody could see for that reason; the inverse — foam that glows on black water — is the trap
+named in `CLAUDE.md`, and the README's "night, fog, distance and a big sea dim it on their own"
+has never been looked at. Task 7 row 6 has been "not seen" since 2026-09-18.
+*Protocol:* task 7 step 6. `wake lines` at noon, dusk, midnight and in rain; `ambient lum` must
+MOVE, and midnight must read as a faint grey smear a shade lighter than the water, never a glow.
+*Acceptance:* the owner's eye at midnight, and the four `lum` readings recorded in row 6. The one
+lever if it fails is `DayFactor`'s input (fog luminance instead of ambient); the two knobs are
+`DayFloorLuminance` and `DaySlopeLuminance` in `DriftLineMath`.
+**RUN 2026-09-21 — it failed, exactly the way the lever anticipated, and the lever was pulled.**
+Midnight ambient 0.38 → day factor 1.00: no dimming at all. Fog luminance 0.18 → 0.53 across
+the same two readings; `DayFactor` now takes the fog, floor 0.20. Task 7 row 6 has the numbers.
+*The eye, same session, and it overruled the numbers.* On the fixed build at `tod 0`: `fog lum
+0.15 -> day 0.00 (ambient lum 0.37)`, tint `(0.07, 0.07, 0.08)` — and the owner: **"too dim to
+find."** The design sentence "a faint grey smear" had been read as "nearly nothing", and nearly
+nothing is not what foam does on black water. So the night floor became a per-machine dial,
+`DriftLineNightFloor`, slid live at midnight through the config manager: 0.35 too dim, **1.0
+fine** (no dimming — the look three releases had shipped by accident), **0.7 "works too"**.
+Ships at 0.7, which keeps some night and all of the storm-sky dimming. **CLOSED.** The lesson
+for the ladder: a visual acceptance is the owner's eye, and a number that reads 0.00 exactly
+where the harness says it should is not a substitute for it.
+
+**5. The tide reversing the coastal stream, seen.** The README's whole Tides section — "reverses
+the coastal stream, so the passage you know is a different passage six hours later" — has been
+verified in the harness and never on the water. `wake here` has printed tide phases from 23% to
+96% across sessions, so the CLOCK is known to move; the REVERSAL has never been read.
+*Protocol:* coastal water — inside `ShelfDepth` (28 m), `wake here` reporting `Coastal` — and the
+same spot at flood and at ebb. `TidePeriodSeconds` is synced and 3600 by default, so a half-cycle
+is 30 minutes; shorten it on the server for the session and the two readings are minutes apart.
+Task 1's own lesson applies: compare bearings at ONE point, because the open-water term does not
+reverse and a reading from a different spot is a hostage to it.
+*Acceptance:* two `wake here` lines, same coordinates, coastal term dominant in both, bearings
+roughly opposed. Then the period back to 3600.
+**RUN 2026-09-21, CLOSED — and the protocol above was wrong in one way that cost twenty minutes.**
+The first flood readings were taken by `wake here` at (4798, 1019) and (4804, 1006) and the slack
+ones at (4786, 1003); twelve to twenty metres apart is enough on a shelf to change the shore
+gradient the coastal tangent is built from, and the set was not comparable. The fix was
+**`wake field 4786 1003` from wherever the owner happened to be** — the field is a pure function,
+so the same point can be read remotely through a whole cycle without holding station. Sixteen
+readings at that one point, `TidePeriodSeconds 600` pushed from the server:
+
+| tide | current at (4786, 1003) | dominant |
+|---|---|---|
+| 46% slack | 0.315 m/s SE (0.24, −0.21) | Coastal |
+| 57% ebb | 0.574 m/s ESE (0.55, −0.18) | Race |
+| 94% ebb | 0.585 m/s ESE (0.55, −0.19) | Race |
+| 6% → 13% flood | east component 0.197 → 0.083, north steady at −0.24 | Coastal |
+| **25% peak flood** | **0.272 m/s S (−0.013, −0.271)** | Coastal |
+
+Read against the source (`coastalSpeed = CoastalStrength × shelf × sin(tide)`, open water
+`× (1 + 0.25 sin)`): an open-water residual of ~0.36 m/s ESE that never turns, and a coastal
+stream of ~0.5 m/s running east–west along this shore — east on the ebb, west on the flood —
+which the 25% reading was **predicted from before it was taken** ("roughly 0.3 m/s toward the SSW
+or S"; measured 0.272 S). The along-shore component reverses; the total swings a quarter-turn and
+halves, and the label flips between Race (the two add) and Coastal (they fight). That is the
+README's "a different passage six hours later", measured at one point through one cycle.
+*Found while reading the term:* the "slight push toward land, ALWAYS" (`onshoreShare`) is
+multiplied by the signed `coastalSpeed`, so on the ebb it pushes off the shore. Fifteen percent of
+the coastal term; the comment and the README's lee-shore argument say always. A field-maths
+change, so it waits for the item 6 decision rather than being fixed mid-session.
+
+**6. The decision — the speed, and version gating. Both are the owner's, not the code's.**
+On 2026-09-19 the owner asked for "actual current speeds", then "as real as possible", and then
+chose to leave the tuning where it is. That stands and is not reopened here. What this entry
+records is the COST SHAPE: every field constant that changes before 1.0 is a number; every one
+that changes after is a migration on every existing install. The analysis behind that session —
+a scan of the shipping field's speed distribution across a seed, and the gap between
+`MaxRaceMultiplier = 1.6` and real tidal races at 3–5 m/s — **did not make it into this repo and
+its scratch files are gone**, so if the question is reopened the scan has to be re-run first.
+The second decision is smaller: the open question below says to revisit version gating "the day
+a release changes the field's maths". The config sync has since closed the TUNING half of that
+risk entirely; the maths half is now the only way two versions can disagree about one sea, and
+1.0 is the natural place to decide whether to copy RW's `VersionSync` (warn once, never kick) or
+to keep relying on the wire header. Either answer is fine; not deciding is the one that costs.
+
+**7. The docs pass.** By this rung every ⚠️ in `CLAUDE.md`'s compatibility section has a date or a
+reason it stays; the status block loses "NOT YET" lines it no longer needs; task 7's rows 6, 8 and
+10 are filled or struck; the README's Tides, Swimmers and Flotsam sections cite the session that
+watched them; `CHANGELOG.md`'s 1.0 entry says what 1.0 means in one paragraph and lists nothing
+that is not observed. And the CLAUDE.md sentence "Timeline: open-ended. Done when it's done" gets
+its date.
+
+### Owed, and deliberately not on the ladder
+
+None of these would stop the number going on, and each is written up where it belongs:
+
+- The 2 cm lift, looked at (task 10 (b)). Five minutes, and it is the one 0.8.0 change nobody has
+  seen; do it first, before any session above, since every session above is in the water anyway.
+- Two Undertow versions meeting across the wire, and the non-admin push REFUSED and acknowledged —
+  only the accept leg has been observed (task 9).
+- The slider debounce — four pushes and four broadcasts per drag (task 9).
+- Two-hull convergence re-taken on the shipping game: only the karve has sailed since August, and
+  the "every hull regardless of damping" claim rests on 0.2.1 (task 6). The race-convergence
+  hypothesis (0.91 medians in fast water) wants a hull parked inside a race rather than sailed
+  through one.
+- Drift lines: the 1 km zone-crossing sail, `wake drift` identical with lines on and off, the cost
+  at a now-common saturated pool, one look at a lake (task 7 rows 8 and 10, task 10 (c) and (d)).
+- Dive In (task 5c) — not on Ravenrest, expected to compose, tight case is the encumbered diver in
+  a storm.
+- The 70 m/s near-shore anomaly (task 6) — stays open until it recurs; no theory is to be written
+  for it in the meantime.
+- The headless float re-scan (`123 of 1090` vs a client-side `162 of 1523`) — nothing depends on
+  either number.
 
 ## 5z. Original task 5 specification (its AddPushbackForce advice was WRONG - see above)
 

@@ -136,7 +136,7 @@ namespace RavenIron.Undertow.Visuals
         private float _camAbove = float.NaN;
 
         // ---- per-frame constants, kept so the console can print what the frame saw ----------
-        private float _ambientLum, _day, _tintR, _tintG, _tintB, _alphaScale;
+        private float _ambientLum, _fogLum, _day, _tintR, _tintG, _tintB, _alphaScale;
         private Color _fogColor;
         private int _fogMode;
         private float _fogDensity, _fogStart, _fogEnd;
@@ -550,9 +550,15 @@ namespace RavenIron.Undertow.Visuals
         {
             Color ambient = RenderSettings.ambientLight;
             _ambientLum = DriftLineMath.Luminance(ambient.r, ambient.g, ambient.b);
-            _day = DriftLineMath.DayFactor(_ambientLum);
             _fogColor = RenderSettings.fogColor;
+            // The FOG colour drives the day factor, not the ambient. Measured 2026-09-21: ambient
+            // runs 0.38 → 0.56 from midnight to noon and never reads as night; fog runs
+            // 0.18 → 0.53. Both stay in the `wake lines` readout so the next sky can be measured
+            // the same way this one was — see DriftLineMath.MeasuredMidnightFogLuminance.
+            _fogLum = DriftLineMath.Luminance(_fogColor.r, _fogColor.g, _fogColor.b);
+            _day = DriftLineMath.DayFactor(_fogLum);
             DriftLineMath.Tint(_fogColor.r, _fogColor.g, _fogColor.b, _day,
+                               Mathf.Clamp01(ModConfig.DriftLineNightFloor.Value),
                                out _tintR, out _tintG, out _tintB, out _alphaScale);
             _fogMode = RenderSettings.fog ? (int)RenderSettings.fogMode : 0;
             _fogDensity = RenderSettings.fogDensity;
@@ -853,7 +859,8 @@ namespace RavenIron.Undertow.Visuals
             // answer on its own: the nearest-streak line below already proves the SAMPLED height
             // matches vanilla exactly, so anything left over is this number.
             sb.Append($"lift {(ModConfig.DriftLineLiftMetres.Value * 100f).ToString("0.#", c)}cm, ");
-            sb.Append($"slack floor {ModConfig.DriftLineSlackFloor.Value.ToString("0.##", c)}\n");
+            sb.Append($"slack floor {ModConfig.DriftLineSlackFloor.Value.ToString("0.##", c)}, ");
+            sb.Append($"night floor {ModConfig.DriftLineNightFloor.Value.ToString("0.##", c)}\n");
 
             float level = SeaContext.WaterLevel;
             sb.Append($"centre ({_centre.x.ToString("0", c)}, {_centre.z.ToString("0", c)})");
@@ -901,7 +908,7 @@ namespace RavenIron.Undertow.Visuals
             }
 
             sb.Append($"sea state {_seaState.ToString("0.00", c)}m (chop {DriftLineMath.Chop(_seaState).ToString("0.00", c)}, chop fade {DriftLineMath.ChopFade(_seaState).ToString("0.00", c)}), ");
-            sb.Append($"ambient lum {_ambientLum.ToString("0.00", c)} -> day {_day.ToString("0.00", c)}, tint ({_tintR.ToString("0.00", c)},{_tintG.ToString("0.00", c)},{_tintB.ToString("0.00", c)}), ");
+            sb.Append($"fog lum {_fogLum.ToString("0.00", c)} -> day {_day.ToString("0.00", c)} (ambient lum {_ambientLum.ToString("0.00", c)}), tint ({_tintR.ToString("0.00", c)},{_tintG.ToString("0.00", c)},{_tintB.ToString("0.00", c)}), ");
             sb.Append(_fogMode == 0 ? "fog off" : $"fog mode {_fogMode} density {_fogDensity.ToString("0.0000", c)}");
             sb.Append($" | volumes cached {_cache.Count} (Instances {_cache.InstancesCount}), rebuilt {_cache.RebuiltAgo(now).ToString("0.0", c)}s ago\n");
 

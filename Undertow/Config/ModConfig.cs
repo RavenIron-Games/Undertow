@@ -75,6 +75,7 @@ namespace RavenIron.Undertow.Config
         public static ConfigEntry<float> DriftLineMinDepth;
         public static ConfigEntry<float> DriftLineSlackFloor;
         public static ConfigEntry<float> DriftLineLiftMetres;
+        public static ConfigEntry<float> DriftLineNightFloor;
         public static ConfigEntry<float> DriftLineBudgetMs;
 
         // ---- The stamp -------------------------------------------------------------------
@@ -361,6 +362,16 @@ namespace RavenIron.Undertow.Config
                     "absent in slack water, a cleaner contrast that costs you the ability to tell " +
                     "slack water from a broken mod at a glance.",
                     new AcceptableValueRange<float>(0f, 0.5f)));
+
+            DriftLineNightFloor = cfg.Bind(lines, "DriftLineNightFloor", DriftLineMath.DefaultNightFloor,
+                new ConfigDescription(
+                    "How much of the foam's daytime brightness and opacity it keeps at full night, " +
+                    "0 to 1. The dimming follows the sky's fog colour, which is what actually goes " +
+                    "dark at night in Valheim (the ambient light does not — measured 2026-09-21). " +
+                    "0 makes the foam vanish after dark, which is what the first fix did and was too " +
+                    "far: real foam is the most visible thing on black water. 1 turns night dimming " +
+                    "off. Client-side, never sent by a server; safe to slide live at `tod 0`.",
+                    new AcceptableValueRange<float>(0f, 1f)));
 
             DriftLineLiftMetres = cfg.Bind(lines, "DriftLineLiftMetres", 0.02f,
                 new ConfigDescription(

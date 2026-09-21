@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+- **The drift lines' night dimming works now, and it is a dial.** It was designed in from 0.7.0
+  and never engaged: it read Unity's ambient light, and Valheim's midnight ambient is a moonlit
+  grey (luminance 0.38, against 0.56 at noon) that never reached the "night" band, so the foam
+  drew at full daytime brightness all night through three releases. Found by standing on the
+  water with the clock forced to midnight and reading `wake lines`. The dimming now follows the
+  **fog colour**, which runs 0.15 at midnight to 0.53 at noon and also darkens under a storm sky.
+  The first working build went all the way to nothing at midnight, and that was too far — real
+  foam is the most visible thing on black water — so how much of the day the foam keeps at full
+  night is a new client-side setting, **`DriftLineNightFloor`**, set by eye at midnight and
+  shipped at **0.7**: a little dimmer than day, still plainly foam, and the storm-sky dimming
+  intact. 1.0 is the old accidental look; 0 is a foam that vanishes after dark. The readings that
+  decided the input are named constants in the code and the test fixture, and `wake lines` prints
+  both luminances and the floor.
+
+- **Flotsam now says what it reclaims.** Every verbose flotsam line ends with the size of the
+  server's whole ZDO table (`[n/12 alive, N ZDOs]`), and a reclaim on the TTL — the half of the cap
+  that bounds a long-running server, which used to happen in silence — logs by id, as does an item
+  that was picked up or removed by the world. Verbose only; nothing changes with logging off.
+
 ## 0.8.0
 
 - **The drift lines now show in all moving water.** Two shipped values were keeping the foam off

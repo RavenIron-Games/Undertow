@@ -1084,10 +1084,26 @@ namespace Undertow.Tests
             Check(texelSym, "texel for texel, the rasterised streak reads the same from either end");
 
             // ---- light: the unlit shader must not glow at night -----------------------------
-            Check(DriftLineMath.DayFactor(0f) == 0f && DriftLineMath.DayFactor(0.05f) == 0f
-                  && Math.Abs(DriftLineMath.DayFactor(0.35f) - 1f) < 1e-6f && DriftLineMath.DayFactor(0.5f) == 1f
-                  && DriftLineMath.DayFactor(float.NaN) == 0f,
-                "DayFactor: 0 below the floor, 1 above the slope, 0 for NaN");
+            // The fixture is the sky that was MEASURED (2026-09-21, `tod 0` / `tod 0.5` on
+            // Storm10), not a range. The first version of this block asserted 0 below 0.05 and 1
+            // above 0.35 and was green for three days while the foam drew at full brightness at
+            // midnight — the real night never goes below 0.38 on the input it was then fed. A test
+            // against an imagined range proves the arithmetic and nothing about the sky.
+            float midnight = DriftLineMath.DayFactor(DriftLineMath.MeasuredMidnightFogLuminance);
+            float noon = DriftLineMath.DayFactor(DriftLineMath.MeasuredNoonFogLuminance);
+            Check(midnight <= 0.05f,
+                $"the measured midnight fog ({Fmt(DriftLineMath.MeasuredMidnightFogLuminance)}) reads as night, not day ({Fmt(midnight)})");
+            Check(noon >= 0.99f,
+                $"the measured noon fog ({Fmt(DriftLineMath.MeasuredNoonFogLuminance)}) reads as full day ({Fmt(noon)})");
+            Check(DriftLineMath.DayFactor(0f) == 0f && DriftLineMath.DayFactor(float.NaN) == 0f,
+                "DayFactor: 0 for black and 0 for NaN");
+            // Why the input moved, as a number: the ambient light at the same midnight sits well
+            // inside the day band, so on that input no floor can separate night from noon without
+            // also dimming a clear day.
+            Check(DriftLineMath.MeasuredMidnightAmbientLuminance > DriftLineMath.DayFloorLuminance
+                  && DriftLineMath.MeasuredNoonAmbientLuminance - DriftLineMath.MeasuredMidnightAmbientLuminance
+                     < DriftLineMath.MeasuredNoonFogLuminance - DriftLineMath.MeasuredMidnightFogLuminance,
+                "the fog colour has more midnight-to-noon contrast than the ambient light, which is why it is the input");
             bool dayMono = true; prev = -1f;
             for (int i = 0; i <= 100; i++)
             {
@@ -1096,8 +1112,21 @@ namespace Undertow.Tests
                 prev = d;
             }
             Check(dayMono, "DayFactor never falls as the light rises");
-            DriftLineMath.Tint(0.5f, 0.5f, 0.55f, 0f, out float nr, out float ng, out float nb, out float na);
-            DriftLineMath.Tint(0.5f, 0.5f, 0.55f, 1f, out float dr, out float dg, out float db, out float da);
+            DriftLineMath.Tint(0.5f, 0.5f, 0.55f, 0f, 0f, out float nr, out float ng, out float nb, out float na);
+            DriftLineMath.Tint(0.5f, 0.5f, 0.55f, 1f, 0f, out float dr, out float dg, out float db, out float da);
+            // The night floor: 0 is the cliff the owner called "too dim to find", 1 is no dimming,
+            // and anything between lands between — by day it must do nothing at all.
+            DriftLineMath.Tint(0.5f, 0.5f, 0.55f, 0f, 1f, out float fr, out _, out _, out float fa);
+            Check(Math.Abs(fr - dr) < 1e-6f && Math.Abs(fa - da) < 1e-6f,
+                "a night floor of 1 is no dimming at all — the day tint at midnight");
+            DriftLineMath.Tint(0.5f, 0.5f, 0.55f, 0f, DriftLineMath.DefaultNightFloor, out float hr, out _, out _, out float ha);
+            Check(hr > nr && hr < dr && ha > na && ha < da,
+                $"the shipped night floor ({Fmt(DriftLineMath.DefaultNightFloor)}) lands between the cliff and the day ({Fmt(nr)} < {Fmt(hr)} < {Fmt(dr)})");
+            DriftLineMath.Tint(0.5f, 0.5f, 0.55f, 1f, DriftLineMath.DefaultNightFloor, out float xr, out _, out _, out float xa);
+            Check(Math.Abs(xr - dr) < 1e-6f && Math.Abs(xa - da) < 1e-6f,
+                "the night floor does nothing by day");
+            Check(DriftLineMath.DefaultNightFloor > 0f && DriftLineMath.DefaultNightFloor < 1f,
+                "the shipped night floor is neither the cliff nor 'no dimming'");
             Check(nr <= 0.13f && ng <= 0.13f && nb <= 0.13f && Math.Abs(na - 0.35f) < 1e-6f,
                 $"at night the tint is a smear a shade above black water ({Fmt(nr)},{Fmt(ng)},{Fmt(nb)}), never a glow");
             Check(dr >= 0.7f && dg >= 0.7f && db >= 0.7f && Math.Abs(da - 1f) < 1e-6f,
