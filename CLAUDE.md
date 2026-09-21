@@ -23,16 +23,18 @@ Design document (the reasoning behind every decision here):
 
 ## Status
 
-**1.0.1 — BUILT, RUN IN GAME AND PACKAGED THE SAME AFTERNOON (2026-09-21), NOT YET UPLOADED.**
+**PUBLISHED — 1.0.1 IS LIVE ON HEXIUM (2026-09-21, 20:44Z), 72 MINUTES AFTER 1.0.0.** Confirmed
+through the API: `latest 1.0.1`; 1.0.0 took 26 downloads in the window it was current, and those
+installs carry the paddle bug until they update.
 1.0.0's first bug report arrived within hours and was real: a paddled karve stalled in 0.2 m/s
 of water, because the drift push was an acceleration compared against the hull's thrust. A hull
 under way now pays the current as drag relative to the water (costs exactly the water's speed,
 never more), a hull adrift keeps the push, and `UnderWayDragFactor` is a thirteenth synced dial.
 `docs/BACKLOG.md` task 12 and the Known trap below have the numbers; harness **480**.
 
-**PUBLISHED — 1.0.0 IS LIVE ON HEXIUM (2026-09-21, 19:32Z).**
+**1.0.0 WENT LIVE ON HEXIUM AT 19:32Z THE SAME DAY.**
 <https://valheim.hexium.gg/mods/RavenIronStudios/Undertow>. Confirmed through Hexium's API rather
-than assumed: `latest 1.0.0`, and the version list reads 1.0.0, 0.8.0, 0.7.2, 0.6.0, 0.5.1 —
+than assumed; the version list reads 1.0.1, 1.0.0, 0.8.0, 0.7.2, 0.6.0, 0.5.1 —
 **0.7.0 and 0.7.1 never shipped.** 0.7.2 (2026-09-19) was the first migration on a stranger's file,
 stamp-only; 0.8.0 (the same evening) carried the first destructive rung, `DriftLineMinDepth`, and
 had 129 downloads by the time 1.0.0 went up. An install arriving at 1.0.0 from 0.8.0 migrates

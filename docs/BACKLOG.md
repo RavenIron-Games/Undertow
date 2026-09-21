@@ -1877,6 +1877,11 @@ water resisting sideways slip, which is right, but nobody has felt it under sail
 0 and at 2, watched; and Grishak's own confirmation on his server with his ShipConfig workaround
 removed.
 
+**PUBLISHED 2026-09-21 20:44Z**, uploaded by the owner and confirmed through Hexium's API
+(`latest 1.0.1`), seventy-two minutes after 1.0.0 — which took 26 downloads in that window. Report
+to fix on the store: about four hours, with the diagnosis resting on one boot line that did not
+exist that morning.
+
 ## 5z. Original task 5 specification (its AddPushbackForce advice was WRONG - see above)
 
 Last, deliberately: the highest-annoyance surface in the mod, and it wants the most tuning
