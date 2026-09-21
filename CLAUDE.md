@@ -23,12 +23,13 @@ Design document (the reasoning behind every decision here):
 
 ## Status
 
-**PUBLISHED — 0.7.2 is live on Hexium (2026-09-19).**
+**PUBLISHED — 1.0.0 IS LIVE ON HEXIUM (2026-09-21, 19:32Z).**
 <https://valheim.hexium.gg/mods/RavenIronStudios/Undertow>. Confirmed through Hexium's API rather
-than assumed: `latest 0.7.2`, and the version list reads 0.7.2, 0.6.0, 0.5.1 — **0.7.0 and 0.7.1
-never shipped**, so every existing installation jumps 0.6.0 → 0.7.2 and gets the drift lines and
-the config migration in the same step. That is the first time the migration runs on a config file
-belonging to somebody who is not the owner, and for 0.7.2 it was the stamp-only path.
+than assumed: `latest 1.0.0`, and the version list reads 1.0.0, 0.8.0, 0.7.2, 0.6.0, 0.5.1 —
+**0.7.0 and 0.7.1 never shipped.** 0.7.2 (2026-09-19) was the first migration on a stranger's file,
+stamp-only; 0.8.0 (the same evening) carried the first destructive rung, `DriftLineMinDepth`, and
+had 129 downloads by the time 1.0.0 went up. An install arriving at 1.0.0 from 0.8.0 migrates
+nothing; from 0.7.2 it gets that one rebase with a `.v1.bak` beside its config.
 
 **0.8.0 PUBLISHED 2026-09-19.** Hexium's API lists it at the top of the version list from that
 evening (`date_updated` 22:35Z, re-read 2026-09-21), so the version-2 rebase below has been running
@@ -56,8 +57,8 @@ dial); the tide swinging one coastal point from ESE on the ebb to S on the flood
 it was read. The tuning decision was taken ("defaults stay"), two field-maths fixes landed behind a
 wire-header bump, and two Undertow versions were watched meeting across the wire. **Still
 unmeasured, and deliberately off the ladder:** Dive In, the 1 km zone-crossing sail, `wake drift`
-with the lines on and off, and a two-hull re-take on the shipping game. Harness **459**. Built and
-packaged the same day; the owner uploads.
+with the lines on and off, and a two-hull re-take on the shipping game. Harness **459**. Built,
+packaged and uploaded by the owner the same day; live at 19:32Z, confirmed through the API.
 
 
 **THE ROADMAP IS BUILT.** Tasks 0–5, harness **162/162**, every assertion proven to fail without
@@ -297,7 +298,10 @@ without saying why. (The store is **Hexium**, hexium.gg, team `RavenIronStudios`
 built to Thunderstore's package FORMAT because that is what Hexium consumes — format and channel
 are different things, and nothing here is ever uploaded to Thunderstore.) Every guard was tested by breaking it on purpose. Build releases with it,
 never by hand — it also writes the zip entries itself, because PS 5.1's `Compress-Archive`
-produces archives Hexium's parser rejects.
+produces archives Hexium's parser rejects. **Hexium's `file_size` for a version reads 34–40 bytes
+SMALLER than the zip in `dist\`** (0.7.2 by 34, 0.8.0 by 35, 1.0.0 by 40, checked 2026-09-21), the
+same way for every version, so that is the store repacking the container and not a different
+upload; the check that matters is the DLL hash inside, and `package.ps1`'s zip matched the build.
 
 To inspect a game member — signature, accessibility, default values, or the actual method
 body — decompile it. `dotnet tool install -g ilspycmd`, then:

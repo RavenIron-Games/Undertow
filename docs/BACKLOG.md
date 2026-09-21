@@ -1749,7 +1749,8 @@ non-admin's refusal line (no non-admin has ever pushed), a 300 m strait measured
 carry "harness only, not yet read on the water" in their own bullets; the changelog's midnight fog
 figure is the code's 0.18, not the later 0.15; and task 7 row 6's tail, its acceptance line, the
 lift "owed" bullet and task 9's "never met" line were all stale in the direction of owing what had
-been done. Version 1.0.0 in all three places; `package.ps1` built the zip; the owner uploads.
+been done. Version 1.0.0 in all three places; `package.ps1` built the zip; **the owner uploaded it
+the same afternoon, and Hexium's API read `latest 1.0.0` at 19:32Z on 2026-09-21.**
 **Three five-minute readings would let three softened sentences go back to full strength, and
 none of them blocks the upload:** a non-admin push refused (task 9 step 8, one `adminlist.txt`
 edit); a `STORM wreckage` spawn line under a console-fired storm at `FlotsamPerHour 60`; and
