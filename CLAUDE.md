@@ -23,6 +23,14 @@ Design document (the reasoning behind every decision here):
 
 ## Status
 
+**Unreleased on main (2026-09-23): the build no longer embeds the build machine's folders.**
+Every shipped DLL through 1.0.1 carried the absolute PDB path (C:\Users\<name>\…) in its PE
+debug directory. The csproj now sets DeterministicSourcePaths and always names the repo root as
+a SourceRoot, so the DLL carries /_/…/Undertow.pdb and neither the DLL nor the PDB names a local
+path; the IL is unchanged. At the next cut, say in the changelog that the DLL no longer carries
+an absolute build path that included the build machine's user name (quote no path), and name the
+commit the DLL was built from: the md5 follows the commit and no longer the checkout folder (the PDB's Source Link URL carries the commit).
+
 **PUBLISHED — 1.0.1 IS LIVE ON HEXIUM (2026-09-21, 20:44Z), 72 MINUTES AFTER 1.0.0.** Confirmed
 through the API: `latest 1.0.1`; 1.0.0 took 26 downloads in the window it was current, and those
 installs carry the paddle bug until they update.
