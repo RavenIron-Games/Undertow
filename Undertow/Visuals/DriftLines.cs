@@ -24,7 +24,7 @@ namespace RavenIron.Undertow.Visuals
     /// symmetric (a still frame gives the line and never the sense), and exist only where and
     /// to the degree the water actually runs. The locked "no navigation instruments" row is
     /// untouched; what changed is one sentence of the premise — "never on the screen" became
-    /// "never as an instrument" — by the owner's call on 2026-09-18.
+    /// "never as an instrument" — by RavenIron's call on 2026-09-18.
     ///
     /// PROCEDURAL, NO ASSETS, CLIENT-ONLY. The ParticleSystem, its texture and its material
     /// are built in code (the Ragnarok's Wrath pattern); there is no prefab, no ZNetView, no
@@ -73,7 +73,7 @@ namespace RavenIron.Undertow.Visuals
         // and nothing else.
         //
         // 0.7 used 0.06 + 0.05 x chop, and BOTH halves were wrong once anyone looked at the water
-        // from close up (owner, 2026-09-19: "foam floats above the water", reported as a uniform
+        // from close up (RavenIron, 2026-09-19: "foam floats above the water", reported as a uniform
         // hover rather than the ends of a plank poking through a wave). Six centimetres is roughly
         // an order of magnitude more clearance than precision needs at these distances, and
         // scaling it UP with chop is backwards: a rough sea is exactly when the quad already

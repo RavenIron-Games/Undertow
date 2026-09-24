@@ -731,7 +731,7 @@ namespace RavenIron.Undertow.Net
                 //
                 // This used to refuse the push unless `ZNet.LocalPlayerIsAdminOrHost()` said yes,
                 // documented as a known limit on the grounds that it only matches the full
-                // "Steam_7656…" form. MEASURED 2026-09-19 and it is worse than that: the owner is
+                // "Steam_7656…" form. MEASURED 2026-09-19 and it is worse than that: RavenIron is
                 // in adminlist.txt in all three forms (bare, "V_" and "Steam_"), and the gate
                 // still refused them, so the admin push could not be used at all. The likeliest
                 // cause is that the server was started with -crossplay, which gives the local user

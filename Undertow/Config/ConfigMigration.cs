@@ -68,7 +68,7 @@ namespace RavenIron.Undertow.Config
 
         /// <summary>
         /// How many steps <see cref="Apply"/> REFUSED this boot. A refusal is almost always a bug
-        /// in our own ledger rather than in the owner's file — a row naming a key this build does
+        /// in our own ledger rather than in the user's file — a row naming a key this build does
         /// not bind, or retiring one it still does — plus the one that is nobody's bug, a drop that
         /// threw. Counted because <see cref="LastSummary"/> is written in <see cref="Begin"/> from
         /// the plan's INTENT, before a single step has run, and the console command reads it back
@@ -197,7 +197,7 @@ namespace RavenIron.Undertow.Config
                     // THE STAMP ONLY EVER GOES UP. A file carrying a HIGHER version was written by
                     // a newer build whose rungs have already run, and this build knows nothing
                     // about them — lowering it would make the next upgrade replay those rungs
-                    // against values the owner has since chosen, and a rebase cannot tell a
+                    // against values the user has since chosen, and a rebase cannot tell a
                     // deliberate choice from the old default it happens to equal. Rolling a mod
                     // back for an afternoon is ordinary; losing a setting to it is not.
                     if (safeToFinish && appliedCleanly)
@@ -218,7 +218,7 @@ namespace RavenIron.Undertow.Config
                 // this is the call that guarantees the file on disk matches what was decided.
                 // LastSummary was written in Begin, from the plan's INTENT, before anything ran.
                 // The console command reads it back verbatim, so a refused step has to reach it or
-                // the one line the owner actually looks at is confidently wrong.
+                // the one line the user actually looks at is confidently wrong.
                 if (_refused > 0)
                     LastSummary += " — but " + _refused.ToString(CultureInfo.InvariantCulture) +
                                    " step(s) were REFUSED; see the warnings in the log";
@@ -278,7 +278,7 @@ namespace RavenIron.Undertow.Config
                 // A RETIREMENT MUST NEVER TOUCH A KEY THIS BUILD STILL BINDS. The other two loops
                 // warn when a slot is unknown; this is the mirror mistake, and it is the dangerous
                 // one — ConsumeRetiredKey would bind the live entry and then remove it, deleting
-                // the owner's value outright. Relying on Bind's cast to throw is not protection:
+                // the user's value outright. Relying on Bind's cast to throw is not protection:
                 // BepInEx returns the EXISTING entry for an already-bound definition, so the cast
                 // only fails when the type differs, and Undertow's three string keys
                 // (FlotsamCommon, FlotsamRare, FlotsamWreckage) would be deleted in silence.

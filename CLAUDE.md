@@ -11,7 +11,7 @@ gauge, or a second wave system, that is a signal to re-read the locked decisions
 build one.
 
 Since 0.7.0 the sea also SHOWS its motion — drift lines, foam lying along the flow on the water
-itself — by the owner's call on 2026-09-18 ("we still need no hud"). That is the sea being the
+itself — by RavenIron's call on 2026-09-18 (and still no HUD). That is the sea being the
 sea, not an instrument: nothing is drawn in screen space, nothing reads the field out, and the
 locked HUD row below stands word for word. The one sentence of the premise that changed is the
 one above: "never on the screen" became "never as an instrument".
@@ -65,8 +65,8 @@ nothing; from 0.7.2 it gets that one rebase with a `.v1.bak` beside its config.
 **0.8.0 PUBLISHED 2026-09-19.** Hexium's API lists it at the top of the version list from that
 evening (`date_updated` 22:35Z, re-read 2026-09-21), so the version-2 rebase below has been running
 on strangers' files since. An earlier draft of this line said "NOT YET PUBLISHED" and outlived the
-upload by two days — the same way the `libs\` line further down went wrong. Two changes, both driven by the
-owner standing in the water and reading `wake lines` rather than by reasoning about the code:
+upload by two days — the same way the `libs\` line further down went wrong. Two changes, both driven by
+RavenIron standing in the water and reading `wake lines` rather than by reasoning about the code:
 the **config sync** (the server's twelve gameplay dials, adopted in memory by every client, never
 written to their file) and **foam in all moving water** (`DriftLineMinDepth` 10 → 2, and the slack
 cliff replaced by a floor). The second of those moves a shipped default, which is what
@@ -89,7 +89,7 @@ it was read. The tuning decision was taken ("defaults stay"), two field-maths fi
 wire-header bump, and two Undertow versions were watched meeting across the wire. **Still
 unmeasured, and deliberately off the ladder:** Dive In, the 1 km zone-crossing sail, `wake drift`
 with the lines on and off, and a two-hull re-take on the shipping game. Harness **459**. Built,
-packaged and uploaded by the owner the same day; live at 19:32Z, confirmed through the API.
+packaged and uploaded by RavenIron the same day; live at 19:32Z, confirmed through the API.
 
 
 **THE ROADMAP IS BUILT.** Tasks 0–5, harness **162/162**, every assertion proven to fail without
@@ -125,7 +125,7 @@ mods were even loaded.
   with the game, but a client and a headless server can register different prefabs, so the two
   are NOT a like-for-like pair and the headless figure stays the baseline until it is re-taken
   headless. Nothing depends on either number: the pool is rebuilt from `ObjectDB.m_items` every
-  session. Driftwood spawns in slack water and **was seen floating on the surface by the owner** —
+  session. Driftwood spawns in slack water and **was seen floating on the surface by RavenIron** —
   the last step no log could settle. The cap climbs `1→2→3→4→5` and holds; an empty ocean stays
   empty. **RE-MEASURED ON 1.0.15, 2026-09-21, WITH A ZDO-TABLE INSTRUMENT** (`docs/BACKLOG.md`
   task 11 item 1): twelve spawned to the cap, the cap bound, fourteen reclaims each at 1801 s
@@ -153,7 +153,7 @@ coexisting). Dive In is still analysed rather than measured.
   built (`Sprites/Default`, manual fog) → first streak afloat, zero exceptions; 70–160 streaks
   with a **mean bearing of 191° against a field of 191°** and speed 0.55 vs 0.50; the nearest
   streak's height against vanilla's `Floating.GetWaterLevel` at **delta 0.000** and −0.35 m
-  below the flat level (it rides the wave); the owner's eye: "long ways along the flow — a line
+  below the flat level (it rides the wave); RavenIron's eye: "long ways along the flow — a line
   instead of an arrow", which is the design; **cost 0.37 ms EMA at a saturated pool of 160**
   (81 surface reads a frame) against the 0.50 budget; the dedicated server loaded 0.7.0, patched
   3, and never armed the visual. The rotation convention was MEASURED — see Known traps — and a
@@ -162,12 +162,12 @@ coexisting). Dive In is still analysed rather than measured.
   client `IsStormAt(centre)=True, surge x1.6`, the centre's water went 0.17 → 0.27 m/s, and the
   drift lines went from 18–41 active at 2.3 m to 71–77 at 2.8–2.9 m — surge reaches the visual
   through speed alone. A ThunderStorm-forced storm then held `chop 1.00` (sea state past 2.3 m)
-  with 50–81 streaks active — and the owner saw none of them: present, unseen, and accepted as
+  with 50–81 streaks active — and RavenIron saw none of them: present, unseen, and accepted as
   storm behaviour; `docs/BACKLOG.md` task 7 row 9 names the lever. **Night was seen 2026-09-21
   and was a DEFECT** — the foam drew at full brightness at midnight, see the Known trap on
   `RenderSettings.ambientLight` below; fixed the same day, and the fix's first cut was then
   overruled by the eye ("too dim to find") — the night level is now the dial
-  `DriftLineNightFloor`, set to 0.7 by the owner at `tod 0` and shipped at that.
+  `DriftLineNightFloor`, set to 0.7 by RavenIron at `tod 0` and shipped at that.
   **Still unseen at 1.0, and deliberately off the ladder** (`docs/BACKLOG.md` task 11, "Owed"):
   a long zone-crossing sail, and `wake drift` on/off — the second holds by construction (no
   patch, no gameplay write) rather than by measurement. `revprobe` binds 0.7.0 clean against 1.0.15.
@@ -198,7 +198,7 @@ coexisting). Dive In is still analysed rather than measured.
   `DriftLines: armed on this client (graphics device Direct3D11)`, `Undertow v0.7.2 loaded.`,
   `SeaTick online — authority=False, dedicated=False`, `Ragnarok's Wrath detected — bridged`,
   `CurrentField live — seed -295822236, water level 30, tide 23%`, and
-  `DriftLines: emitter built — 'Sprites/Default' (manual fog), pool 160`. The owner typed
+  `DriftLines: emitter built — 'Sprites/Default' (manual fog), pool 160`. RavenIron typed
   `wake status` and read **`config layout v1`**, which is the one piece of evidence that never
   reaches a log file at all: the console command writes through `Terminal.AddString`, not the
   logger, so it can only ever be read on screen.
@@ -289,7 +289,7 @@ client log reads `SeasonSystem: season arriving from the server — Summer.` —
 mode produces. Note the ordering trap it exposed: Undertow's own `CurrentField live — … season
 index 0 (read from Wrath)` line is logged when SeaTick comes online, which is BEFORE the season
 RPC arrives, so that line will always say 0 on a client; only a later read carries the received
-value. **And it did:** minutes later the owner's `wake here` on that client printed
+value. **And it did:** minutes later RavenIron's `wake here` on that client printed
 `tide 40% (flooding), season summer (Wrath)` — a non-spring season, read through the bridge, by
 the same accessor `CurrentField` is fed from (the harness pins that a season change moves the
 field). The check this file defined is met. Against an older RW a client still reads spring, as
@@ -467,14 +467,14 @@ diagnostic bug report in this genre.
 | Decision | Answer |
 |---|---|
 | HUD / map / compass / wind gauge | **None.** Navigation instruments are a different mod; that was the other concept on the table when this one was chosen. |
-| Visible current | **Yes, since 0.7.0 — diegetic only.** Drift lines on the water itself, by the owner's call on 2026-09-18. It is the sea showing its own motion and may never become an instrument: no screen-space element, no arrow, no number, no readout, no console verb that forces a bearing onto the water. Anything that reads the field out for the player is the HUD row above, and that row stands. Procedural, client-only, never networked, never saved. |
+| Visible current | **Yes, since 0.7.0 — diegetic only.** Drift lines on the water itself, by RavenIron's call on 2026-09-18. It is the sea showing its own motion and may never become an instrument: no screen-space element, no arrow, no number, no readout, no console verb that forces a bearing onto the water. Anything that reads the field out for the player is the HUD row above, and that row stands. Procedural, client-only, never networked, never saved. |
 | Waves, water surface, shaders | **Never touched.** See rule 4. Vanilla's wave sim is shared, deterministic, and drives visuals. |
 | New prefabs | **None.** `ZNetScene.CreateObjectsSorted` calls `DestroyZDO` on any hash it cannot resolve — silent data loss. Flotsam uses vanilla `ItemDrop`s only. |
 | Unattended boat drift | **Default OFF.** Vanilla already damps an empty hull's horizontal velocity to a tenth per tick; that is a stated intent we honour. Losing a moored longship to a mod is a one-star review. |
 | Rivers and lakes | **Ocean only for v1.** Narrow water plus a sideways force pins players against terrain. |
 | Persistence | **None.** `CurrentField` is a pure function of seed, position, world time and season, so it needs no save file and no sync of its STATE. Anything that makes the sea *remember* breaks that; RW already owns "the world remembers". The config sync below is not an exception — read the row. |
-| Config sync | **The server's gameplay tuning wins, in memory, since the config sync (owner's call, 2026-09-19: "Server wins, and admins can push").** This does NOT weaken the row above: no field state is ever sent, nothing is saved, and nothing travels per tick. What travels is the thirteen CONSTANTS (twelve at 0.8.0; `UnderWayDragFactor` joined in 1.0.1, a key joining being a per-line matter and not a header one) both ends feed into the same pure function, because the "everyone computes the same water" argument silently fails when two machines hold different tuning — and fails invisibly, since nothing desyncs. A client's config FILE is never written, backed up or migrated by this; overrides live in memory for the session and are clamped to the local build's own range. Per-machine keys (drift lines, tick budget, refresh cadence, verbose logging, flotsam) never travel — a server owner must not be able to reach into a player's frame rate. An admin's client may push one value up; the server applies it to its own file and re-publishes. |
-| Field maths after 1.0 | **A change to the water's maths bumps the wire header (owner's call, 2026-09-21: "defaults stay, do the two fixes").** `ConfigWire.Header` is the one thing both ends compare before trusting each other's sea; the sync's argument is "same constants into the same pure function", and a build whose function differs must refuse the other's constants rather than adopt them and believe it agrees. Per-line key tolerance handles keys joining or leaving; the header handles the function itself. First use: `/1 → /2` for the onshore fix. The tuning DEFAULTS stay at the design target (strongest water ≈ 15–25% of half-sail speed); "real" tidal races are a server owner's dial through the synced ceiling and multiplier, and slack being absolute is what makes that dial safe to turn. |
+| Config sync | **The server's gameplay tuning wins, in memory, since the config sync (RavenIron's call, 2026-09-19: "Server wins, and admins can push").** This does NOT weaken the row above: no field state is ever sent, nothing is saved, and nothing travels per tick. What travels is the thirteen CONSTANTS (twelve at 0.8.0; `UnderWayDragFactor` joined in 1.0.1, a key joining being a per-line matter and not a header one) both ends feed into the same pure function, because the "everyone computes the same water" argument silently fails when two machines hold different tuning — and fails invisibly, since nothing desyncs. A client's config FILE is never written, backed up or migrated by this; overrides live in memory for the session and are clamped to the local build's own range. Per-machine keys (drift lines, tick budget, refresh cadence, verbose logging, flotsam) never travel — a server owner must not be able to reach into a player's frame rate. An admin's client may push one value up; the server applies it to its own file and re-publishes. |
+| Field maths after 1.0 | **A change to the water's maths bumps the wire header (RavenIron's call, 2026-09-21: the defaults stay and the two fixes go in).** `ConfigWire.Header` is the one thing both ends compare before trusting each other's sea; the sync's argument is "same constants into the same pure function", and a build whose function differs must refuse the other's constants rather than adopt them and believe it agrees. Per-line key tolerance handles keys joining or leaving; the header handles the function itself. First use: `/1 → /2` for the onshore fix. The tuning DEFAULTS stay at the design target (strongest water ≈ 15–25% of half-sail speed); "real" tidal races are a server owner's dial through the synced ceiling and multiplier, and slack being absolute is what makes that dial safe to turn. |
 | Ragnarok's Wrath | **Read-only, soft, one direction.** Reflected reads when present, fully dormant when absent, never a write back. |
 | Moder's wind control | **No exemption from current.** "Moder gives you the wind, not the sea" — a limit on the power without a nerf to it. |
 | Config migration | **The family's, not a local dialect.** Wu'barrk's shape by way of Valkyrie's Cargo, matching Ragnarok's Wrath and FireFront. Snapshot before any bind, `[0 - Meta] ConfigVersion` stamps the layout, a backup beside the file before anything destructive, and a failed migration never stops the mod loading. Do not fork it — a reader who knows one of these should read the others without relearning. |
@@ -527,7 +527,7 @@ fight, the answer is a default-off compatibility toggle, never a priority war (h
 **Boat stat mods** (cargo, speed, durability) should compose without contact: they change the
 hull, Undertow changes the water.
 
-**Dive In (sighsorry)** — the diving mod; 1.2.0 sits in the owner's `Wonderland` Gale profile,
+**Dive In (sighsorry)** — the diving mod; 1.2.0 sits in RavenIron's `Wonderland` Gale profile,
 not on Ravenrest. ⚠️ **EXPECTED TO COMPOSE, NOT MEASURED AT 1.0 (2026-09-21) — and it stays a
 ⚠️ on purpose:** it is on no server this mod is tested against, the analysis below is from its
 source rather than its DLL, and the one tight case it leaves (an encumbered diver in a storm, 0.3
@@ -640,7 +640,7 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   is also what avoids a new build dependency.
 
 - **`ZNet.LocalPlayerIsAdminOrHost()` LIES ON A CROSSPLAY CLIENT, so never gate anything on it.**
-  MEASURED 2026-09-19. The owner was in `adminlist.txt` in all three forms (bare numeric, `V_` and
+  MEASURED 2026-09-19. RavenIron was in `adminlist.txt` in all three forms (bare numeric, `V_` and
   `Steam_`) and it still returned false, which blocked Undertow's admin config push entirely. It
   falls through to `PlayerIsAdmin(UserInfo.GetLocalUser().UserId)`, which is a single
   `adminList.Contains(userId.ToString())` — and under `-crossplay` the local user's identity is a
@@ -738,7 +738,7 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   shipped ceiling to the float, so no rung; the harness pins both the equivalence at defaults and
   the 2.4-ceiling case that used to fail. The trap as it was found follows, kept because the
   reasoning is what made the fix a one-liner. Measured
-  2026-09-19 on Storm10, after the owner reported seeing no foam. `MaxCurrentSpeed` is a CEILING —
+  2026-09-19 on Storm10, after RavenIron reported seeing no foam. `MaxCurrentSpeed` is a CEILING —
   raising it does not make ordinary water any faster — but "slack" is defined as a SHARE of that
   ceiling (`DriftLineMath.SpawnWeight`: `slack = CurrentField.SlackShare * maxSpeed`, SlackShare
   0.12). So doubling the ceiling doubles the slack threshold, and water that was drawing foam
@@ -752,7 +752,7 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   bug fix, so it is written down rather than changed.
 
 - **...but slack POCKETS can be enormous, and "rare" was an origin-local measurement.** The note
-  below was taken within a kilometre of (0,0). On Storm10 (seed -295822236) the owner sat at
+  below was taken within a kilometre of (0,0). On Storm10 (seed -295822236) RavenIron sat at
   (-3200, 3400) in water running **0.091 m/s** — well under the 0.144 threshold — and a transect
   due north stayed slack for **at least 1.2 km** (0.052 m/s at its slowest). The nearest water
   worth drawing foam on was ~500 m to the SOUTHWEST. So "a scan that is too narrow finds no slack"
@@ -777,7 +777,7 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   `90 − bearing`. `startSize3D.x` IS the U axis. The measurement: in uniform 191° water with
   ~80 streaks whose mean bearing matched the field, a rotation of `−bearing` laid every line at
   102° — a quarter turn across the flow — which only that convention produces; with
-  `90 − bearing` the owner read them as "long ways along the flow".
+  `90 − bearing` RavenIron read them as "long ways along the flow".
 
 - **A rotation check needs uniform water and many streaks, or it lies.** The first reading of
   the convention above was "90° off" against the SAME correct formula, taken in the slack node
@@ -811,7 +811,7 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   ship twice and each `ZSyncTransform` once per skipped step. Harmless in a loading window, which
   is the only place `m_localPlayer` is null. **Instrument note:** Unity logs exceptions under the
   `Unity Log` source, so a monitor that filters `Unity Log` out to quiet the chatter hides every
-  exception with it — that is why nobody saw these until the owner pasted the log.
+  exception with it — that is why nobody saw these until RavenIron pasted the log.
 
 - **THE DRIFT PUSH WAS AN ACCELERATION COMPARED AGAINST THE HULL'S THRUST, AND 1.0.0 SHIPPED
   WITH IT: a paddled karve stalled in 0.2 m/s of water.** Reported the afternoon 1.0.0 went live
@@ -949,7 +949,7 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   This was the question that could have sunk flotsam entirely — one raft of sunken loot
   disproves the approach — so it was measured before a spawner was written, and the pool is
   built from that scan rather than from a hand list. Driftwood was then seen floating on the
-  surface by the owner, which is the one step no log could settle.
+  surface by RavenIron, which is the one step no log could settle.
 
 - **A mod adding a prefab MUST ship server-side** or `ZNetScene.CreateObjectsSorted` calls
   `DestroyZDO` on any hash it cannot resolve — silent data loss. We add no prefabs.

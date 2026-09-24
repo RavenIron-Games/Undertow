@@ -11,7 +11,7 @@ Design document (the reasoning behind every locked decision):
 
 ## Where things stand
 
-**2026-09-18 — 0.7.0, drift lines.** The owner chose a visible current ("we still need no hud"):
+**2026-09-18 — 0.7.0, drift lines.** RavenIron chose a visible current, and still no HUD:
 foam streaks on the water itself, along the flow, absent in slack. Built, harness 248/248 with
 every new assertion mutation-proven, build clean, no new Harmony patch, and **run in-game the
 same day on Storm10 (Valheim 1.0.15 both sides)**: steps 1–4 and 7 of task 7 met, the rotation
@@ -34,7 +34,7 @@ with the new shield icon and passes its own three guards.
 | 1 `CurrentField` | done — server and client produce byte-identical transects independently |
 | 2 drift | done — karve and longship both settle near the water's own speed |
 | 3 Wrath bridge | done — live storm surge x1.6 at centre, x1.0 at 800m |
-| 4 flotsam | done — spawns, caps, reclaims, **and floats** (seen by the owner) |
+| 4 flotsam | done — spawns, caps, reclaims, **and floats** (seen by RavenIron) |
 | 5 swimmers | done — computed 0.172 vs measured 0.164, tenfold margin over drowning |
 | 2c Sailing compat | **analysed from public source, NOT measured** |
 | 2d Njord compat | **analysed from published docs only, NOT measured** |
@@ -45,14 +45,14 @@ one boat session on Ravenrest. The repo went public on 2026-09-03. Everything el
 
 ---
 
-## The scrub question — CLOSED 2026-09-03 by the owner's decision
+## The scrub question — CLOSED 2026-09-03 by RavenIron's decision
 
 The repo was briefly public on 2026-08-28 carrying a decompile writeup of another author's
 shipping mod. The working tree and every commit were scrubbed and force-pushed; GitHub kept
 serving the seven pre-rewrite SHAs, and the 2026-08-28 decision was to delete and recreate the
-repo before going public — blocked on a `delete_repo` token scope only the owner could grant.
+repo before going public — blocked on a `delete_repo` token scope only RavenIron could grant.
 
-**On 2026-09-03 the owner chose otherwise and made the current repo public themselves, in the
+**On 2026-09-03 RavenIron chose otherwise and made the current repo public themselves, in the
 web UI**, with the seven old SHAs still resolving (re-checked that morning: all seven). That is
 a decision, recorded here, not an oversight: the old objects are not discoverable without
 having recorded their SHAs during a roughly twenty-minute window five days earlier, nothing in
@@ -67,12 +67,12 @@ this repo's history references them, and GitHub's garbage collector will eventua
   only so a future check (`gh api repos/RavenIron-Games/Undertow/commits/<sha>`) can confirm when GC
   has run. There is nothing to do when it has.
 - The local safety nets, branch `backup-pre-scrub` and folder `../Undertow-backup-prescrub`,
-  still hold the ORIGINAL unscrubbed history. Never push either. They can go whenever the owner
+  still hold the ORIGINAL unscrubbed history. Never push either. They can go whenever RavenIron
   says so; not before.
 - **Never put another author's decompiled implementation in this repo again.** Tasks 2c, 2d and
   5c show the standard that replaced it: published source or published docs, cited, surfaces
   named, code never reproduced.
-- The owner flips repo visibility themselves, in the web UI. Prepare, state what would change,
+- RavenIron flips repo visibility themselves, in the web UI. Prepare, state what would change,
   and hand over the path — do not run `gh repo edit --visibility`.
 
 ---
@@ -93,12 +93,12 @@ IN-GAME on either side.** RW `9a879e9` was pushed by this session. RW's local `m
 moved to `250410a` ("0.26.0: storms anchor in the wild") from another session, unpushed and not
 this session's — the season sync rides in whatever RW version deploys next.
 
-**2. Store art.** `icon.png` is now the owner's shield render (wave, sea serpent, the name cut
+**2. Store art.** `icon.png` is now RavenIron's shield render (wave, sea serpent, the name cut
 into weathered wood). The 1408x768 source is wider than it is tall, so no square crop holds the
 whole emblem; it is an 816x816 window centred on the shield with the 24px beyond the top and
 bottom edges filled by stretching the edge row, then resized to 256x256. Both bands vanish at
 icon scale; a plain 768 crop clipped both wing tips. Zip rebuilt. No version bump: nothing has
-shipped with the old icon. A banner reading was tried and reverted — the owner wanted the logo.
+shipped with the old icon. A banner reading was tried and reverted — RavenIron wanted the logo.
 
 **3. Three compatibility analyses, at three honest levels of confidence.** All in `CLAUDE.md`'s
 Compatibility constraints with a ⚠️, and each with a measurement protocol in the backlog.
@@ -144,7 +144,7 @@ already warns about; revisit when a release changes the field's maths, copying R
    client, a 1 km sail across zone lines with `VerboseLogging` (expect no latch), and `wake
    drift` identical with `EnableDriftLines` on and off. Then decide the saturation question in
    task 7's results.
-1. ~~Resolve the blocker, then make the repo public.~~ **Done 2026-09-03** — public, by the owner's hand; see the closed section above.
+1. ~~Resolve the blocker, then make the repo public.~~ **Done 2026-09-03** — public, by RavenIron's hand; see the closed section above.
 2. **One Ravenrest session, and it answers three things at once.** Njord and Sailing are
    already there, so the "with" runs are the default state. A karve, sail down, in known water
    (`wake here`), `VerboseLogging = true`, watch the 2s `drift` line settle: the `ALONG-RATIO`
@@ -156,13 +156,13 @@ already warns about; revisit when a release changes the field's maths, copying R
 3. **Publish.** **Hexium only** (hexium.gg), team `RavenIronStudios` (NOT the GitHub org
    name, which is `RavenIron-Games`). `tools\package.ps1` only, never by hand.
    **Corrected 2026-09-19: THUNDERSTORE IS NOT A CHANNEL.** This line used to say
-   "Thunderstore and Hexium", which contradicts the owner's call of 2026-09-03 — nothing
+   "Thunderstore and Hexium", which contradicts RavenIron's call of 2026-09-03 — nothing
    has ever been uploaded to Thunderstore and nothing will be. The zip is still built to
    Thunderstore's package FORMAT, because that is what Hexium consumes; format and channel
    are different things and these docs conflated them.
 
    ✅ **PUBLISHED 2026-09-19: Undertow 0.7.2 is LIVE on Hexium**, at
-   <https://valheim.hexium.gg/mods/RavenIronStudios/Undertow>, uploaded by the owner and
+   <https://valheim.hexium.gg/mods/RavenIronStudios/Undertow>, uploaded by RavenIron and
    confirmed against Hexium's own API (`/api/v1/package/` on the Valheim subdomain) rather
    than by assuming the upload took — it reports `latest 0.7.2`, updated 14:43 UTC, with
    versions 0.7.2, 0.6.0, 0.5.1. **0.7.0 and 0.7.1 were never published**, so a player
@@ -202,9 +202,9 @@ already warns about; revisit when a release changes the field's maths, copying R
   it in. And a ~14KB quoted heredoc through the Bash tool failed to parse at all — for a whole
   document, use the Write tool into the scratchpad and move it. `python` is still the Store
   stub.
-- **A question left open for the owner, not assumed:** Njord's README is written in this
-  codebase's voice, and the owner's `Wonderland` profile is the Wubarrk Wonderland pack. **If
-  Njord is the owner's, its source is available** and task 2d's two open questions — replace or
+- **A question left open for RavenIron, not assumed:** Njord's README is written in this
+  codebase's voice, and RavenIron's `Wonderland` profile is the Wubarrk Wonderland pack. **If
+  Njord is RavenIron's, its source is available** and task 2d's two open questions — replace or
   decorate `CustomFixedUpdate`, where the cap acts — close in ten minutes at 2c's standard.
   Asked; not answered; not assumed.
 
@@ -252,7 +252,7 @@ was not the cause, do not cite*.
 
 ## Working notes for the next session
 
-- **The server used for testing is the owner's Ravenrest dedicated server**, 26 plugins today
+- **The server used for testing is RavenIron's Ravenrest dedicated server**, 26 plugins today
   including Njord 1.3.5 and Sailing 1.1.8. Three of its mods (VikingOS,
   AzuExtendedPlayerInventory, WardIsLove) **hard-kick a client on version mismatch** — that is
   what "incompatible version" means there, not a Valheim mismatch. RW's own `VersionSync` only

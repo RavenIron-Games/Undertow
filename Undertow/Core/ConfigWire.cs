@@ -38,7 +38,7 @@ namespace RavenIron.Undertow.Core
         ///
         /// Bump this when the payload's SHAPE changes — never when a key joins or leaves, those
         /// are handled per line by <see cref="Parse"/>, which is what lets two builds agree about
-        /// the keys they both know — AND when the FIELD MATHS changes (owner's rule, 2026-09-21).
+        /// the keys they both know — AND when the FIELD MATHS changes (RavenIron's rule, 2026-09-21).
         /// The header is the one thing both ends compare before trusting each other's sea, and
         /// the sync's whole argument is "same constants into the same pure function"; a build
         /// whose function differs must not adopt the other's constants and believe it agrees. A

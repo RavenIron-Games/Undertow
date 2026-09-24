@@ -42,7 +42,7 @@ namespace RavenIron.Undertow.Core
     /// Undertow's config history is append-only across its entire life — checked on 2026-09-18
     /// against three independent evidence lines that agree: the source at all four commits that
     /// ever touched ModConfig.cs, the shipped 0.5.1 and 0.6.0 DLLs' own string tables, and nine
-    /// real config files on the owner's machines spanning 0.5.1, 0.6.0 and 0.7.0. No key was ever
+    /// real config files on RavenIron's machines spanning 0.5.1, 0.6.0 and 0.7.0. No key was ever
     /// removed, renamed or retyped; no shipped default ever moved; no section string ever changed;
     /// no AcceptableValueRange was ever narrowed, so nothing on disk can be silently clamped on
     /// upgrade. The union of section|key pairs across all nine files is exactly the set this build
