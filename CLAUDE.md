@@ -23,7 +23,16 @@ Design document (the reasoning behind every decision here):
 
 ## Status
 
-**1.0.2 PREPARED 2026-09-24, NOT CUT** (version bumped in the three places, CHANGELOG entry written with the build commit left `TBD`; the cut is RavenIron's call). It carries the two items below (the path-free build and the README website link) plus three review fixes made the same day, NOT YET RUN IN GAME: the server binds a routed config message's sender to its connection (new `Patch_RoutedRpc_Sender` on `ZRoutedRpc.RPC_RoutedRPC`, so the boot line now reads `Harmony patched 4`), flotsam spawns around a listen host's / single player's own player, and the per-tick string garbage in `ConfigSync.Live` / `LastShip` is gone. Harness **495**.
+**CUT 2026-09-24: v1.0.2.** PR #4 merged to main as `b15c79f`, carrying the two items below (the
+path-free build and the README website link) plus three review fixes: the server binds a routed
+config message's sender to its connection (new `Patch_RoutedRpc_Sender` on
+`ZRoutedRpc.RPC_RoutedRPC`, so the boot line now reads `Harmony patched 4`), flotsam spawns around
+a listen host's / single player's own player, and the per-tick string garbage in
+`ConfigSync.Live` / `LastShip` is gone. Harness **495**. The solo batch tested PR #4's head,
+`5446c9d` (byte-identical tree to `b15c79f`), on 2026-09-24 — test DLL md5
+`8e35436a412c89cbfe7d45a7aa23b2d5`; results at `_handoffs/SOLO-BATCH-results-2026-09-24.md`. The
+release cut also moves `manifest.json`'s `website_url` to the Raven Iron website. What remains:
+tag `v1.0.2`, a GitHub pre-release carrying the store zip, and the store upload — all RavenIron's.
 
 **Unreleased on main (2026-09-23): the build no longer embeds the build machine's folders.**
 Every shipped DLL through 1.0.1 carried the absolute PDB path (C:\Users\<name>\…) in its PE

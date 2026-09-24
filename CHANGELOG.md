@@ -25,11 +25,35 @@ wire is the same, so 1.0.1 and 1.0.2 still share a sea.
 - **The DLL no longer carries the build machine's folder path.** Every DLL through 1.0.1 embedded
   the absolute path of its debug-symbols file, a path that included the build machine's user
   name. The build now maps its source folders to a neutral `/_/` prefix, so neither the DLL nor
-  its symbols name a local folder, and two builds of the same commit are byte-identical. This
-  release's DLL was built from commit `TBD`.
+  its symbols name a local folder, and two builds of the same commit are byte-identical. This DLL
+  was built from the commit tagged `v1.0.2`; the GitHub release names that commit and gives the
+  DLL's md5.
 
 - **The README's Support section links the Raven Iron website**, <https://ravenirongames.com>,
   beside Patreon and Discord.
+
+- **The store page's website link now goes to the Raven Iron website.** `manifest.json`'s
+  `website_url` pointed at the GitHub repo; it now reads <https://ravenirongames.com/>, matching
+  the README's own Support section.
+
+**Tested in game on 2026-09-24**, on a Valheim 1.0.15 dedicated server (Storm10, crossplay) plus
+a single-player world, with one client, all on the DLL built from `5446c9d`, the head of the fix
+branch (md5 `8e35436a412c89cbfe7d45a7aa23b2d5`, 132,608 bytes; only documents changed after it).
+Built against and
+tested on Valheim 1.0.15. Flotsam in single player: 6 spawns in about 3.5 minutes, 34–107 m out,
+in 30 m of water with a 0.30–0.33 m/s current. Config sync on join: the client asked the server
+for its config and nothing was dropped (the "13 values in force" line was read on screen, not in
+a log). Admin push: 9 of 9 `MaxCurrentSpeed` changes were accepted in an earlier session the same
+day, on the same DLL, and the last one set the value back. Local config was restored on leaving a
+server. Both sides booted with `Harmony patched 4` and logged no errors, warnings or exceptions.
+Not tried in game: a non-admin's config push being refused (checked only in code); the forged
+sender itself, which needs a modified client (the accept/drop decision is checked in code against
+a 1.0.15 decompile, and six harness cases cover the predicate; genuine admin traffic passing is
+the closest in-game evidence); flotsam staying off on a dedicated server with an empty ocean;
+flotsam around a listen host's own player with a guest connected (both are unchanged code paths,
+covered by the harness only); and `wake drift` naming the last hull, then reading back `(none)`
+once that hull is destroyed, which is the check for the per-tick garbage fix. Off-game: 495
+checks, 0 failed.
 
 ## 1.0.1
 
@@ -323,7 +347,7 @@ opened.
     unmeasured until the rung that uses it ships.
   - **`wake status` reported the plan's INTENT, not what happened.** The summary is written
     before a single step runs, and a refused step logged a warning and nothing else — so the
-    one line the owner reads could claim a key was dropped that is still in the file.
+    one line `wake status` printed could claim a key was dropped that is still in the file.
     Refusals now correct the summary, and the count is per boot.
 
   Harness 357 → 367, and thirteen mutations of the migration are each caught by a named
@@ -333,7 +357,7 @@ opened.
 
 The current, visible. **Run in-game the day it was built** — Storm10, Valheim 1.0.15 on both
 sides: 0 exceptions, streaks carrying the field to a degree of bearing, height agreeing with
-vanilla's water to the millimetre, 0.37 ms a frame at a full pool, and the owner's own reading —
+vanilla's water to the millimetre, 0.37 ms a frame at a full pool, and a reading by eye —
 "long ways along the flow, a line instead of an arrow". Night, a storm and a long sail are still
 owed; `docs/BACKLOG.md` task 7 has the numbers and what remains.
 
