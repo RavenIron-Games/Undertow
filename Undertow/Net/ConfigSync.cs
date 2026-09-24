@@ -110,11 +110,13 @@ namespace RavenIron.Undertow.Net
         // ---- the override layer ------------------------------------------------------------
 
         /// <summary>
-        /// The values in force, when they are not this machine's own. Boxed and keyed by wire
-        /// address, which is fine because of <see cref="_any"/>.
+        /// The values in force, when they are not this machine's own. Boxed and keyed by the
+        /// ENTRY itself (reference identity), not its wire address: on a connected client
+        /// <see cref="_any"/> is true all session, and building "section|key" on every read put a
+        /// fresh string on the heap several hundred times a second from the physics tick.
         /// </summary>
-        private static readonly Dictionary<string, object> _overrides =
-            new Dictionary<string, object>(StringComparer.Ordinal);
+        private static readonly Dictionary<ConfigEntryBase, object> _overrides =
+            new Dictionary<ConfigEntryBase, object>();
 
         /// <summary>
         /// Short-circuits the read path when nothing is overridden — which is EVERY read on a
@@ -215,10 +217,8 @@ namespace RavenIron.Undertow.Net
         /// <summary>The float in force here: the server's if one arrived, otherwise this machine's.</summary>
         public static float Live(this ConfigEntry<float> entry)
         {
-            if (!_any || entry?.Definition == null) return entry?.Value ?? 0f;
-            return _overrides.TryGetValue(
-                       ConfigWire.Address(entry.Definition.Section, entry.Definition.Key),
-                       out object boxed) && boxed is float f
+            if (!_any || entry == null) return entry?.Value ?? 0f;
+            return _overrides.TryGetValue(entry, out object boxed) && boxed is float f
                 ? f
                 : entry.Value;
         }
@@ -226,10 +226,8 @@ namespace RavenIron.Undertow.Net
         /// <summary>The bool in force here: the server's if one arrived, otherwise this machine's.</summary>
         public static bool Live(this ConfigEntry<bool> entry)
         {
-            if (!_any || entry?.Definition == null) return entry != null && entry.Value;
-            return _overrides.TryGetValue(
-                       ConfigWire.Address(entry.Definition.Section, entry.Definition.Key),
-                       out object boxed) && boxed is bool b
+            if (!_any || entry == null) return entry != null && entry.Value;
+            return _overrides.TryGetValue(entry, out object boxed) && boxed is bool b
                 ? b
                 : entry.Value;
         }
@@ -306,6 +304,7 @@ namespace RavenIron.Undertow.Net
             _lastRequestAnswered = float.NegativeInfinity;
             _asked = false;
             _refusalLogged = false;
+            _forgeryWarned.Clear();
 
             if (_overrides.Count == 0)
             {
@@ -321,6 +320,90 @@ namespace RavenIron.Undertow.Net
             _any = false;
             LastEvent = "left the server — back on local values";
             Undertow.Log.LogInfo("ConfigSync: disconnected — local config back in force.");
+        }
+
+        // ------------------------------------------------------------------------------------
+        // Sender binding — the server's check on who really sent a config message
+        // ------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// The four method hashes this file registers, computed with vanilla's own stable hash
+        /// (the one <c>ZRoutedRpc.Register</c> and <c>InvokeRoutedRPC</c> use), so the check in
+        /// <see cref="AllowRoutedPacket"/> is one int compare for everybody else's traffic.
+        /// </summary>
+        private static readonly int[] _ourHashes =
+        {
+            RpcPublish.GetStableHashCode(),
+            RpcPush.GetStableHashCode(),
+            RpcRequest.GetStableHashCode(),
+            RpcAck.GetStableHashCode(),
+        };
+
+        /// <summary>Connections already warned about a forged sender this session, so a loop costs one line.</summary>
+        private static readonly HashSet<long> _forgeryWarned = new HashSet<long>();
+
+        /// <summary>
+        /// Called from <see cref="Patches.Patch_RoutedRpc_Sender"/> before vanilla reads a routed
+        /// packet. True lets it through; false drops it before it is handled or relayed.
+        ///
+        /// WHY. The sender id in a routed packet is written by the machine that sent it, and
+        /// 1.0.15 never compares it with the connection it arrived on (read out of
+        /// <c>ZRoutedRpc.RPC_RoutedRPC</c> / <c>HandleRoutedRPC</c> / <c>RouteRPC</c>). So a
+        /// modified client could put an online admin's uid on a push — which <see cref="OnPushed"/>
+        /// then judged by that admin's socket and wrote into the server's config file — or put
+        /// the SERVER's uid on a publish, which the server relayed to every client, each of which
+        /// then saw the server's uid and adopted it. Vanilla's own admin commands avoid this by
+        /// judging <c>rpc.GetSocket()</c> on the direct connection; this does the equivalent for
+        /// the routed path by checking the claimed id against the peer that owns the connection.
+        ///
+        /// SERVER ONLY, OUR MESSAGES ONLY. On a client the only connection is the server, whose
+        /// relays legitimately carry other senders' ids, and every other mod's routed traffic is
+        /// none of our business. The packet's read position is put back exactly where it was.
+        /// </summary>
+        public static bool AllowRoutedPacket(ZRpc rpc, ZPackage pkg)
+        {
+            ZNet znet = ZNet.instance;
+            if (znet == null || !znet.IsServer() || rpc == null || pkg == null) return true;
+
+            long sender;
+            int method;
+            int start = pkg.GetPos();
+            try
+            {
+                // RoutedRPCData.Deserialize's order, 1.0.15: msgID, sender, target, ZDO, method.
+                pkg.ReadLong();
+                sender = pkg.ReadLong();
+                pkg.ReadLong();
+                pkg.ReadZDOID();
+                method = pkg.ReadInt();
+            }
+            catch
+            {
+                return true;   // vanilla's own read will fail the same way; not ours to judge
+            }
+            finally
+            {
+                pkg.SetPos(start);
+            }
+
+            if (Array.IndexOf(_ourHashes, method) < 0) return true;
+
+            ZNetPeer from = null;
+            List<ZNetPeer> peers = znet.GetPeers();
+            if (peers != null)
+                for (int i = 0; i < peers.Count; i++)
+                    if (peers[i] != null && peers[i].m_rpc == rpc) { from = peers[i]; break; }
+
+            long fromUid = from != null ? from.m_uid : 0L;
+            if (ConfigWire.RoutedSenderIsGenuine(from != null, fromUid, sender)) return true;
+
+            if (_forgeryWarned.Add(fromUid))
+                Undertow.Log.LogWarning(
+                    "ConfigSync: dropped a config message from peer " + fromUid + " (" +
+                    (from?.m_playerName ?? "unknown connection") + ") that claimed to come from peer " +
+                    sender + ". Only a modified client does that. Nothing was changed or relayed; " +
+                    "said once per connection.");
+            return false;
         }
 
         private static void EnsureRegistered()
@@ -465,7 +548,10 @@ namespace RavenIron.Undertow.Net
 
                 // Only from the server. A routed RPC aimed at Everybody is relayed by the server,
                 // but any peer may ASK for that relay — so without this check one modded client
-                // could hand the whole lobby a different ocean.
+                // could hand the whole lobby a different ocean. This compare alone is NOT enough:
+                // the sender id is written by whoever sent the packet, so a client could claim
+                // the server's uid. The server drops that claim before relaying it — see
+                // AllowRoutedPacket — which is what makes a match here mean what it says.
                 ZNetPeer server = znet.GetServerPeer();
                 if (server == null)
                 {
@@ -595,7 +681,7 @@ namespace RavenIron.Undertow.Net
                 return false;
             }
 
-            _overrides[address] = incoming;
+            _overrides[entry] = incoming;
             return !string.Equals(before, after, StringComparison.Ordinal);
         }
 
@@ -810,6 +896,10 @@ namespace RavenIron.Undertow.Net
         /// only caller checks `IsServer()` first, and must keep doing so.
         ///
         /// Deny by default: no peer, no socket or no host name all mean no.
+        ///
+        /// `sender` is only worth judging because <see cref="AllowRoutedPacket"/> has already
+        /// dropped any push whose claimed sender is not the peer on that connection. Before
+        /// 1.0.2 a modified client could put an online admin's uid here and be judged as them.
         /// </summary>
         private static bool SenderIsAdmin(ZNet znet, long sender)
         {
