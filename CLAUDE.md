@@ -23,6 +23,8 @@ Design document (the reasoning behind every decision here):
 
 ## Status
 
+**1.0.2 PREPARED 2026-09-24, NOT CUT** (version bumped in the three places, CHANGELOG entry written with the build commit left `TBD`; the cut is RavenIron's call). It carries the two items below (the path-free build and the README website link) plus three review fixes made the same day, NOT YET RUN IN GAME: the server binds a routed config message's sender to its connection (new `Patch_RoutedRpc_Sender` on `ZRoutedRpc.RPC_RoutedRPC`, so the boot line now reads `Harmony patched 4`), flotsam spawns around a listen host's / single player's own player, and the per-tick string garbage in `ConfigSync.Live` / `LastShip` is gone. Harness **495**.
+
 **Unreleased on main (2026-09-23): the build no longer embeds the build machine's folders.**
 Every shipped DLL through 1.0.1 carried the absolute PDB path (C:\Users\<name>\…) in its PE
 debug directory. The csproj now sets DeterministicSourcePaths and always names the repo root as
@@ -644,7 +646,14 @@ Verified by decompile 2026-08-28 unless marked otherwise.
   broadcast comes straight back to it and the handler must stand down on `IsServer()` rather than
   assume it only ever runs on a client. And the server is the only peer that RELAYS, but it does not
   rewrite `m_senderPeerID` — so a handler that must only accept the server has to compare the sender
-  against `GetServerPeer().m_uid` itself.
+  against `GetServerPeer().m_uid` itself. **That compare is only sound because the SERVER checks
+  the sender first** (fixed 1.0.2, found by the 2026-09-24 review): `m_senderPeerID` is written by
+  the sending machine and 1.0.15's `RPC_RoutedRPC` never compares it with the connection, so a
+  modified client could claim an admin's uid (the admin gate then judged the admin's socket) or the
+  server's uid (relayed to everybody as the server's sea). `ConfigSync.AllowRoutedPacket`, called
+  from a prefix on `RPC_RoutedRPC`, drops any of our four messages whose claimed sender is not the
+  peer that owns the arriving `ZRpc`. Any new routed message whose sender matters must be added to
+  its hash list.
 
 - **BepInEx's float and bool converters are culture-INVARIANT in both directions** —
   `ToString(NumberFormatInfo.InvariantInfo)` / `float.Parse(str, NumberFormatInfo.InvariantInfo)`, and

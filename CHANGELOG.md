@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.0.2
+
+Fixes and cleanup. Nothing about the water or the drift changed, no config key moved, and the
+wire is the same, so 1.0.1 and 1.0.2 still share a sea.
+
+- **Flotsam now washes up in single player and around a host's own player.** Until now it only
+  ever spawned near players connected to a server from elsewhere, so a single-player world never
+  saw any, and on a hosted (non-dedicated) game only the guests did. The host's own player now
+  counts like everyone else. Dedicated servers are unchanged, and an ocean with nobody in it
+  still stays empty.
+
+- **The server now checks who really sent a config message.** Valheim lets a client write its
+  own sender id on this kind of message, and the server did not check it. So a modified client
+  could pass itself off as an online admin and change the server's synced settings, or pass
+  itself off as the server and hand every player a different sea for a while. The server now
+  drops any Undertow config message whose sender does not match the connection it arrived on,
+  and logs one warning per connection that tries it. The admin check, the ranges and the synced keys are unchanged. The
+  check runs on the server, so the server needs 1.0.2; clients need nothing new.
+
+- **Less garbage per physics tick on a client connected to a server.** Reading a synced value
+  and noting the last pushed hull no longer create a new string every tick.
+
+- **The DLL no longer carries the build machine's folder path.** Every DLL through 1.0.1 embedded
+  the absolute path of its debug-symbols file, a path that included the build machine's user
+  name. The build now maps its source folders to a neutral `/_/` prefix, so neither the DLL nor
+  its symbols name a local folder, and two builds of the same commit are byte-identical. This
+  release's DLL was built from commit `TBD`.
+
+- **The README's Support section links the Raven Iron website**, <https://ravenirongames.com>,
+  beside Patreon and Discord.
+
 ## 1.0.1
 
 - **A hull under way now pays the current as a speed, not a force — 1.0.0 stopped a paddled karve

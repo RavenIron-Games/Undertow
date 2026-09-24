@@ -38,7 +38,13 @@ namespace RavenIron.Undertow.Patches
         public static long PushCount;
         public static float LastWaterSpeed;
         public static float LastAppliedDv;
-        public static string LastShip = "(none)";
+        /// <summary>
+        /// The hull last pushed, for `wake drift`. The REFERENCE is kept and the name read only
+        /// when the console asks: `name` allocates a new managed string on every call, and this
+        /// is set on every physics tick a push lands. Unity's null check covers a destroyed hull.
+        /// </summary>
+        private static Ship _lastShip;
+        public static string LastShip => _lastShip != null ? _lastShip.name : "(none)";
         public static bool EverRan;
 
         /// <summary>Seconds between verbose drift lines. Two is enough to watch a hull settle.</summary>
@@ -187,7 +193,7 @@ namespace RavenIron.Undertow.Patches
                 PushCount++;
                 LastWaterSpeed = sample.Speed;
                 LastAppliedDv = Mathf.Sqrt(dvx * dvx + dvz * dvz);
-                LastShip = __instance.name;
+                _lastShip = __instance;
 
                 // THE TUNING INSTRUMENT. The single number that matters for calibration is the
                 // RATIO of hull speed to water speed — at DriftStrength 1.0 it should sit near

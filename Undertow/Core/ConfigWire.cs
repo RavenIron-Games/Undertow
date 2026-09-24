@@ -110,6 +110,24 @@ namespace RavenIron.Undertow.Core
         }
 
         /// <summary>
+        /// Whether a routed packet that reached the SERVER really comes from who it says.
+        ///
+        /// Valheim's routed RPC carries a sender id that the sending machine writes itself, and
+        /// vanilla never checks it against the connection the packet arrived on (1.0.15,
+        /// `ZRoutedRpc.RPC_RoutedRPC`). So a modified client could claim to be an admin (and push
+        /// a value into the server's config file) or claim to be the server (and have its payload
+        /// relayed to every client as the server's sea). The server is the one machine that knows
+        /// the truth, because it knows which connection the packet came in on: the claim is
+        /// genuine only when the connection belongs to a known peer and that peer's uid IS the
+        /// claimed sender. Anything else is dropped before it is handled or relayed.
+        /// </summary>
+        /// <param name="fromKnownPeer">The connection the packet arrived on belongs to a peer the server knows.</param>
+        /// <param name="peerUid">That peer's uid, as the server recorded it at the handshake.</param>
+        /// <param name="claimedSender">The sender id written inside the packet.</param>
+        public static bool RoutedSenderIsGenuine(bool fromKnownPeer, long peerUid, long claimedSender)
+            => fromKnownPeer && peerUid != 0L && peerUid == claimedSender;
+
+        /// <summary>
         /// A float on the wire. Round-trip format, invariant culture.
         ///
         /// Invariant is not a preference here. BepInEx's own float converter is

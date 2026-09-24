@@ -690,6 +690,29 @@ namespace Undertow.Tests
                 if (idx < 0 || idx >= table.Length) inBounds = false;
             }
             Check(inBounds, "every roll from 0 to 1 inclusive picks a valid index");
+
+            // ---- who flotsam gathers around (1.0.2) ----------------------------------------
+            // Vanilla's peer list is remote connections only, so a listen host's own player has
+            // to be added by hand. Before 1.0.2 single player never saw flotsam at all.
+            Check(FlotsamMath.HostPlayerIsOrigin(isServer: true, isDedicated: false, hasLocalPlayer: true),
+                "a listen host's (or single player's) own player is an origin");
+            Check(!FlotsamMath.HostPlayerIsOrigin(isServer: true, isDedicated: true, hasLocalPlayer: true),
+                "a dedicated server never adds a local player");
+            Check(!FlotsamMath.HostPlayerIsOrigin(isServer: false, isDedicated: false, hasLocalPlayer: true),
+                "a pure client never adds itself (the server spawns for it)");
+            Check(!FlotsamMath.HostPlayerIsOrigin(isServer: true, isDedicated: false, hasLocalPlayer: false),
+                "a host with no player spawned yet adds nobody");
+
+            Check(FlotsamMath.OriginCount(0, true) == 1,
+                "single player: no peers, one origin — flotsam can spawn");
+            Check(FlotsamMath.OriginCount(0, false) == 0,
+                "nobody anywhere: zero origins — an empty ocean stays empty");
+            Check(FlotsamMath.OriginCount(2, true) == 3,
+                "a listen host with two guests gathers flotsam around all three");
+            Check(FlotsamMath.OriginCount(2, false) == 2,
+                "a dedicated server with two players gathers around exactly those two");
+            Check(FlotsamMath.OriginCount(-1, false) == 0,
+                "a nonsense peer count never produces origins");
         }
 
         private static void SwimDriftTests()
@@ -2225,6 +2248,26 @@ namespace Undertow.Tests
                 many.Add(new KeyValuePair<string, string>("S|K" + i, i.ToString(CultureInfo.InvariantCulture)));
             Check(ConfigWire.Describe(many).Contains("and 9 more"),
                 "a long payload names the first three and counts the rest");
+
+            // ---- the server binds a routed sender to its connection (1.0.2) ----------------
+            //
+            // The sender id inside a routed packet is written by the sender. Only the server
+            // knows which connection it really came in on, so only a match counts. The two
+            // forgeries from the review: a client wearing an admin's uid, and one wearing the
+            // server's.
+            const long client = 1001L, admin = 2002L, server = 3003L;
+            Check(ConfigWire.RoutedSenderIsGenuine(true, client, client),
+                "a peer that names itself as the sender is believed");
+            Check(!ConfigWire.RoutedSenderIsGenuine(true, client, admin),
+                "a peer claiming an admin's uid is refused (forged config push)");
+            Check(!ConfigWire.RoutedSenderIsGenuine(true, client, server),
+                "a peer claiming the server's uid is refused (forged publish, never relayed)");
+            Check(!ConfigWire.RoutedSenderIsGenuine(false, 0L, client),
+                "a packet from a connection the server does not know is refused");
+            Check(!ConfigWire.RoutedSenderIsGenuine(false, client, client),
+                "an unknown connection is refused even when the ids happen to agree");
+            Check(!ConfigWire.RoutedSenderIsGenuine(true, 0L, 0L),
+                "a peer with no uid yet cannot claim the empty id");
         }
 
         // ---- harness ----------------------------------------------------------------------
