@@ -39,21 +39,20 @@ wire is the same, so 1.0.1 and 1.0.2 still share a sea.
 **Tested in game on 2026-09-24**, on a Valheim 1.0.15 dedicated server (Storm10, crossplay) plus
 a single-player world, with one client, all on the DLL built from `5446c9d`, the head of the fix
 branch (md5 `8e35436a412c89cbfe7d45a7aa23b2d5`, 132,608 bytes; only documents changed after it).
-Built against and
-tested on Valheim 1.0.15. Flotsam in single player: 6 spawns in about 3.5 minutes, 34–107 m out,
-in 30 m of water with a 0.30–0.33 m/s current. Config sync on join: the client asked the server
-for its config and nothing was dropped (the "13 values in force" line was read on screen, not in
-a log). Admin push: 9 of 9 `MaxCurrentSpeed` changes were accepted in an earlier session the same
-day, on the same DLL, and the last one set the value back. Local config was restored on leaving a
-server. Both sides booted with `Harmony patched 4` and logged no errors, warnings or exceptions.
-Not tried in game: a non-admin's config push being refused (checked only in code); the forged
-sender itself, which needs a modified client (the accept/drop decision is checked in code against
-a 1.0.15 decompile, and six harness cases cover the predicate; genuine admin traffic passing is
-the closest in-game evidence); flotsam staying off on a dedicated server with an empty ocean;
-flotsam around a listen host's own player with a guest connected (both are unchanged code paths,
-covered by the harness only); and `wake drift` naming the last hull, then reading back `(none)`
-once that hull is destroyed, which is the check for the per-tick garbage fix. Off-game: 495
-checks, 0 failed.
+Built against and tested on Valheim 1.0.15. Flotsam in single player: 6 spawns in about 3.5
+minutes, 34–107 m out, in 30 m of water with a 0.30–0.33 m/s current. Config sync on join: the
+client asked the server for its config and nothing was dropped (the "13 values in force" line was
+read on screen, not in a log). Admin push: 9 of 9 `MaxCurrentSpeed` changes were accepted in an
+earlier session the same day, on the same DLL, and the last one set the value back. Local config
+was restored on leaving a server. Both sides booted with `Harmony patched 4` and logged no errors,
+warnings or exceptions. Not tried in game: a non-admin's config push being refused (checked only
+in code); the forged sender itself, which needs a modified client (the accept/drop decision is
+checked in code against a 1.0.15 decompile, and six harness cases cover the predicate; genuine
+admin traffic passing is the closest in-game evidence); flotsam staying off on a dedicated server
+with an empty ocean; flotsam around a listen host's own player with a guest connected (both are
+unchanged code paths, covered by the harness only); and `wake drift` naming the last hull, then
+reading back `(none)` once that hull is destroyed, which is the check for the per-tick garbage
+fix. Off-game: 495 checks, 0 failed.
 
 ## 1.0.1
 
