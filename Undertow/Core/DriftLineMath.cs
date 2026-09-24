@@ -274,7 +274,7 @@ namespace RavenIron.Undertow.Core
         /// <summary>
         /// The share of daytime brightness and opacity the foam keeps at full night. The first
         /// build with a working night (2026-09-21) had no floor: at day 0 the streak was 12%
-        /// bright at 35% alpha in a near-black tint, and the owner's verdict at `tod 0` was "too
+        /// bright at 35% alpha in a near-black tint, and RavenIron's verdict at `tod 0` was "too
         /// dim to find". Real foam is the brightest thing on dark water, so night should mean a
         /// faint grey smear, not absence. A dial rather than a constant so it can be set by eye at
         /// midnight without a relaunch per guess — and it was, the same day: 0.35 "too dim to
