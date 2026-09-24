@@ -16,7 +16,7 @@ wire is the same, so 1.0.1 and 1.0.2 still share a sea.
   could pass itself off as an online admin and change the server's synced settings, or pass
   itself off as the server and hand every player a different sea for a while. The server now
   drops any Undertow config message whose sender does not match the connection it arrived on,
-  and says so once in its log. The admin check, the ranges and the synced keys are unchanged. The
+  and logs one warning per connection that tries it. The admin check, the ranges and the synced keys are unchanged. The
   check runs on the server, so the server needs 1.0.2; clients need nothing new.
 
 - **Less garbage per physics tick on a client connected to a server.** Reading a synced value
