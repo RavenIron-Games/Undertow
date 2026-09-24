@@ -23,6 +23,8 @@ Design document (the reasoning behind every decision here):
 
 ## Status
 
+**1.0.2 PREPARED 2026-09-24, NOT CUT** (version bumped in the three places, CHANGELOG entry written with the build commit left `TBD`; the cut is RavenIron's call). It carries the two items below: the path-free build and the README website link.
+
 **Unreleased on main (2026-09-23): the build no longer embeds the build machine's folders.**
 Every shipped DLL through 1.0.1 carried the absolute PDB path (C:\Users\<name>\…) in its PE
 debug directory. The csproj now sets DeterministicSourcePaths and always names the repo root as

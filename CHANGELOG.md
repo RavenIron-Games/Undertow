@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.2
+
+A cleanup release. Nothing about the water, the drift, the config or the wire changed; the
+code the game runs is the same as 1.0.1's.
+
+- **The DLL no longer carries the build machine's folder path.** Every DLL through 1.0.1 embedded
+  the absolute path of its debug-symbols file, a path that included the build machine's user
+  name. The build now maps its source folders to a neutral `/_/` prefix, so neither the DLL nor
+  its symbols name a local folder, and two builds of the same commit are byte-identical. This
+  release's DLL was built from commit `TBD`.
+
+- **The README's Support section links the Raven Iron website**, <https://ravenirongames.com>,
+  beside Patreon and Discord.
+
 ## 1.0.1
 
 - **A hull under way now pays the current as a speed, not a force — 1.0.0 stopped a paddled karve
