@@ -23,24 +23,27 @@ Design document (the reasoning behind every decision here):
 
 ## Status
 
-**CUT 2026-09-24: v1.0.2.** PR #4 merged to main as `b15c79f`, carrying the two items below (the
-path-free build and the README website link) plus three review fixes: the server binds a routed
-config message's sender to its connection (new `Patch_RoutedRpc_Sender` on
+**CUT 2026-09-24: v1.0.2.** PR #4 merged to main as `b15c79f` with three review fixes: the server
+binds a routed config message's sender to its connection (new `Patch_RoutedRpc_Sender` on
 `ZRoutedRpc.RPC_RoutedRPC`, so the boot line now reads `Harmony patched 4`), flotsam spawns around
 a listen host's / single player's own player, and the per-tick string garbage in
-`ConfigSync.Live` / `LastShip` is gone. Harness **495**. The solo batch tested PR #4's head,
-`5446c9d` (byte-identical tree to `b15c79f`), on 2026-09-24 — test DLL md5
-`8e35436a412c89cbfe7d45a7aa23b2d5`; results at `_handoffs/SOLO-BATCH-results-2026-09-24.md`. The
-release cut also moves `manifest.json`'s `website_url` to the Raven Iron website. What remains:
-tag `v1.0.2`, a GitHub pre-release carrying the store zip, and the store upload — all RavenIron's.
+`ConfigSync.Live` / `LastShip` is gone. 1.0.2 also ships two items already on main, the path-free
+build (PR #3, below) and the README website link (PR #2). Harness **495**. PR #4's head,
+`5446c9d` (tree-identical to `b15c79f`), was tested in game on 2026-09-24 — the solo batch, plus
+an earlier same-day session for the admin push — test DLL md5
+`8e35436a412c89cbfe7d45a7aa23b2d5`; results in PR #4's body and the 1.0.2 CHANGELOG entry. The
+release cut also moves `manifest.json`'s `website_url` to the Raven Iron website. What remains,
+each on RavenIron's word: push `release/1.0.2-cut` and merge it to main (docs only); tag that
+merge `v1.0.2`; build the store zip from the tag and record its DLL's version string, md5 and
+size in a GitHub pre-release carrying the zip; the store upload is RavenIron's.
 
-**Unreleased on main (2026-09-23): the build no longer embeds the build machine's folders.**
-Every shipped DLL through 1.0.1 carried the absolute PDB path (C:\Users\<name>\…) in its PE
-debug directory. The csproj now sets DeterministicSourcePaths and always names the repo root as
-a SourceRoot, so the DLL carries /_/…/Undertow.pdb and neither the DLL nor the PDB names a local
-path; the IL is unchanged. At the next cut, say in the changelog that the DLL no longer carries
-an absolute build path that included the build machine's user name (quote no path), and name the
-commit the DLL was built from: the md5 follows the commit and no longer the checkout folder (the PDB's Source Link URL carries the commit).
+**Shipped in 1.0.2 (on main since 2026-09-23): the build no longer embeds the build machine's
+folders.** Every shipped DLL through 1.0.1 carried the absolute PDB path (C:\Users\<name>\…) in
+its PE debug directory. The csproj now sets DeterministicSourcePaths and always names the repo
+root as a SourceRoot, so the DLL carries /_/…/Undertow.pdb and neither the DLL nor the PDB names a
+local path; the IL is unchanged. The 1.0.2 changelog says so, and the GitHub release names the
+commit the DLL was built from: the md5 follows the commit and no longer the checkout folder (the
+PDB's Source Link URL carries the commit).
 
 **PUBLISHED — 1.0.1 IS LIVE ON HEXIUM (2026-09-21, 20:44Z), 72 MINUTES AFTER 1.0.0.** Confirmed
 through the API: `latest 1.0.1`; 1.0.0 took 26 downloads in the window it was current, and those

@@ -9,15 +9,17 @@ wire is the same, so 1.0.1 and 1.0.2 still share a sea.
   ever spawned near players connected to a server from elsewhere, so a single-player world never
   saw any, and on a hosted (non-dedicated) game only the guests did. The host's own player now
   counts like everyone else. Dedicated servers are unchanged, and an ocean with nobody in it
-  still stays empty.
+  still stays empty. A single-player world can now hold up to `FlotsamMaxAlive` pieces when you
+  quit; they are vanilla items and vanilla's own despawn clears them.
 
 - **The server now checks who really sent a config message.** Valheim lets a client write its
   own sender id on this kind of message, and the server did not check it. So a modified client
   could pass itself off as an online admin and change the server's synced settings, or pass
   itself off as the server and hand every player a different sea for a while. The server now
   drops any Undertow config message whose sender does not match the connection it arrived on,
-  and logs one warning per connection that tries it. The admin check, the ranges and the synced keys are unchanged. The
-  check runs on the server, so the server needs 1.0.2; clients need nothing new.
+  and logs one warning per connection that tries it. The admin check, the ranges and the synced
+  keys are unchanged. The check runs on the server, so the server needs 1.0.2; clients need
+  nothing new.
 
 - **Less garbage per physics tick on a client connected to a server.** Reading a synced value
   and noting the last pushed hull no longer create a new string every tick.
@@ -25,9 +27,9 @@ wire is the same, so 1.0.1 and 1.0.2 still share a sea.
 - **The DLL no longer carries the build machine's folder path.** Every DLL through 1.0.1 embedded
   the absolute path of its debug-symbols file, a path that included the build machine's user
   name. The build now maps its source folders to a neutral `/_/` prefix, so neither the DLL nor
-  its symbols name a local folder, and two builds of the same commit are byte-identical. This DLL
-  was built from the commit tagged `v1.0.2`; the GitHub release names that commit and gives the
-  DLL's md5.
+  its symbols name a local folder, and two builds of the same commit, with the same compiler and
+  game libraries, are byte-identical. This DLL was built from the commit tagged `v1.0.2`; the
+  GitHub release names that commit and gives the DLL's md5.
 
 - **The README's Support section links the Raven Iron website**, <https://ravenirongames.com>,
   beside Patreon and Discord.
@@ -36,23 +38,28 @@ wire is the same, so 1.0.1 and 1.0.2 still share a sea.
   `website_url` pointed at the GitHub repo; it now reads <https://ravenirongames.com/>, matching
   the README's own Support section.
 
-**Tested in game on 2026-09-24**, on a Valheim 1.0.15 dedicated server (Storm10, crossplay) plus
+**Tested in game on 2026-09-24**, on a Valheim 1.0.15 dedicated server (crossplay) plus
 a single-player world, with one client, all on the DLL built from `5446c9d`, the head of the fix
-branch (md5 `8e35436a412c89cbfe7d45a7aa23b2d5`, 132,608 bytes; only documents changed after it).
-Built against and tested on Valheim 1.0.15. Flotsam in single player: 6 spawns in about 3.5
-minutes, 34–107 m out, in 30 m of water with a 0.30–0.33 m/s current. Config sync on join: the
-client asked the server for its config and nothing was dropped (the "13 values in force" line was
-read on screen, not in a log). Admin push: 9 of 9 `MaxCurrentSpeed` changes were accepted in an
-earlier session the same day, on the same DLL, and the last one set the value back. Local config
-was restored on leaving a server. Both sides booted with `Harmony patched 4` and logged no errors,
-warnings or exceptions. Not tried in game: a non-admin's config push being refused (checked only
-in code); the forged sender itself, which needs a modified client (the accept/drop decision is
-checked in code against a 1.0.15 decompile, and six harness cases cover the predicate; genuine
-admin traffic passing is the closest in-game evidence); flotsam staying off on a dedicated server
-with an empty ocean; flotsam around a listen host's own player with a guest connected (both are
-unchanged code paths, covered by the harness only); and `wake drift` naming the last hull, then
-reading back `(none)` once that hull is destroyed, which is the check for the per-tick garbage
-fix. Off-game: 495 checks, 0 failed.
+branch (md5 `8e35436a412c89cbfe7d45a7aa23b2d5`, 132,608 bytes) — the same code as this release;
+only documents and the store page's website link changed after it. Built against and tested on
+Valheim 1.0.15. Flotsam in single player, with `FlotsamPerHour` raised from its default 6 to 120
+for the test: 6 spawns in about 3.5 minutes, 34–107 m from where the drift began, in 30 m of water
+with a 0.30–0.33 m/s current. Config sync on join: the client asked the server for its config and
+nothing was dropped (the "13 values in force" line was read on screen, not in a log). Admin push:
+9 of 9 `MaxCurrentSpeed` changes were accepted in an earlier session the same day, on the same DLL,
+and the last one set the value back. Local config was restored on leaving a server. Both sides
+booted with `Harmony patched 4`; Undertow logged no errors or warnings on either side, and no
+exceptions appeared in either log. Not tried in game: a non-admin's config push being refused
+(checked only in code); the forged sender itself, which needs a modified client (the packet-header
+read was checked against the 1.0.15 game code; six harness cases cover the accept/drop predicate
+but not the patch that calls it; genuine admin traffic passing through the patch is the closest
+in-game evidence); a 1.0.1 client with a 1.0.2 server, or the reverse (the handshake is unchanged,
+read from the code); flotsam staying off on a dedicated server with an empty ocean (an unchanged
+path; the harness covers the origin count); flotsam around a listen host's own player with a guest
+connected, which needs a second player (new in 1.0.2: the harness covers the origin count, and
+single player ran the host branch in game); and `wake drift` naming the last hull, then reading
+back `(none)` once that hull is destroyed, which is the check for the per-tick garbage fix; the
+garbage saving itself was not measured (it is read from the code). Off-game: 495 checks, 0 failed.
 
 ## 1.0.1
 
