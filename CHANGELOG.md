@@ -27,8 +27,8 @@ wire is the same, so 1.0.1 and 1.0.2 still share a sea.
 - **The DLL no longer carries the build machine's folder path.** Every DLL through 1.0.1 embedded
   the absolute path of its debug-symbols file, a path that included the build machine's user
   name. The build now maps its source folders to a neutral `/_/` prefix, so neither the DLL nor
-  its symbols name a local folder, and two builds of the same commit, with the same compiler and
-  game libraries, are byte-identical. This DLL was built from the commit tagged `v1.0.2`; the
+  its symbols name a local folder, and two builds of the same commit, from Windows clones with Git's
+  default line endings, the same .NET SDK and the same game libraries, are byte-identical. This DLL was built from the commit tagged `v1.0.2`; the
   GitHub release names that commit and gives the DLL's md5.
 
 - **The README's Support section links the Raven Iron website**, <https://ravenirongames.com>,

@@ -33,8 +33,8 @@ build (PR #3, below) and the README website link (PR #2). Harness **495**. PR #4
 an earlier same-day session for the admin push — test DLL md5
 `8e35436a412c89cbfe7d45a7aa23b2d5`; results in PR #4's body and the 1.0.2 CHANGELOG entry. The
 release cut also moves `manifest.json`'s `website_url` to the Raven Iron website. What remains,
-each on RavenIron's word: push `release/1.0.2-cut` and merge it to main (docs only); tag that
-merge `v1.0.2`; build the store zip from the tag and record its DLL's version string, md5 and
+each on RavenIron's word: push `release/1.0.2-cut` and merge it to main (documents and manifest.json's website link
+only); tag that merge `v1.0.2`; build the store zip from a fresh clone of the tag and record its DLL's version string, md5 and
 size in a GitHub pre-release carrying the zip; the store upload is RavenIron's.
 
 **Shipped in 1.0.2 (on main since 2026-09-23): the build no longer embeds the build machine's
