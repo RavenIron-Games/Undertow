@@ -45,6 +45,26 @@ namespace RavenIron.Undertow.Core
         }
 
         /// <summary>
+        /// Whether this machine's own player is a place flotsam may gather around.
+        ///
+        /// Vanilla's peer list holds REMOTE connections only, so on a listen host — and in every
+        /// single-player session, which is a listen host with nobody connected — the local player
+        /// is never in it. Until 1.0.2 that meant single player never saw flotsam at all. Only a
+        /// server that is not dedicated has such a player; a dedicated server has none, and a
+        /// pure client does not run the flotsam system.
+        /// </summary>
+        public static bool HostPlayerIsOrigin(bool isServer, bool isDedicated, bool hasLocalPlayer)
+            => isServer && !isDedicated && hasLocalPlayer;
+
+        /// <summary>
+        /// How many players flotsam may gather around this tick: every connected peer, plus the
+        /// host's own player when it counts. Zero means nobody is out there, and an empty ocean
+        /// stays empty.
+        /// </summary>
+        public static int OriginCount(int peerCount, bool hostPlayerIsOrigin)
+            => (peerCount > 0 ? peerCount : 0) + (hostPlayerIsOrigin ? 1 : 0);
+
+        /// <summary>
         /// Whether to spawn this tick, given a gather weight and a per-hour rate.
         ///
         /// Rate is expressed PER HOUR rather than per tick so the config value survives a change

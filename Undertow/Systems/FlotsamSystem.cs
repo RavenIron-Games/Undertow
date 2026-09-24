@@ -27,7 +27,10 @@ namespace RavenIron.Undertow.Systems
     /// announcement layer was undeliverable for months. This reads `ZNet.GetPeers()` and prefers
     /// each peer's character ZDO position, falling back to `m_refPos`.
     ///
-    /// NOTHING ACCUMULATES IN EMPTY OCEAN. Spawning requires a peer within range, so an idle
+    /// A LISTEN HOST'S OWN PLAYER COUNTS TOO (1.0.2). `GetPeers()` never contains it, so until
+    /// 1.0.2 single player spawned nothing at all and a host only ever saw flotsam near guests.
+    ///
+    /// NOTHING ACCUMULATES IN EMPTY OCEAN. Spawning requires a player within range, so an idle
     /// server produces nothing at all and a long-running world does not silently fill its ZDO
     /// table with driftwood.
     /// </summary>
@@ -86,8 +89,18 @@ namespace RavenIron.Undertow.Systems
             ZNet net = ZNet.instance;
             if (net == null) return;
 
+            // `GetPeers()` holds REMOTE connections only, so a listen host's own player — and
+            // therefore every single-player session — is never in it. That player is added as an
+            // origin of its own; a dedicated server has no local player and is unchanged.
             List<ZNetPeer> peers = net.GetPeers();
-            if (peers == null || peers.Count == 0) return;          // empty ocean stays empty
+            int peerCount = peers != null ? peers.Count : 0;
+            Player local = Player.m_localPlayer;
+            Player host = FlotsamMath.HostPlayerIsOrigin(net.IsServer(), net.IsDedicated(), local != null)
+                ? local
+                : null;
+
+            int origins = FlotsamMath.OriginCount(peerCount, host != null);
+            if (origins == 0) return;                                // empty ocean stays empty
 
             if (_alive.Count >= ModConfig.FlotsamMaxAlive.Value) return;
 
@@ -95,11 +108,19 @@ namespace RavenIron.Undertow.Systems
             float minDepth = ModConfig.FlotsamMinDepth.Value;
             float perHour = ModConfig.FlotsamPerHour.Value;
 
-            for (int i = 0; i < peers.Count; i++)
+            for (int i = 0; i < origins; i++)
             {
                 if (_alive.Count >= ModConfig.FlotsamMaxAlive.Value) return;
 
-                if (!TryGetPeerPosition(peers[i], out Vector3 origin)) continue;
+                Vector3 origin;
+                if (i < peerCount)
+                {
+                    if (!TryGetPeerPosition(peers[i], out origin)) continue;
+                }
+                else
+                {
+                    origin = host.transform.position;
+                }
 
                 // One candidate point per player per tick. Deliberately not a search: a sweep for
                 // the slackest water nearby would cost a field evaluation per sample and put the
