@@ -23,16 +23,23 @@ Design document (the reasoning behind every decision here):
 
 ## Status
 
-**PREPARED 2026-09-25, NOT CUT: v1.0.3, a rebuild for Valheim 1.0.16.** Branch
-`release/1.0.3-prep`. Valheim's 1.0.16 hotfix (Steam build 25527674 client / 25527701 dedicated
-server; network version 40 and the save versions unchanged) changed none of the game code
-Undertow patches or calls: a static check found the four Harmony targets and every by-name lookup
-resolving identically on 1.0.15 and 1.0.16, and the build against the 1.0.16 `libs\` is clean.
-No code change beyond the version (Plugin const, csproj, `manifest.json`); the comments-and-docs
-byline rewording rides along. Harness **495**. **Not yet run in game on 1.0.16.** What remains,
-each on RavenIron's word: push the branch and merge it; tag the merge `v1.0.3`; build the store zip
-from a fresh clone of the tag and record its DLL's version string, md5 and size in a GitHub
-pre-release carrying the zip; the store upload is RavenIron's.
+**PUBLISHED 2026-09-25: v1.0.3, a rebuild for Valheim 1.0.16.** Tagged `v1.0.3` on `4598015` (head
+of `release/1.0.3-prep`); GitHub pre-release with the store zip, DLL
+`1.0.3+459801589c1c6d987be972a330e593b71149b609`, md5 `5dc9d282e9597d42f4b57ad6d39b7b98`, 132,608
+bytes, built from a fresh clone of that commit before it was tagged. The Hexium upload is
+RavenIron's step, pending as of 2026-09-25; once it is up, confirm it by the store zip's DLL md5.
+Valheim's 1.0.16 hotfix (Steam build 25527674 client / 25527701 dedicated server; network version 40
+and the save versions unchanged) changed none of the game code Undertow patches or calls: a static
+check found the four Harmony targets and every by-name lookup resolving identically on 1.0.15 and
+1.0.16, and the build against the 1.0.16 `libs\` is clean. No code change beyond the version (Plugin
+const, csproj, `manifest.json`); the comments-and-docs byline rewording rides along. Harness
+**495**. **Run in game 2026-09-25** on Storm10 (a Valheim 1.0.16 dedicated server plus one client,
+both on the ship DLL, md5 `5dc9d282…`): `Harmony patched 4` and `Undertow v1.0.3 loaded.` on both
+sides; `wake status` read SeaTick online, drift, flotsam, swimmers, the Wrath bridge and drift lines
+on, and 13 server values in force; no Undertow warning or error in either log. Not run on 1.0.16: a
+boat on a current, a second player, mixed 1.0.15/1.0.16 play. What remains, on RavenIron's word:
+merge `release/1.0.3-prep` to main with a merge commit, so the tag stays in main's history (after
+the tag the branch adds only status notes in `CLAUDE.md` and `docs/HANDOFF.md`).
 
 **PUBLISHED 2026-09-24: v1.0.2.** Tagged `v1.0.2` on `d88e1de` (PR #5); GitHub pre-release with
 the store zip, DLL `1.0.2+d88e1de…`, md5 `87d6b0d7c79c19bfa835a4c5f6fa6789`, 132,608 bytes; live on

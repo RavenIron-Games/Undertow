@@ -1,3 +1,6 @@
+**Superseded:** the current status is `CLAUDE.md`'s Status section (v1.0.3 published
+2026-09-25). This page is the 2026-09-02 handoff, kept as history.
+
 # Session handoff — 2026-09-02 (picked up 2026-08-30: one fix next door, store art, three compatibility analyses, a release check)
 
 For the next session picking this up cold. Read `CLAUDE.md` first, then this. `docs/BACKLOG.md`
