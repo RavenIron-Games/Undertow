@@ -23,6 +23,21 @@ Design document (the reasoning behind every decision here):
 
 ## Status
 
+**PREPARED 2026-09-25, NOT CUT: v1.0.3, a rebuild for Valheim 1.0.16.** Branch
+`release/1.0.3-prep`. Valheim's 1.0.16 hotfix (Steam build 25527674 client / 25527701 dedicated
+server; network version 40 and the save versions unchanged) changed none of the game code
+Undertow patches or calls: a static check found the four Harmony targets and every by-name lookup
+resolving identically on 1.0.15 and 1.0.16, and the build against the 1.0.16 `libs\` is clean.
+No code change beyond the version (Plugin const, csproj, `manifest.json`); the comments-and-docs
+byline rewording rides along. Harness **495**. **Not yet run in game on 1.0.16.** What remains,
+each on RavenIron's word: push the branch and merge it; tag the merge `v1.0.3`; build the store zip
+from a fresh clone of the tag and record its DLL's version string, md5 and size in a GitHub
+pre-release carrying the zip; the store upload is RavenIron's.
+
+**PUBLISHED 2026-09-24: v1.0.2.** Tagged `v1.0.2` on `d88e1de` (PR #5); GitHub pre-release with
+the store zip, DLL `1.0.2+d88e1de…`, md5 `87d6b0d7c79c19bfa835a4c5f6fa6789`, 132,608 bytes; live on
+Hexium the same evening, the store zip's DLL md5 matching that build. The cut record follows.
+
 **CUT 2026-09-24: v1.0.2.** PR #4 merged to main as `b15c79f` with three review fixes: the server
 binds a routed config message's sender to its connection (new `Patch_RoutedRpc_Sender` on
 `ZRoutedRpc.RPC_RoutedRPC`, so the boot line now reads `Harmony patched 4`), flotsam spawns around

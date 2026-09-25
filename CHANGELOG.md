@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.3
+
+A rebuild for Valheim 1.0.16. Nothing about the water or the drift changed, no config key moved,
+and the wire is the same, so 1.0.2 and 1.0.3 still share a sea.
+
+- **Checked against Valheim 1.0.16.** The game's 1.0.16 hotfix (2026-09-25) changed none of the
+  game code Undertow patches or calls: its four Harmony patches and its by-name lookups find the
+  same methods and fields on 1.0.15 and 1.0.16, and the mod builds cleanly against the 1.0.16
+  game. This DLL is built against 1.0.16. The game's network version did not change, so 1.0.15
+  and 1.0.16 players and servers still connect to each other.
+
+- **No gameplay change.** The mod's code is 1.0.2's; only the version number and some comments
+  in the source changed. This DLL was built from the commit tagged `v1.0.3`; the GitHub release
+  names that commit and gives the DLL's md5.
+
+Last tested in game as 1.0.2, on Valheim 1.0.15 (below). Off-game: 495 checks, 0 failed.
+
 ## 1.0.2
 
 Fixes and cleanup. Nothing about the water or the drift changed, no config key moved, and the
