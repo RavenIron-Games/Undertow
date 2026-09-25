@@ -1967,7 +1967,7 @@ namespace Undertow.Tests
                 Check(okStamp.Value == ConfigLedger.CurrentVersion,
                     "while a plan that applied cleanly stamps as it always did — the gate withholds, it does not block");
 
-                // ---- AND THE LINE THE OWNER READS. LastSummary is written in Begin from the
+                // ---- AND THE LINE THE USER READS. LastSummary is written in Begin from the
                 //      plan's INTENT, before a step has run, and `wake status` prints it verbatim.
                 //      A refused step logs a warning several hundred lines earlier and nothing
                 //      else, so the status line says a key was dropped that is still in the file.

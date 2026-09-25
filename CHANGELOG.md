@@ -11,9 +11,9 @@ and the wire is the same, so 1.0.2 and 1.0.3 still share a sea.
   game. This DLL is built against 1.0.16. The game's network version did not change, so 1.0.15
   and 1.0.16 players and servers still connect to each other.
 
-- **No gameplay change.** The mod's code is 1.0.2's; only the version number and some comments
-  in the source changed. This DLL was built from the commit tagged `v1.0.3`; the GitHub release
-  names that commit and gives the DLL's md5.
+- **No gameplay change.** The mod's code is 1.0.2's; only the version number, some comments in
+  the source and the wording of the off-game checks changed. This DLL was built from the commit
+  tagged `v1.0.3`; the GitHub release names that commit and gives the DLL's md5.
 
 Last tested in game as 1.0.2, on Valheim 1.0.15 (below). Off-game: 495 checks, 0 failed.
 
