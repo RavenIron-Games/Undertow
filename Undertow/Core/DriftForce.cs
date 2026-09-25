@@ -109,9 +109,9 @@ namespace RavenIron.Undertow.Core
             // speed, and at worst this stops helping. What it does NOT promise is that your speed
             // over the ground is unaffected. Sail into a current and it costs you roughly the
             // water's own speed, because the push points at you — which is correct, is what a
-            // current is, and was confirmed as wanted by the owner on 2026-09-19. An earlier
+            // current is, and was confirmed as wanted by RavenIron on 2026-09-19. An earlier
             // wording here claimed this "never slows a boat under sail", and the README repeated
-            // it; both were read as a promise about ground speed and misled the owner in game.
+            // it; both were read as a promise about ground speed and misled RavenIron in game.
             // A hull moving AGAINST the current gets a value above 1 before clamping and is capped
             // at a full push rather than an amplified one.
             float head = 1f - (hullAlongCurrent / waterSpeed);
@@ -169,7 +169,7 @@ namespace RavenIron.Undertow.Core
         /// WHY THE PUSH STAYS FOR A HULL ADRIFT. Vanilla's drag is so small that the true
         /// relative-drag coupling would take a free hull minutes to carry; the saturating push
         /// carries it in seconds, was measured at 0.99 of the water's speed on three hulls, and
-        /// is the behaviour the owner watched and kept. So: adrift → the push; under way → this.
+        /// is the behaviour RavenIron watched and kept. So: adrift → the push; under way → this.
         /// The caller decides from the ship's speed setting, which is exactly "is anything
         /// propelling it".
         ///

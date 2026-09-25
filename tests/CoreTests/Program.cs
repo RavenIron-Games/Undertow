@@ -950,7 +950,7 @@ namespace Undertow.Tests
             // A GREEN ASSERTION WAS DELETED HERE, and it is named rather than quietly dropped
             // because deleting a passing test is the thing this project distrusts most. It read
             // "SpawnWeight is exactly 0 at or below the slack share, at any depth" and it was the
-            // behaviour 0.8 removes on the owner's instruction. Everything below replaces it, and
+            // behaviour 0.8 removes by RavenIron's decision. Everything below replaces it, and
             // the last of them restores it exactly when the floor is zero.
             const float floor = DriftLineMath.DefaultSlackFloor;
 
@@ -1064,12 +1064,12 @@ namespace Undertow.Tests
                 "ModConfig binds DriftLineMinDepth at 2 - the whole point of the 0.8 rebase");
             float ownersRace = DriftLineMath.SpawnWeight(0.665f, 5.1f, 1.2f, shippedMinDepth, floor);
             Check(ownersRace > 0.3f && ownersRace < 0.6f,
-                $"the owner's 0.665 m/s race at 5.1 m now spawns freely (weight {Fmt(ownersRace)})");
+                $"the measured 0.665 m/s race at 5.1 m now spawns freely (weight {Fmt(ownersRace)})");
             Check(DriftLineMath.SpawnWeight(0.665f, 5.1f, 1.2f, 10f, floor) == 0f,
                 "...and is exactly 0 at the OLD MinDepth of 10 - the negative control for the rebase");
             float ownersSlack = DriftLineMath.SpawnWeight(0.091f, 30f, 1.2f, shippedMinDepth, floor);
             Check(ownersSlack > 0f && ownersSlack < 0.1f,
-                $"the owner's 0.091 m/s slack is sparse but no longer bare (weight {Fmt(ownersSlack)})");
+                $"the measured 0.091 m/s slack is sparse but no longer bare (weight {Fmt(ownersSlack)})");
 
             // 10. THE ANCHOR. MinDepth 2 + a 6 m ramp finishes at 8, which is exactly where
             //     CurrentField's own shallow fade finishes. That coincidence is the entire
@@ -1295,7 +1295,7 @@ namespace Undertow.Tests
             Check(dayMono, "DayFactor never falls as the light rises");
             DriftLineMath.Tint(0.5f, 0.5f, 0.55f, 0f, 0f, out float nr, out float ng, out float nb, out float na);
             DriftLineMath.Tint(0.5f, 0.5f, 0.55f, 1f, 0f, out float dr, out float dg, out float db, out float da);
-            // The night floor: 0 is the cliff the owner called "too dim to find", 1 is no dimming,
+            // The night floor: 0 is the cliff RavenIron called "too dim to find", 1 is no dimming,
             // and anything between lands between — by day it must do nothing at all.
             DriftLineMath.Tint(0.5f, 0.5f, 0.55f, 0f, 1f, out float fr, out _, out _, out float fa);
             Check(Math.Abs(fr - dr) < 1e-6f && Math.Abs(fa - da) < 1e-6f,
@@ -1713,7 +1713,7 @@ namespace Undertow.Tests
                 Directory.CreateDirectory(dir);
                 string cfgPath = Path.Combine(dir, "com.raveniron.undertow.cfg");
 
-                // A file exactly as 0.6.0 would have left it: no stamp, and values the owner chose.
+                // A file exactly as 0.6.0 would have left it: no stamp, and values the user chose.
                 // Written with an invariant '.' decimal, which is what BepInEx writes.
                 File.WriteAllLines(cfgPath, new[]
                 {
@@ -1733,8 +1733,8 @@ namespace Undertow.Tests
                 Check(ModConfig.ConfigVersion != null && ModConfig.ConfigVersion.Value == ConfigLedger.CurrentVersion,
                     "an unstamped file is stamped with the current layout version");
                 Check(Math.Abs(ModConfig.MaxCurrentSpeed.Value - 1.951174f) < 1e-6f,
-                    "the owner's own value survives the migration untouched");
-                Check(ModConfig.VerboseLogging.Value, "so does a bool the owner set");
+                    "the user's own value survives the migration untouched");
+                Check(ModConfig.VerboseLogging.Value, "so does a bool the user set");
                 Check(cfg.SaveCount > 0,
                     "the config is saved - in the stamp-only case that Save is the ONLY thing that writes");
                 // Reads CurrentVersion rather than hardcoding it: the literal "0 -> 1" here broke
@@ -1770,7 +1770,7 @@ namespace Undertow.Tests
                 Check(ConfigMigration.LastSummary == "",
                     "an already-current file reports NO migration summary - it short-circuits before planning one");
                 Check(Math.Abs(ModConfig.MaxCurrentSpeed.Value - 1.951174f) < 1e-6f,
-                    "and it still does not touch the owner's value");
+                    "and it still does not touch the user's value");
 
                 // A fresh install: no file at all. Every shipped default is right, and the only
                 // thing to do is stamp, so the next release's migration knows where it started.
@@ -1782,7 +1782,7 @@ namespace Undertow.Tests
 
                 // THE STAMP ONLY GOES UP. A file written by a NEWER build has already had rungs
                 // this build knows nothing about. Lowering the stamp makes the next upgrade replay
-                // them against values the owner has since chosen - and a rebase cannot tell a
+                // them against values the user has since chosen - and a rebase cannot tell a
                 // deliberate choice from the old default it happens to equal.
                 string futurePath = Path.Combine(dir, "from-the-future.cfg");
                 File.WriteAllLines(futurePath, new[]
@@ -1967,7 +1967,7 @@ namespace Undertow.Tests
                 Check(okStamp.Value == ConfigLedger.CurrentVersion,
                     "while a plan that applied cleanly stamps as it always did — the gate withholds, it does not block");
 
-                // ---- AND THE LINE THE OWNER READS. LastSummary is written in Begin from the
+                // ---- AND THE LINE THE USER READS. LastSummary is written in Begin from the
                 //      plan's INTENT, before a step has run, and `wake status` prints it verbatim.
                 //      A refused step logs a warning several hundred lines earlier and nothing
                 //      else, so the status line says a key was dropped that is still in the file.
@@ -2043,7 +2043,7 @@ namespace Undertow.Tests
                     "and says why it refused, by name");
                 Check(liveStrings.ContainsKey(flotsamDef),
                     "retiring a STRING key this build still binds is refused - BepInEx hands back the live entry, "
-                    + "so removing it would delete the owner's value with nothing thrown and nothing logged");
+                    + "so removing it would delete the user's value with nothing thrown and nothing logged");
                 Check(((ConfigEntry<string>)liveStrings[flotsamDef]).Value == curated,
                     "and the curated value is still there");
 

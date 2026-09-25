@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3 — 2026-09-25
+
+Updated due to 1.0.16 Patch.
+
 ## 1.0.2
 
 Fixes and cleanup. Nothing about the water or the drift changed, no config key moved, and the

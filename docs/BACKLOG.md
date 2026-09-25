@@ -609,7 +609,7 @@ put it. The component's presence is strong evidence, not proof — spawn one and
 trusting the spawner.
 
 ✅ **FULLY VERIFIED 2026-08-28 (0.5.1) — including the step no log could settle: IT FLOATS.**
-Driftwood spawns in slack water and was seen bobbing on the surface by the owner. `Root`,
+Driftwood spawns in slack water and was seen bobbing on the surface by RavenIron. `Root`,
 `RoundLog`, `Wood`, `FirCone`, `FineWood` all spawned cleanly, no missing prefabs, no warnings.
 
 **A REAL BUG WAS FOUND BY THE LIVE TEST, and the log looked healthy the whole time it was there.**
@@ -702,7 +702,7 @@ have moved at roughly 3.4 m/s instead of 0.16.
 — full swim speed — against a 0.17 m/s current. Nobody can be pinned offshore.
 ## 5c. Compatibility: Dive In (sighsorry) — ANALYSED 2026-09-02, NOT MEASURED
 
-The owner asked for this one by name. It is the first specific mod Undertow has been checked
+RavenIron asked for this one by name. It is the first specific mod Undertow has been checked
 against, and it is checked the way `CLAUDE.md` demands: from the author's **published source**
 (GPL-3.0, <https://github.com/sighsorry1029/DiveIn>, last push 2026-08-08, version 1.2.0) and
 never from a decompile of the shipping DLL. Nothing of theirs is reproduced here — only which
@@ -793,7 +793,7 @@ pass caught them, so read the scope paragraph before quoting any figure.
 (`authority=False, dedicated=False`) against a real PlayFab-backed dedicated server, so every
 ambient system idled by design and only hull-owner physics ran here. Seed 1823819530.
 **The config was NOT at defaults**: `MaxCurrentSpeed = 1.951174` and `TideAmplitude = 0.4988263`,
-retuned mid-session by the owner. Every number below is at those settings, not shipping ones.
+retuned mid-session by RavenIron. Every number below is at those settings, not shipping ones.
 
 ### What loaded, and it is all of it
 
@@ -886,7 +886,7 @@ threshold is 0.234, and the reading sat at 7% — well inside the dead band, not
 before the code was read. The Race term keys purely on terrain rises within 64–160m of the flow,
 with no distance-from-centre dependency, so a strait between two close islands runs fast at any
 range, and the open-ocean stream oscillates rather than growing outward. **The correct advice is
-to look for a constriction, or shallow water inside 28m for a coastal set.** The owner found the
+to look for a constriction, or shallow water inside 28m for a coastal set.** RavenIron found the
 Race water by doing exactly that, which is where 120 of the 182 samples came from.
 
 ### What this run does not license anyone to claim
@@ -905,7 +905,7 @@ the baseline.
 
 ## 7. Drift lines — the current made visible — BUILT 2026-09-18 (0.7.0), RUN IN-GAME THE SAME DAY
 
-The owner's call on 2026-09-18: a visible current on the water, and "we still need no hud". The
+RavenIron's call on 2026-09-18: a visible current on the water, and still no HUD. The
 design was a three-lens panel (sea realism, helmsman readability, engine safety) judged twice and
 synthesised; the visual language is **drift lines** — the one sea phenomenon that carries
 direction, relative speed and dead water at once without a symbol. Everything below is off-game
@@ -969,7 +969,7 @@ Each of these is a prior, not a fact, and each has a one-line fix. Record the an
    and mean length up versus the calm reading.
 10. **The gameplay path is untouched.** `wake drift` prints identical numbers with
     `EnableDriftLines` on and off, and the boot line still reads `Harmony patched 3`.
-11. **The owner's eye.** From the deck: "would you mistake this for an overlay?" Levers in order
+11. **The tester's eye.** From the deck: "would you mistake this for an overlay?" Levers in order
     if yes: `BearingJitterDegrees` 16 → 28, more 2s and 3s in `ClusterSize`, wider life spread,
     lower pool with longer streaks, more grain in `StreakAlpha`. A judgement, not a number.
 
@@ -993,14 +993,14 @@ and **1.2** (rewritten at 07:53) for the readout below. Drift lines at defaults.
 | 1 ran | `armed on this client (Direct3D11)` → `emitter built — shader 'Sprites/Default' (manual fog), pool 160, radius 60 m, texture 128x32, queue 3100` → `first streak afloat at (-328, 37) — 0.5 m/s bearing 213°, surface 27.97 (flat 30.00)`. **0 exceptions** across three client boots. Server: `Loading [Undertow 0.7.0]`, `Harmony patched 3`, SeaTick authority, **no armed line** — the headless proof. |
 | 2 carries the field | Summaries in uniform water: `active 70–95/160 bearing 191–193° vs 192–193° speed 0.55 vs 0.58`. Readout: `mean bearing 191°` vs `field here 0.503 m/s bearing 191° Race`. |
 | 3 rides the water | `nearest streak 8.4m: surface 29.65 (flat 30.00, wave -0.35) | vanilla Floating.GetWaterLevel 29.65 (delta 0.000)`. |
-| 4 handedness | **MEASURED: `90 − bearing`.** With `−bearing` deployed, lines lay at 102° in 191° water (a quarter turn across); with `90 − bearing`, "long ways along the flow so a line instead of an arrow" (owner). `rot 257° for bearing 191°`. `startSize3D.x` is the length axis. A first "90° off" against `90 − bearing` was a confounded reading in the slack node by spawn — see CLAUDE.md Known traps. |
+| 4 handedness | **MEASURED: `90 − bearing`.** With `−bearing` deployed, lines lay at 102° in 191° water (a quarter turn across); with `90 − bearing`, "long ways along the flow so a line instead of an arrow" (RavenIron). `rot 257° for bearing 191°`. `startSize3D.x` is the length axis. A first "90° off" against `90 − bearing` was a confounded reading in the slack node by spawn — see CLAUDE.md Known traps. |
 | 5 sort order | One daylight screenshot: faint foam-white streaks on green water, not blue-tinted, no clipping seen. In the 2.3 m+ ThunderStorm sea nothing was visible at all (row 9), so sort order there is moot — no clipping artefact was seen because no streak was. |
 | 6 night | **SEEN 2026-09-21, AND IT WAS A DEFECT.** `tod 0` on Storm10: `ambient lum 0.38 -> day 1.00` — the input never reads as night. Valheim's midnight ambient is moonlit grey, the floor was 0.05 and saturation 0.35, so the foam drew at full daytime brightness all night for three releases while the harness stayed green against a 0–1 range the sky never uses. Noon under the same sky read 0.56, the same as the 18th. The fog colour, recovered by inverting the printed tint, runs **0.18 → 0.53** midnight → noon against ambient's 0.38 → 0.56 — the lever step 6 pre-planned. **Fixed the same day:** `DayFactor` is fed the fog luminance, floor 0.05 → 0.20, slope unchanged; the four readings are named constants in `DriftLineMath` and the harness's fixture (444 → 447), and the new midnight assertion was proven to fail against the old floor (`0.4333`). `wake lines` now prints `fog lum … -> day … (ambient lum …)`. **SEEN 2026-09-21 on the fixed build, and the eye overruled the numbers** (task 11 item 4): at `tod 0`, `fog lum 0.15 -> day 0.00 (ambient lum 0.37)`, tint `(0.07, 0.07, 0.08)` — "too dim to find". The night level became the per-machine dial `DriftLineNightFloor`, slid live at midnight: 0.35 too dim, 1.0 the accidental look, **0.7 ships**. Fixture 454 by then, 459 at 1.0. |
 | 7 cost | **0.37 ms EMA at 160/160 active** (0.34 last frame, 81 surface reads, 0 field evals — memo 24 cells), budget 0.50. Prior was 0.25. Auto-degrade never fired. The first cost summary after build read 2.66 ms with nothing active — a single-frame EMA seed, fixed the same day (EMA now rises from zero and no verdict is taken for 60 warm-up frames). |
 | 8 zone crossings | `retired: no-volume 0, reflected 1` over a swimming session; no latch. ~~The 1 km sail is still owed.~~ **Struck from the 1.0 ladder 2026-09-21:** no README sentence rests on it ("never networked or saved" is by construction), and every session since 2026-09-18 has crossed zones under sail with no exception and no latch. Still worth one deliberate look; task 11 "Owed" carries it. |
-| 9 storm | **SEEN, 08:13–08:19.** RW 0.27.0 on both sides (server un-parked for it; the two ServerSync-pinned mods parked instead, at the owner's direction). `event ragnarokswrath_devastating_storm` from the client console → server `Random event set` and RW `storm began — sky is 'Rain'` at (-2286, 2091) → client `STORM at (-2286, 2091) — IsStormAt(centre)=True, surge x1.6 \| at centre: 0.273 m/s Drift \| 800m away: 0.151 m/s surge x1`. Console, before → under surge (owner's paste): `wake here` 0.173 m/s ESE Drift → **0.265 m/s, `STORM SURGE x1.6 — the sea is up here`**; `wake lines` active 34 → **82**, spawned per 10 s 38 → **73**, mean length 2.4 → **2.8 m**, mean speed 0.21 → 0.30, cost 0.08 → 0.14 ms EMA; nearest-streak delta against vanilla 0.000 both times in a 0.7 m sea. Surge reaches the visual through speed alone, as designed. Chop stayed ~0.21 (the storm's sky was 'Rain', not a big sea). Same paste closed the season check: `season summer (Wrath)` on a pure client. **Then forced to ThunderStorm** (08:21 and 08:28; `StormsForceWeather = true`, `StormForcedEnvironment = ThunderStorm` on both sides, both restarted because RW registers the event's forced sky at boot): **`chop 1.00` for the whole storm** — sea state past 2.3 m, the full chop response — mean length 3.1–3.9 m at 0.23–0.38 m/s water, 50–81 active, cost ≤ 0.21 ms, surge x1.6 again at (-2332, 2101). **And the owner saw NO streaks in it** ("they disappeared, but that's fine in a storm") while the pool held 50–81 active: they existed and were unseen — under the rendered mesh on steep crests (the predicted failure: lift is `0.06 + 0.05 × chop` = 0.11 m at chop 1 against a 2 m+ crest) or lost to the ThunderStorm's rain and fog; the log cannot tell which. Accepted by the owner as storm behaviour and NOT chased. The lever, if it is ever wanted: `ChopLiftMetres` 0.05 → 0.2 first, then a chop-scaled opacity floor. RW's own note applies to that sky: ThunderStorm is a WET environment, so a forced storm rains and its lightning is suppressed — the dry storm look is `Eikthyr`. |
+| 9 storm | **SEEN, 08:13–08:19.** RW 0.27.0 on both sides (server un-parked for it; the two ServerSync-pinned mods parked instead, at RavenIron's direction). `event ragnarokswrath_devastating_storm` from the client console → server `Random event set` and RW `storm began — sky is 'Rain'` at (-2286, 2091) → client `STORM at (-2286, 2091) — IsStormAt(centre)=True, surge x1.6 \| at centre: 0.273 m/s Drift \| 800m away: 0.151 m/s surge x1`. Console, before → under surge (RavenIron's paste): `wake here` 0.173 m/s ESE Drift → **0.265 m/s, `STORM SURGE x1.6 — the sea is up here`**; `wake lines` active 34 → **82**, spawned per 10 s 38 → **73**, mean length 2.4 → **2.8 m**, mean speed 0.21 → 0.30, cost 0.08 → 0.14 ms EMA; nearest-streak delta against vanilla 0.000 both times in a 0.7 m sea. Surge reaches the visual through speed alone, as designed. Chop stayed ~0.21 (the storm's sky was 'Rain', not a big sea). Same paste closed the season check: `season summer (Wrath)` on a pure client. **Then forced to ThunderStorm** (08:21 and 08:28; `StormsForceWeather = true`, `StormForcedEnvironment = ThunderStorm` on both sides, both restarted because RW registers the event's forced sky at boot): **`chop 1.00` for the whole storm** — sea state past 2.3 m, the full chop response — mean length 3.1–3.9 m at 0.23–0.38 m/s water, 50–81 active, cost ≤ 0.21 ms, surge x1.6 again at (-2332, 2101). **And RavenIron saw NO streaks in it** ("they disappeared, but that's fine in a storm") while the pool held 50–81 active: they existed and were unseen — under the rendered mesh on steep crests (the predicted failure: lift is `0.06 + 0.05 × chop` = 0.11 m at chop 1 against a 2 m+ crest) or lost to the ThunderStorm's rain and fog; the log cannot tell which. Accepted by RavenIron as storm behaviour and NOT chased. The lever, if it is ever wanted: `ChopLiftMetres` 0.05 → 0.2 first, then a chop-scaled opacity floor. RW's own note applies to that sky: ThunderStorm is a WET environment, so a forced storm rains and its lightning is suppressed — the dry storm look is `Eikthyr`. |
 | 10 gameplay untouched | Boot line `Harmony patched 3` on both sides. ~~`wake drift` on/off comparison still owed.~~ **Struck from the 1.0 ladder 2026-09-21:** the README's "changes nothing about how a boat or swimmer moves" holds by construction — `Visuals/` adds no patch and writes no gameplay state — and the drift numbers taken with the lines armed (task 11 items 2 and 3, and the baseline that re-confirmed task 6) match the ones taken before the lines existed. The two-minute on/off comparison is still the honest measurement; task 11 "Owed" carries it. |
-| 11 owner's eye | "a line instead of an arrow" — the design. Opacity at default read as subtle; the owner did not ask for more. |
+| 11 tester's eye | "a line instead of an arrow" — the design. Opacity at default read as subtle; RavenIron did not ask for more. |
 
 **Acceptance at 1.0:** steps 1–4, 6, 7 and 9 met, 5 partial, 8 and 10 struck from the ladder (see
 the rows). The pool saturates
@@ -1078,7 +1078,7 @@ is unreachable code.
 **All three tables are EMPTY, and that is a measurement.** Undertow's config history is append-only
 across its whole life. Three independent records agree: the source at all four commits that ever
 touched `ModConfig.cs` (14 -> 25 -> 27 -> 33 binds, nothing ever removed), the shipped 0.5.1 and
-0.6.0 DLLs' own string tables, and nine real `com.raveniron.undertow.cfg` files on the owner's
+0.6.0 DLLs' own string tables, and nine real `com.raveniron.undertow.cfg` files on RavenIron's
 machines spanning 0.5.1, 0.6.0 and 0.7.0. No default moved, no key was renamed or retyped, no
 section string changed, no range narrowed — and of the 255 stored values across those nine files,
 none sits outside a current range, so nothing can be silently clamped on upgrade. Because
@@ -1090,7 +1090,7 @@ merely unobserved: no stranger holds a key this repo never published.
 client-side cosmetics that touch no world state, it is double-gated off on a dedicated server (five
 of the nine real files are server-side, where the key does nothing at all), it is the advertised
 feature of the release an owner chose to install, and defaulting it off would quietly overturn the
-locked "visible current — diegetic only" row. If the owner ever wants the opposite, that single key
+locked "visible current — diegetic only" row. If RavenIron ever wants the opposite, that single key
 is the lever, not the tuning section.
 
 **Harness 248 -> 357**, and every new assertion proven to fail without its fix — 28 mutations applied
@@ -1123,7 +1123,7 @@ fixed and every fix is pinned by a mutation.
 2. **The stamp could go DOWN.** `Finish` assigned `CurrentVersion` unconditionally, and a file
    stamped by a NEWER build reaches `Finish` through the AlreadyCurrent path. Roll a mod back for an
    afternoon and the stamp is dragged to 1; roll forward and the newer rungs replay against values
-   the owner has since chosen — and a rebase cannot tell a deliberate choice from the old default it
+   the user has since chosen — and a rebase cannot tell a deliberate choice from the old default it
    happens to equal. The stamp is now a high-water mark.
 3. **A retirement could delete a LIVE setting.** The retire loop had no guard, relying on
    `Bind`'s cast to throw. That only protects types that differ: BepInEx returns the EXISTING entry
@@ -1180,7 +1180,7 @@ migrates nothing and logs nothing. The run has to be against an existing file.
 
 ## 9. The config sync — BUILT 2026-09-19, RUN IN-GAME THE SAME DAY, ADMIN PUSH CLOSED
 
-The owner's call, taken from four options on 2026-09-19: **"Server wins, and admins can push."**
+RavenIron's call, taken from four options on 2026-09-19: **"Server wins, and admins can push."**
 
 ### The problem, and why it was invisible
 
@@ -1250,7 +1250,7 @@ Ratio 0.90 is the SERVER's `SwimmerDriftFactor`. On the client's own 0.5 the dri
 **The client's config file was NOT written, measured rather than assumed.** Hashed before joining
 and again mid-session. The hash DID change, which looked at first like the design's central
 promise failing — the diff is one line, `VerboseLogging false → true`, a key deliberately NOT on
-the wire and changed by the owner in ConfigurationManager. All three synced keys still hold the
+the wire and changed by RavenIron in ConfigurationManager. All three synced keys still hold the
 client's own values on disk (1.2 / 0.4988263 / 0.5) while the running game uses the server's.
 Worth keeping: the hash alone would have read as a failure, and only the diff said otherwise.
 
@@ -1288,7 +1288,7 @@ Both are the "audit the instrument" rule, and both will happen again:
 **THE ADMIN PUSH IS CLOSED — verified in game 2026-09-19, and it took a real fix to get there.**
 
 The first attempt failed at the CLIENT gate, not the server's. Undertow refused to send because
-`ZNet.LocalPlayerIsAdminOrHost()` said the owner was not an admin — while they were in
+`ZNet.LocalPlayerIsAdminOrHost()` said RavenIron was not an admin — while they were in
 `adminlist.txt` in all three forms (bare numeric, `V_`, `Steam_`). That accessor falls through to
 `PlayerIsAdmin(UserInfo.GetLocalUser().UserId)`, a single `adminList.Contains(userId.ToString())`,
 and under `-crossplay` the local identity is a PlayFab one (the server's own handshake logs
@@ -1386,7 +1386,7 @@ unobservable on one, because a listen host stands down on `IsServer()` by design
 
 ## 10. Foam in all moving water (0.8.0) — BUILT 2026-09-19, SERVER LEG RUN THE SAME DAY
 
-The owner's instruction, verbatim: *"i need the drift lines to show in all water"*, after two
+RavenIron's decision: the drift lines show in all water, after two
 sessions of never seeing foam anywhere they stood.
 
 ### Why they saw nothing, which took two readings to establish and neither was a bug
@@ -1442,13 +1442,13 @@ outcome. That is the conservative side to err on, and it also means a `.bak` bes
 not evidence that anything in it moved. This was also the first time a client was ever SEEN to
 migrate at all (task 8's other open observation), so both close together.
 
-✅ **(b) CLOSED 2026-09-21 — "lying on the water", the owner's words, in Drift water near
+✅ **(b) CLOSED 2026-09-21 — "lying on the water", RavenIron's words, in Drift water near
 (-700, -1050) at the shipped `DriftLineLiftMetres = 0.02` and default opacity.** The paragraph
 below is how it stood the day before. Foam was seen the same day at (-3044, 3728) — `wake lines` reading
-`active 23`, `min depth 2m`, in 2.3 m water where 0.7 drew nothing — and the owner's next report
+`active 23`, `min depth 2m`, in 2.3 m water where 0.7 drew nothing — and RavenIron's next report
 was that it **floated above the surface**. The hover was uniform, so the lift was rebuilt as one
 `DriftLineLiftMetres` key (default 0.02 m, replacing `BaseLiftMetres` 0.06 + `ChopLiftMetres` 0.05
-× chop) and deployed. **Nobody has looked at the water since.** The owner's "much better" came from
+× chop) and deployed. **Nobody has looked at the water since.** RavenIron's "much better" came from
 `DriftLineOpacity` 1 → 2, before the lift change was on the client. So: foam in formerly-bare water
 is seen; the two originally reported coordinates were not revisited; and whether 2 cm sits the foam
 ON the water is the one 0.8.0 change that is built, deployed and unobserved. (c) `wake lines` cost
@@ -1524,9 +1524,9 @@ Storm10 at defaults except `FlotsamPerHour 60` and verbose. What the log shows, 
   session — every one at 1801 s against an 1800 s TTL — including items five kilometres from the
   only player, in unloaded zones. `DestroyZDO` needs no instance, only the uid, which is the
   2026-08-28 fix doing its job.
-- **The ZDO table moves by exactly the item.** While the owner was still, a spawn read +1
+- **The ZDO table moves by exactly the item.** While the player was still, a spawn read +1
   (`193176 → 193177`) and consecutive reclaims read −1, −1, −1, −1 (`193498 → 193495 → 193494 →
-  193493`). While the owner sailed, the total jumped by hundreds to tens of thousands — that is
+  193493`). While the player sailed, the total jumped by hundreds to tens of thousands — that is
   the world generating zones and has nothing to do with us, which is why the acceptance says
   "flat while parked". Note the reading is ONE BEHIND on a reclaim line: vanilla's `DestroyZDO`
   only queues the uid (`m_destroySendList`), and the removal from `m_objectsByID` happens when
@@ -1548,9 +1548,9 @@ was taken "with" them, and Njord is the one mod that matches the shape `CLAUDE.m
 warning was written for: a physics overhaul with per-hull caps and no public source. The README
 says "boat stat mods should compose", on reasoning only. Tasks 2c and 2d hold the protocols and
 the predictions; this rung is running them.
-*Where:* the owner's call. Ravenrest is production, and "without" means parking a ServerSync-pinned
-mod on both sides for a session — or Storm10 with both mods added for the afternoon, which is the
-owner's infrastructure and not to be touched without asking.
+*Where:* RavenIron's call. Ravenrest is production, and "without" means parking a ServerSync-pinned
+mod on both sides for a session — or Storm10 with both mods added for the afternoon, which is
+RavenIron's infrastructure and not to be touched without asking.
 *Acceptance, and it is one number per mod:* a karve's settled `ALONG-RATIO` drifting with Njord
 and with it parked (2d step 1–2). Vanilla gave 0.86; near that and the saturation claim holds under
 Njord's damping; well below and the first answer is `DriftStrength` on that server, never a toggle.
@@ -1572,16 +1572,16 @@ drifting predictions (2c prediction 1, 2d point 3). The setup: Storm10's parked 
 was byte-identical to the `Ravenrest` profile's copy (`ff0dbde8…`, **2.0.5 — `CLAUDE.md`'s
 "1.3.5" was stale**, caps unchanged at 7 / 16.8 / 26 / 30 and every physics key in Storm10's
 `wubarrk.njord.cfg` equal to Ravenrest's; only `Debug_*`/`Vendor_*` differ), so it was unparked;
-Sailing came from the owner's Gale install of 1.1.9 (`7ea58b72…`), the same bytes on both sides.
+Sailing came from RavenIron's Gale install of 1.1.9 (`7ea58b72…`), the same bytes on both sides.
 Both loaded clean on server and client, zero errors from any mod. The sail-up runs follow.
 
 **SAIL-UP RUNS, SAME SESSION — CLOSED, with one sample honestly not re-taken.**
 
 - **Up-current at Njord's cap (2d step 4): a dozen samples.** Karve at 16.0–16.7 m/s by the log
-  (`total × water`), Njord's own readout pinned at **16.8** the whole time by the owner's eye, and
+  (`total × water`), Njord's own readout pinned at **16.8** the whole time by RavenIron's eye, and
   `dv` reading `water × 0.02` to the fifth decimal on every line — `0.569 → 0.01137`,
   `0.472 → 0.00944`, `0.288 → 0.00576`, `0.326 → 0.00653`, `0.339 → 0.00678` — the full push,
-  unclamped, with the hull making 16 m/s of headway against it. **"No judder"** (owner). A
+  unclamped, with the hull making 16 m/s of headway against it. **"No judder"** (RavenIron). A
   magnitude cap and an opposing push coexist exactly as 2d point 2 argued from Unity's
   integration order. Njord's readout never sat above its cap while we pushed, so 2d step 5's
   one-tick bound was not contradicted.
@@ -1614,7 +1614,7 @@ single safety property, and its clamp has never executed in game: on 2026-08-28 
 requested drift never came within a factor of seven of the cap, so `SwimDrift.Compute`'s clamp
 branch has only ever run in the harness. The 2026-09-19 report "swimming against a current makes
 you go backward" was taken under a test-contaminated `SwimmerDriftFactor = 0.9`, not defaults —
-but it is exactly the symptom shape, and the owner noticed it inside a minute.
+but it is exactly the symptom shape, and RavenIron noticed it inside a minute.
 *Protocol:* task 5's, with the factor at the top of its range on the SERVER (it is synced, so one
 edit reaches the swimmer), in the fastest water on the map — a race, or a storm over deep sea if RW
 obliges. The 3-second `swim drift` line must show `drift` pinned at `cap` (0.7 at swimSpeed 2).
@@ -1624,7 +1624,7 @@ factor back to 0.5. If a swimmer at full stamina cannot make headway with the cl
 feature is wrong and not the tuning — task 5's own words.
 **RUN 2026-09-21, CLOSED.** Storm10, `SwimmerDriftFactor 1.0` and `SwimmerMaxShareOfSwimSpeed 0.2`
 pushed from the server (the client adopted them over the wire — the sync's first use as a test
-rig). The owner found a race at (3540, 792) running **0.965–1.002 m/s**, so the request was a
+rig). RavenIron found a race at (3540, 792) running **0.965–1.002 m/s**, so the request was a
 full metre per second of drift, and the line read `drift 0.4 (cap 0.4)` — pinned, the clamp
 branch of `SwimDrift.Compute` executing on real water for the first time. Floating: `swimmer
 0.38 m/s`, 95% of the drift, the same match as 2026-08-28 and 2026-09-12. Swimming: `swimmer
@@ -1637,20 +1637,20 @@ named in `CLAUDE.md`, and the README's "night, fog, distance and a big sea dim i
 has never been looked at. Task 7 row 6 has been "not seen" since 2026-09-18.
 *Protocol:* task 7 step 6. `wake lines` at noon, dusk, midnight and in rain; `ambient lum` must
 MOVE, and midnight must read as a faint grey smear a shade lighter than the water, never a glow.
-*Acceptance:* the owner's eye at midnight, and the four `lum` readings recorded in row 6. The one
+*Acceptance:* RavenIron's eye at midnight, and the four `lum` readings recorded in row 6. The one
 lever if it fails is `DayFactor`'s input (fog luminance instead of ambient); the two knobs are
 `DayFloorLuminance` and `DaySlopeLuminance` in `DriftLineMath`.
 **RUN 2026-09-21 — it failed, exactly the way the lever anticipated, and the lever was pulled.**
 Midnight ambient 0.38 → day factor 1.00: no dimming at all. Fog luminance 0.18 → 0.53 across
 the same two readings; `DayFactor` now takes the fog, floor 0.20. Task 7 row 6 has the numbers.
 *The eye, same session, and it overruled the numbers.* On the fixed build at `tod 0`: `fog lum
-0.15 -> day 0.00 (ambient lum 0.37)`, tint `(0.07, 0.07, 0.08)` — and the owner: **"too dim to
+0.15 -> day 0.00 (ambient lum 0.37)`, tint `(0.07, 0.07, 0.08)` — and RavenIron: **"too dim to
 find."** The design sentence "a faint grey smear" had been read as "nearly nothing", and nearly
 nothing is not what foam does on black water. So the night floor became a per-machine dial,
 `DriftLineNightFloor`, slid live at midnight through the config manager: 0.35 too dim, **1.0
 fine** (no dimming — the look three releases had shipped by accident), **0.7 "works too"**.
 Ships at 0.7, which keeps some night and all of the storm-sky dimming. **CLOSED.** The lesson
-for the ladder: a visual acceptance is the owner's eye, and a number that reads 0.00 exactly
+for the ladder: a visual acceptance is RavenIron's eye, and a number that reads 0.00 exactly
 where the harness says it should is not a substitute for it.
 
 **5. The tide reversing the coastal stream, seen.** The README's whole Tides section — "reverses
@@ -1668,7 +1668,7 @@ roughly opposed. Then the period back to 3600.
 The first flood readings were taken by `wake here` at (4798, 1019) and (4804, 1006) and the slack
 ones at (4786, 1003); twelve to twenty metres apart is enough on a shelf to change the shore
 gradient the coastal tangent is built from, and the set was not comparable. The fix was
-**`wake field 4786 1003` from wherever the owner happened to be** — the field is a pure function,
+**`wake field 4786 1003` from wherever the player happened to be** — the field is a pure function,
 so the same point can be read remotely through a whole cycle without holding station. Sixteen
 readings at that one point, `TidePeriodSeconds 600` pushed from the server:
 
@@ -1692,8 +1692,8 @@ multiplied by the signed `coastalSpeed`, so on the ebb it pushes off the shore. 
 the coastal term; the comment and the README's lee-shore argument say always. A field-maths
 change, so it waits for the item 6 decision rather than being fixed mid-session.
 
-**6. The decision — the speed, and version gating. Both are the owner's, not the code's.**
-On 2026-09-19 the owner asked for "actual current speeds", then "as real as possible", and then
+**6. The decision — the speed, and version gating. Both are RavenIron's, not the code's.**
+On 2026-09-19 RavenIron asked for actual current speeds, then for them as real as possible, and then
 chose to leave the tuning where it is. That stands and is not reopened here. What this entry
 records is the COST SHAPE: every field constant that changes before 1.0 is a number; every one
 that changes after is a migration on every existing install. The analysis behind that session —
@@ -1749,7 +1749,7 @@ non-admin's refusal line (no non-admin has ever pushed), a 300 m strait measured
 carry "harness only, not yet read on the water" in their own bullets; the changelog's midnight fog
 figure is the code's 0.18, not the later 0.15; and task 7 row 6's tail, its acceptance line, the
 lift "owed" bullet and task 9's "never met" line were all stale in the direction of owing what had
-been done. Version 1.0.0 in all three places; `package.ps1` built the zip; **the owner uploaded it
+been done. Version 1.0.0 in all three places; `package.ps1` built the zip; **RavenIron uploaded it
 the same afternoon, and Hexium's API read `latest 1.0.0` at 19:32Z on 2026-09-21.**
 **Three five-minute readings would let three softened sentences go back to full strength, and
 none of them blocks the upload:** a non-admin push refused (task 9 step 8, one `adminlist.txt`
@@ -1807,7 +1807,7 @@ None of these would stop the number going on, and each is written up where it be
 to increase paddle force by a factor of 5 to fight that", then, with a karve: "as long as I set
 the current speed maximum to 0.25 I can paddle through anything. At 0.3 it will hold me in place
 or start pushing me backward. Heading directly into the drift lines." He had worked around it
-since 0.5.1 with a ShipConfig mod. The owner's own `wake here` at the spot read 0.182 m/s toward
+since 0.5.1 with a ShipConfig mod. RavenIron's own `wake here` at the spot read 0.182 m/s toward
 ENE in shallows — a leaf's worth of water — which is what said "model, not tuning" before any
 number was read.
 
@@ -1846,7 +1846,7 @@ resistance and the exact correction is `−d × sub × [(v − w)|v − w| − v
 (`m_floatCollider`, `m_waterLevelOffset`, `m_disableLevel`, `m_forceDistance`,
 `Floating.GetWaterLevel(Vector3, ref WaterVolume)`, all public).
 
-**Watched, same afternoon, Storm10 with Njord and Sailing parked at the owner's direction.**
+**Watched, same afternoon, Storm10 with Njord and Sailing parked at RavenIron's direction.**
 Verbose drift lines from a paddled karve, zero exceptions: `sub 0.38–0.46` (twice the 0.196 that
 gravity against `m_force` predicts at rest — the sea is never flat; the harness now uses 0.4);
 running WITH a 0.44 m/s current `along 3.3–3.5, mode underway` (3.16 through the water + the
@@ -1854,7 +1854,7 @@ current, as the model says); then bow into it: `water 0.312 along −0.349 … 0
 0.25 along −1.518 … 0.179 along −1.707 … 0.212 along −1.447` — **1.5–1.9 m/s of headway straight
 into 0.25–0.31 m/s of water, where 1.0.0 stalled** (the rudder was on for some of it, and the
 paddle is `× (1 − |rudder|)`). Paddle stopped: `mode adrift`, `ALONG-RATIO 0 → 0.6 → 0.75 → 0.97`
-over six seconds, the water taking the hull. The owner: "im making headway now".
+over six seconds, the water taking the hull. RavenIron reported making headway.
 
 **Harness 459 → 480.** `DriftUnderWayTests` checks the pure function (still water, exact
 cancellation at the water's velocity, the upstream cost, the downstream gain, the beam axis, the
@@ -1865,7 +1865,7 @@ exactly faster with it; and the shipped 1.0.0 push in the same simulation leaves
 0.95 m/s in Grishak's water and going backward in a race — the proof-of-failure lives in the
 harness permanently rather than in a revert.
 
-**The dial (owner's ask: "can we make this value adjustable?").** `UnderWayDragFactor`, synced,
+**The dial (RavenIron asked for this value to be adjustable).** `UnderWayDragFactor`, synced,
 default 1 = the water's own drag, 0 = a hull under way ignores the current, range 0–3.
 `DriftStrength` governs adrift hulls only now. Thirteen keys on the wire; a key joining is
 per-line tolerance, not a header bump, so `undertow-cfg/2` stands.
@@ -1877,7 +1877,7 @@ water resisting sideways slip, which is right, but nobody has felt it under sail
 0 and at 2, watched; and Grishak's own confirmation on his server with his ShipConfig workaround
 removed.
 
-**PUBLISHED 2026-09-21 20:44Z**, uploaded by the owner and confirmed through Hexium's API
+**PUBLISHED 2026-09-21 20:44Z**, uploaded by RavenIron and confirmed through Hexium's API
 (`latest 1.0.1`), seventy-two minutes after 1.0.0 — which took 26 downloads in that window. Report
 to fix on the store: about four hours, with the diagnosis resting on one boot line that did not
 exist that morning.
