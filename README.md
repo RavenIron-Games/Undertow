@@ -41,7 +41,7 @@ A slow flood and ebb on a configurable cycle. It swings how hard the open ocean 
 **reverses the coastal stream**, so the passage you know is a different passage six hours later.
 Departure time becomes a decision.
 
-Watched through a cycle on Valheim 1.0.15: one coastal point read sixteen times from `wake field`
+Watched through a cycle on Valheim 1.0: one coastal point read sixteen times from `wake field`
 as the tide ran — 0.585 m/s ESE at peak ebb, 0.272 m/s S at peak flood, the along-shore stream
 reversing under an open-water drift that never turns, and the peak-flood reading predicted before
 it was taken.
@@ -57,7 +57,7 @@ what a current is: going into it costs you exactly the water's speed over the gr
 it pays exactly that, whatever your hull, and your speed THROUGH the water is never touched.
 (Through 1.0.0 the current was a constant push against any hull driving upstream, which stopped a
 paddled karve in 0.2 m/s of water; 1.0.1 fixed it.) A boat left drifting settles at **the water's own speed**: a karve
-re-measured on Valheim 1.0.15 read 0.99–1.00 against the water's 1.0, with and without Njord and
+re-measured on Valheim 1.0 read 0.99–1.00 against the water's 1.0, with and without Njord and
 Sailing loaded. A karve and a longship measured together before Valheim 1.0 read 0.86 and 0.96 —
 two hulls that damp very differently, both near the water's speed, which is the point; the
 longship has not sailed again since. A hull also resists sideways drift more than
@@ -72,7 +72,7 @@ Currents converge, so things gather. Driftwood, cargo and what the drowned no lo
 collect in slack water — giving you a second reason to know where the sea goes quiet.
 
 Uses **only vanilla items**, never a new prefab. Capped, reclaimed on a timer, and spawned only
-near a real player — an empty ocean stays empty. Watched on a dedicated server on Valheim 1.0.15:
+near a real player — an empty ocean stays empty. Watched on a dedicated server on Valheim 1.0:
 twelve items spawned to the cap and the cap held; fourteen reclaims each landed at 1801 s against
 an 1800 s timer, including items five kilometres from the only player; the server's whole object
 table moved by exactly one per item; and ten minutes of empty server produced nothing and still
@@ -81,7 +81,7 @@ cleaned up.
 ### 🏊 Swimmers
 The current carries a swimming body too, gently. It is **hard-capped below swim speed**: you can
 always out-swim the water and reach shore. That is a safety property rather than a balance dial,
-and it is enforced across every setting the config permits. Seen engaged on Valheim 1.0.15: in a
+and it is enforced across every setting the config permits. Seen engaged on Valheim 1.0: in a
 race running a full metre per second, with the drift factor at the top of its range, the swimmer's
 drift read `0.4 (cap 0.4)` and a swimmer heading upstream made 1.57 m/s over the water — swim
 speed minus the cap, to the second decimal.
@@ -171,7 +171,7 @@ the hulls it owns, because drift is applied by whoever owns the boat.
   stand and the season shifts the drift. Optional; absence is logged once and changes nothing else.
 - **Seasonality / Seasons** — never touched. Undertow selects no environment, reads no season
   directly, and modifies no material.
-- **Njord** (Wubarrk) and **Sailing** (Smoothbrain) — measured together on Valheim 1.0.15: a
+- **Njord** (Wubarrk) and **Sailing** (Smoothbrain) — measured together on Valheim 1.0: a
   drifting karve settles at the same speed with them as without, and Njord's per-hull speed cap
   and the current coexist without a judder. Njord changes the hull's handling, Sailing its
   propulsion, Undertow the water.
@@ -199,7 +199,7 @@ back for patrons, and nothing ever will be.
 
 If you'd like to help cover server hosting and test hardware:
 
-- **Website** — <https://wubarrk.rossgilsonlabs.dev>
+- **Website** — <https://ravenirongames.com/>
 - **Patreon** — <https://www.patreon.com/cw/RavenIronGames>
 - **Discord** — <https://discord.gg/AGKDEurAVa> — a channel per mod, and where the
   testing happens

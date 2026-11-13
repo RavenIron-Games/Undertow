@@ -1,8 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.0.4 — 2026-11-01
 
-- Website link moved to https://wubarrk.rossgilsonlabs.dev.
+Updated due to the Valheim 1.0.21 patch. Rebuilt and checked against Valheim 1.0.21 (network
+version 41); no code changes beyond the version string, and the wire is the same, so 1.0.3 and
+1.0.4 still share a sea. The BepInExPack dependency is now 5.4.2360.
+
+- Website link moved to https://ravenirongames.com/.
 
 ## 1.0.3 — 2026-09-25
 
